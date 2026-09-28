@@ -370,7 +370,7 @@ def run(universe: pd.DataFrame, prices: dict[str, pd.DataFrame], idx: pd.DataFra
     for p in picked:
         p["ind_n"] = ind_count.get(p["industry"], 0) if p["industry"] else 0
 
-    picked.sort(key=lambda p: (p["breakout"], p["score"], p["rs"]), reverse=True)
+    picked.sort(key=lambda p: (p["score"], p["breakout"], p["risk_ok"], p["rs"]), reverse=True)
     log(f"趨勢模板過關：{len(picked)} 檔；滿分 {sum(p['score'] == 4 for p in picked)} 檔；"
         f"今日突破 {sum(p['breakout'] for p in picked)} 檔")
 
