@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SEPA 選股</title>
+<style>
+:root{
+  --bg:#f6f7f9; --card:#fff; --fg:#1b1f24; --muted:#6b7280; --line:#e5e7eb;
+  --up:#d9363e; --down:#15803d; --accent:#2563eb; --ok:#16a34a; --no:#d1d5db;
+  --warn-bg:#fff4e5; --warn-fg:#9a4a00; --good-bg:#e8f7ee; --good-fg:#11632f;
+  --new:#7c3aed; --hl:#fffbe6;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1115; --card:#171a21; --fg:#e6e8eb; --muted:#9aa3ae; --line:#2a2f3a;
+    --up:#f06a70; --down:#4ade80; --accent:#60a5fa; --ok:#4ade80; --no:#3a404c;
+    --warn-bg:#3a2a12; --warn-fg:#ffc47a; --good-bg:#12301f; --good-fg:#86efac;
+    --new:#a78bfa; --hl:#2a2614;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 -apple-system,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif}
+header{padding:16px;max-width:1400px;margin:0 auto}
+h1{font-size:20px;margin:0 0 4px}
+.sub{color:var(--muted);font-size:13px}
+main{max-width:1400px;margin:0 auto;padding:0 16px 40px}
+.banner{border-radius:10px;padding:10px 14px;margin:10px 0;font-weight:600}
+.banner.good{background:var(--good-bg);color:var(--good-fg)}
+.banner.warn{background:var(--warn-bg);color:var(--warn-fg)}
+.banner small{font-weight:400;display:block;opacity:.85}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}
+.controls label{font-size:13px;color:var(--muted)}
+input,select,button{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+input[type=number]{width:90px}
+input[type=search]{width:140px}
+.chip{cursor:pointer;user-select:none}
+.chip.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.stats{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 12px;min-width:110px}
+.stat b{display:block;font-size:20px}
+.stat span{font-size:12px;color:var(--muted)}
+.wrap{overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;white-space:nowrap}
+th,td{padding:7px 9px;border-bottom:1px solid var(--line);text-align:right}
+th{position:sticky;top:0;background:var(--card);font-size:12px;color:var(--muted);cursor:pointer;z-index:1}
+th.l,td.l{text-align:left}
+tbody tr{cursor:pointer}
+tbody tr:hover{background:var(--hl)}
+.sid{font-weight:700}
+.new{color:var(--new);font-weight:700;font-size:12px}
+.pos{color:var(--up)} .neg{color:var(--down)}
+.dots{display:inline-flex;gap:3px;vertical-align:middle}
+.dot{width:18px;height:18px;border-radius:50%;font-size:11px;line-height:18px;text-align:center;background:var(--no);color:#fff}
+.dot.on{background:var(--ok)}
+.bo{display:inline-block;margin-left:6px;padding:0 6px;border-radius:6px;background:var(--up);color:#fff;font-size:11px}
+.bad{color:var(--muted);text-decoration:line-through}
+.lnk a{margin-left:4px;font-size:12px;text-decoration:none;color:var(--accent);border:1px solid var(--line);border-radius:6px;padding:1px 6px}
+details{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin:10px 0}
+details summary{cursor:pointer;font-weight:600}
+details li{margin:3px 0}
+#preview{position:fixed;display:none;z-index:50;width:560px;height:400px;background:var(--card);border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.25);overflow:hidden}
+#preview .t{height:28px;line-height:28px;padding:0 10px;font-size:13px;background:#1f2937;color:#fff}
+#preview iframe,#modal iframe{border:0;width:100%;height:calc(100% - 28px)}
+#modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;z-index:60;align-items:center;justify-content:center;padding:16px}
+#modal .box{background:var(--card);width:min(900px,100%);height:min(620px,85vh);border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
+#modal .t{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line)}
+#modal .info{padding:8px 12px;font-size:13px;color:var(--muted);border-bottom:1px solid var(--line)}
+#modal iframe{flex:1;height:auto}
+.empty{padding:30px;text-align:center;color:var(--muted)}
+@media (max-width:640px){ h1{font-size:18px} .stat{min-width:calc(50% - 4px)} }
+</style>
+</head>
+<body>
+<header>
+  <h1>SEPA 選股：趨勢模板＋VCP 評分</h1>
+  <div class="sub" id="sub">載入中…</div>
+</header>
+<main>
+  <div id="banner" class="banner" style="display:none"></div>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="controls">
+    <label>日期 <select id="date"></select></label>
+    <label>總資金（萬）<input type="number" id="capital" min="1" step="10" value="100"></label>
+    <label>每筆最多虧 <input type="number" id="riskPct" min="0.25" max="5" step="0.25" value="1">%</label>
+  </div>
+  <div class="controls">
+    <button class="chip on" data-f="all">全部</button>
+    <button class="chip" data-f="full">4 條全過</button>
+    <button class="chip" data-f="bo">今日突破</button>
+    <button class="chip" data-f="new">新上榜</button>
+    <button class="chip" data-f="riskok">風險 ≤ 8%</button>
+    <select id="ind"><option value="">全部產業</option></select>
+    <input type="search" id="q" placeholder="代號／名稱">
+  </div>
+
+  <div class="wrap">
+    <table>
+      <thead><tr>
+        <th class="l" data-k="new">新</th>
+        <th class="l" data-k="id">代號</th>
+        <th class="l" data-k="name">名稱</th>
+        <th class="l" data-k="industry">產業（上榜數）</th>
+        <th data-k="close">收盤</th>
+        <th data-k="rs">RS</th>
+        <th class="l" data-k="score" title="① 不追高 ② 近突破點 ③ 波動收斂 ④ 量縮">評分 ①②③④</th>
+        <th data-k="ret20">20日%</th>
+        <th data-k="ext50">離50MA%</th>
+        <th data-k="dist_hi">離高點%</th>
+        <th data-k="r1" title="區間幅度：前40日 → 前20日 → 近10日">收斂 %</th>
+        <th data-k="dry" title="近10日均量 ÷ 50日均量">量比</th>
+        <th data-k="entry">買點</th>
+        <th data-k="stop">停損</th>
+        <th data-k="risk">風險%</th>
+        <th data-k="shares">可買</th>
+        <th class="l">連結</th>
+      </tr></thead>
+      <tbody id="tb"><tr><td colspan="17" class="empty">載入中…</td></tr></tbody>
+    </table>
+  </div>
+
+  <details>
+    <summary>規則說明</summary>
+    <p><b>上榜門檻：趨勢模板 8 條全過</b>（超級績效）</p>
+    <ol>
+      <li>收盤價在 150 日線與 200 日線之上</li>
+      <li>150 日線 &gt; 200 日線</li>
+      <li>200 日線比一個月前高（上揚中）</li>
+      <li>50 日線在 150、200 日線之上</li>
+      <li>收盤價在 50 日線之上</li>
+      <li>離一年低點至少 +30%</li>
+      <li>在一年高點的 75% 以上</li>
+      <li>RS 評分 ≥ 70（近一年加權報酬，贏過七成股票）</li>
+    </ol>
+    <p><b>評分：4 條型態規則</b>（越高越接近書中的買點）</p>
+    <ol>
+      <li>① 不追高：離 50 日線 ≤ 25%，且 20 日漲幅 ≤ 40%</li>
+      <li>② 近突破點：在一年高點下方 5% 以內，且超過樞紐點不到 5%</li>
+      <li>③ 波動收斂：前 40 日 &gt; 前 20 日 &gt; 近 10 日的高低區間，且近 10 日 &lt; 10%</li>
+      <li>④ 量縮：近 10 日均量 &lt; 50 日均量的 70%</li>
+    </ol>
+    <p><b>今日突破</b>：收盤 &gt; 樞紐點（近 10 日最高）、成交量 &gt; 50 日均量 1.5 倍、收在當日上半部。</p>
+    <p><b>買點</b> = 樞紐點（已突破則用收盤價）；<b>停損</b> = 近 10 日最低價；<b>風險%</b> 超過 8% 會劃線，代表不做。<br>
+       <b>可買股數</b> = 總資金 × 每筆風險 ÷（買點 − 停損），單檔上限為總資金 25%。</p>
+    <p>產業後面的數字是同產業今天有幾檔上榜，越多代表族群越強。<br>
+       <b>新</b> = 過去 20 個交易日沒上榜過。</p>
+    <p style="color:var(--muted)">本頁只是篩選工具，不構成投資建議。</p>
+  </details>
+</main>
+
+<div id="preview"><div class="t"></div><iframe title="K線"></iframe></div>
+<div id="modal"><div class="box">
+  <div class="t"><b id="mt"></b><button id="mclose">關閉</button></div>
+  <div class="info" id="minfo"></div>
+  <iframe title="K線"></iframe>
+</div></div>
+
+<script>
+// ===== 設定 =====
+// 優分析個股網址：股票代號位置寫 {id}，例如 'https://xxx/stock/{id}'；留空就不顯示按鈕
+const UANALYZE_URL = '';
+
+const $ = s => document.querySelector(s);
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v === null ? d : v; }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, v); }catch(e){} }
+};
+let DATA = null, filter = 'all', sortKey = null, sortDir = -1;
+
+$('#capital').value = store.get('capital', '100');
+$('#riskPct').value = store.get('riskPct', '1');
+
+async function getJSON(u){
+  const r = await fetch(u + '?v=' + Date.now(), {cache:'no-store'});
+  if(!r.ok) throw new Error(r.status);
+  return r.json();
+}
+
+async function init(){
+  try{
+    const dates = await getJSON('data/dates.json').catch(() => []);
+    const sel = $('#date');
+    sel.innerHTML = dates.map(d => `<option>${d}</option>`).join('') || '<option>最新</option>';
+    sel.onchange = () => load(sel.value);
+    await load(dates[0]);
+  }catch(e){
+    $('#sub').textContent = '還沒有資料：請到 GitHub 的 Actions 頁面手動執行一次「每日選股」。';
+    $('#tb').innerHTML = '<tr><td colspan="17" class="empty">尚無資料</td></tr>';
+  }
+}
+
+async function load(date){
+  DATA = await getJSON(date ? `data/daily/${date}.json` : 'data/latest.json')
+    .catch(() => getJSON('data/latest.json'));
+  const m = DATA.market;
+  $('#sub').textContent = `資料日期 ${DATA.date}｜掃描 ${DATA.universe} 檔｜更新於 ${DATA.generated_at.replace('T',' ')}`;
+  const b = $('#banner');
+  const ok = m.above50 && m.above200;
+  b.style.display = 'block';
+  b.className = 'banner ' + (ok ? 'good' : 'warn');
+  b.innerHTML = ok
+    ? `大盤多頭：加權指數 ${m.close}，在 50 日線與 200 日線之上，可依規則進場<small>20 日漲幅 ${m.ret20}%｜50 日線${m.ma50_up ? '上揚' : '走平或下彎'}</small>`
+    : `大盤轉弱：加權指數 ${m.close} ${m.above50 ? '' : '跌破 50 日線'}${!m.above50 && !m.above200 ? '、' : ''}${m.above200 ? '' : '跌破 200 日線'}，建議暫停新進場<small>20 日漲幅 ${m.ret20}%</small>`;
+  const inds = [...new Set(DATA.stocks.map(s => s.industry).filter(Boolean))].sort();
+  const cur = $('#ind').value;
+  $('#ind').innerHTML = '<option value="">全部產業</option>' + inds.map(i => `<option ${i===cur?'selected':''}>${i}</option>`).join('');
+  render();
+}
+
+function shares(s){
+  const cap = parseFloat($('#capital').value) * 10000;
+  const rp = parseFloat($('#riskPct').value) / 100;
+  if(!cap || !rp || s.entry == null || s.stop == null || s.entry <= s.stop) return 0;
+  const byRisk = Math.floor(cap * rp / (s.entry - s.stop));
+  const byCap = Math.floor(cap * 0.25 / s.entry);
+  return Math.max(0, Math.min(byRisk, byCap));
+}
+function fmtShares(n){
+  if(!n) return '-';
+  const lots = Math.floor(n / 1000), odd = n % 1000;
+  return (lots ? lots + '張' : '') + (odd ? odd + '股' : '');
+}
+const pct = v => v == null ? '-' : `<span class="${v >= 0 ? 'pos' : 'neg'}">${v > 0 ? '+' : ''}${v.toFixed(1)}</span>`;
+const num = (v, d = 2) => v == null ? '-' : Number(v).toFixed(d);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function rows(){
+  const q = $('#q').value.trim(), ind = $('#ind').value;
+  let list = DATA.stocks.map(s => ({...s, shares: shares(s)}));
+  if(filter === 'full') list = list.filter(s => s.score === 4);
+  if(filter === 'bo') list = list.filter(s => s.breakout);
+  if(filter === 'new') list = list.filter(s => s.new);
+  if(filter === 'riskok') list = list.filter(s => s.risk_ok);
+  if(ind) list = list.filter(s => s.industry === ind);
+  if(q) list = list.filter(s => s.id.includes(q) || s.name.includes(q));
+  if(sortKey){
+    list.sort((a, b) => {
+      const x = a[sortKey], y = b[sortKey];
+      if(typeof x === 'string') return sortDir * x.localeCompare(y);
+      return sortDir * ((x ?? -1e9) - (y ?? -1e9));
+    });
+  }
+  return list;
+}
+
+function render(){
+  const all = DATA.stocks;
+  $('#stats').innerHTML = [
+    ['趨勢模板過關', all.length],
+    ['4 條全過', all.filter(s => s.score === 4).length],
+    ['今日突破', all.filter(s => s.breakout).length],
+    ['新上榜', all.filter(s => s.new).length],
+  ].map(([k, v]) => `<div class="stat"><b>${v}</b><span>${k}</span></div>`).join('');
+
+  const list = rows();
+  if(!list.length){ $('#tb').innerHTML = '<tr><td colspan="17" class="empty">沒有符合條件的股票</td></tr>'; return; }
+  $('#tb').innerHTML = list.map(s => {
+    const dots = ['r1','r2','r3','r4'].map((k, i) => `<span class="dot ${s.rules[k] ? 'on' : ''}">${'①②③④'[i]}</span>`).join('');
+    const links = [`<a href="https://tw.tradingview.com/chart/?symbol=${s.ex}:${s.id}" target="_blank" rel="noopener">TV</a>`];
+    if(UANALYZE_URL) links.unshift(`<a href="${UANALYZE_URL.replace('{id}', s.id)}" target="_blank" rel="noopener">優分析</a>`);
+    return `<tr data-id="${s.id}">
+      <td class="l">${s.new ? '<span class="new">新</span>' : ''}</td>
+      <td class="l sid">${s.id}</td>
+      <td class="l">${esc(s.name)}</td>
+      <td class="l">${esc(s.industry || '-')}${s.ind_n ? ` (${s.ind_n})` : ''}</td>
+      <td>${num(s.close)}</td>
+      <td>${s.rs}</td>
+      <td class="l"><span class="dots">${dots}</span>${s.breakout ? '<span class="bo">突破</span>' : ''}</td>
+      <td>${pct(s.ret20)}</td>
+      <td>${pct(s.ext50)}</td>
+      <td>${pct(s.dist_hi)}</td>
+      <td>${num(s.r3,1)} → ${num(s.r2,1)} → ${num(s.r1,1)}</td>
+      <td>${num(s.dry)}</td>
+      <td>${num(s.entry)}</td>
+      <td>${num(s.stop)}</td>
+      <td class="${s.risk_ok ? '' : 'bad'}">${num(s.risk,1)}</td>
+      <td class="${s.risk_ok ? '' : 'bad'}">${fmtShares(s.shares)}</td>
+      <td class="l lnk">${links.join('')}</td>
+    </tr>`;
+  }).join('');
+}
+
+// 篩選、排序、輸入
+document.querySelectorAll('.chip').forEach(b => b.onclick = () => {
+  document.querySelectorAll('.chip').forEach(x => x.classList.remove('on'));
+  b.classList.add('on'); filter = b.dataset.f; render();
+});
+document.querySelectorAll('th[data-k]').forEach(th => th.onclick = () => {
+  const k = th.dataset.k;
+  if(sortKey === k) sortDir = -sortDir; else { sortKey = k; sortDir = ['id','name','industry'].includes(k) ? 1 : -1; }
+  render();
+});
+$('#ind').onchange = render;
+$('#q').oninput = render;
+$('#capital').oninput = () => { store.set('capital', $('#capital').value); render(); };
+$('#riskPct').oninput = () => { store.set('riskPct', $('#riskPct').value); render(); };
+
+// K 線
+function chartUrl(sym){
+  const p = new URLSearchParams({
+    symbol: sym, interval: 'D', theme: matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light',
+    style: '1', locale: 'zh_TW', hidesidetoolbar: '1', hide_top_toolbar: '1', saveimage: '0', range: '12M',
+    studies: JSON.stringify(['MASimple@tv-basicstudies', 'Volume@tv-basicstudies'])
+  });
+  return 'https://s.tradingview.com/widgetembed/?' + p;
+}
+const find = id => DATA.stocks.find(s => s.id === id);
+const pv = $('#preview'), pvFrame = pv.querySelector('iframe');
+let pvSym = null, pvTimer = null;
+const canHover = matchMedia('(hover: hover) and (pointer: fine)').matches;
+
+if(canHover){
+  $('#tb').addEventListener('mouseover', e => {
+    const tr = e.target.closest('tr[data-id]');
+    if(!tr || e.target.closest('a')) return;
+    clearTimeout(pvTimer);
+    const x = e.clientX, y = e.clientY;
+    pvTimer = setTimeout(() => {
+      const s = find(tr.dataset.id); if(!s) return;
+      const sym = `${s.ex}:${s.id}`;
+      if(sym !== pvSym){ pvFrame.src = chartUrl(sym); pvSym = sym; }
+      pv.querySelector('.t').textContent = `${s.id} ${s.name}｜買點 ${num(s.entry)}　停損 ${num(s.stop)}`;
+      let left = x + 24, top = y - 80;
+      if(left + 560 > innerWidth - 10) left = x - 584;
+      if(top + 400 > innerHeight - 10) top = innerHeight - 410;
+      pv.style.left = Math.max(10, left) + 'px'; pv.style.top = Math.max(10, top) + 'px';
+      pv.style.display = 'block';
+    }, 350);
+  });
+  $('#tb').addEventListener('mouseleave', () => { clearTimeout(pvTimer); pv.style.display = 'none'; });
+}
+
+$('#tb').addEventListener('click', e => {
+  if(e.target.closest('a')) return;
+  const tr = e.target.closest('tr[data-id]'); if(!tr) return;
+  const s = find(tr.dataset.id); if(!s) return;
+  pv.style.display = 'none';
+  const mo = $('#modal');
+  $('#mt').textContent = `${s.id} ${s.name}`;
+  $('#minfo').innerHTML = `買點 ${num(s.entry)}｜停損 ${num(s.stop)}｜風險 ${num(s.risk,1)}%｜可買 ${fmtShares(shares(s))}｜RS ${s.rs}｜量比 ${num(s.dry)}`;
+  mo.querySelector('iframe').src = chartUrl(`${s.ex}:${s.id}`);
+  mo.style.display = 'flex';
+});
+$('#mclose').onclick = () => { $('#modal').style.display = 'none'; };
+$('#modal').onclick = e => { if(e.target.id === 'modal') $('#modal').style.display = 'none'; };
+
+init();
+</script>
+</body>
+</html>
