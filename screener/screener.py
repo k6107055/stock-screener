@@ -131,7 +131,8 @@ def _extract(data: pd.DataFrame, ticker: str) -> pd.DataFrame | None:
     return sub if len(sub) else None
 
 
-def download_prices(tickers: list[str], chunk: int = 100) -> dict[str, pd.DataFrame]:
+def download_prices(tickers: list[str], chunk: int = 100, period: str = "2y",
+                    start: str | None = None) -> dict[str, pd.DataFrame]:
     import yfinance as yf
 
     out: dict[str, pd.DataFrame] = {}
@@ -139,8 +140,9 @@ def download_prices(tickers: list[str], chunk: int = 100) -> dict[str, pd.DataFr
     def fetch(batch):
         for attempt in range(3):
             try:
-                return yf.download(batch, period="2y", interval="1d", group_by="ticker",
-                                   auto_adjust=True, progress=False, threads=True)
+                span = {"start": start} if start else {"period": period}
+                return yf.download(batch, interval="1d", group_by="ticker",
+                                   auto_adjust=True, progress=False, threads=True, **span)
             except Exception as e:  # noqa: BLE001
                 log(f"  下載失敗（第 {attempt + 1} 次）：{e}")
                 time.sleep(20 * (attempt + 1))
@@ -171,11 +173,12 @@ def download_prices(tickers: list[str], chunk: int = 100) -> dict[str, pd.DataFr
     return out
 
 
-def download_index() -> pd.DataFrame:
+def download_index(period: str = "2y", start: str | None = None) -> pd.DataFrame:
     import yfinance as yf
+    span = {"start": start} if start else {"period": period}
     for attempt in range(3):
         try:
-            df = yf.Ticker("^TWII").history(period="2y", auto_adjust=True)
+            df = yf.Ticker("^TWII").history(auto_adjust=True, **span)
             if len(df):
                 return df
         except Exception as e:  # noqa: BLE001
@@ -361,7 +364,7 @@ def run(universe: pd.DataFrame, prices: dict[str, pd.DataFrame], idx: pd.DataFra
             "turnover": _f(a["turnover20"] / 1e8, 2),   # 億元
             "rules": {k: bool(v) for k, v in s["rules"].items()},
             "score": s["score"], "breakout": s["breakout"],
-            "entry": _f(s["entry"]), "stop": _f(s["stop"]),
+            "entry": _f(s["entry"]), "stop": _f(s["stop"]), "pivot": _f(a["pivot"]),
             "risk": _f(s["risk"] * 100), "risk_ok": s["risk_ok"],
             "beat_mkt": s["beat_mkt"], "new": a["id"] not in prev,
         })
@@ -431,6 +434,12 @@ def main() -> int:
         return 1
     result = run(universe, prices, idx)
     save(result)
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import tracking
+        tracking.update(result, prices, idx, OUT_DIR, P["risk_max"])
+    except Exception as e:  # noqa: BLE001  追蹤失敗不影響每日篩選
+        log(f"⚠️ 追蹤更新失敗：{e}")
     return 0
 
 

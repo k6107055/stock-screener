@@ -1,25 +1,25 @@
-name: 每日選股
+name: 歷史回測
 
 on:
   schedule:
-    # 週一到週五 台灣時間 19:17（UTC 11:17）；GitHub 排程可能延遲數十分鐘
-    - cron: '17 11 * * 1-5'
-  workflow_dispatch:   # 可在 Actions 頁面手動執行
-  push:                # 程式更新後自動重跑一次
+    # 每週六 台灣時間 10:23（UTC 02:23）重跑一次，納入最新一週資料
+    - cron: '23 2 * * 6'
+  workflow_dispatch:
+  push:
     branches: [main]
-    paths: ['screener/**']
+    paths: ['screener/backtest.py', 'screener/sim.py']
 
 permissions:
   contents: write
 
 concurrency:
-  group: daily-screen
-  cancel-in-progress: false
+  group: backtest
+  cancel-in-progress: true
 
 jobs:
-  screen:
+  backtest:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v5
 
@@ -31,19 +31,19 @@ jobs:
       - name: 安裝套件
         run: pip install -r requirements.txt
 
-      - name: 執行篩選
+      - name: 執行回測
         env:
           FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
-        run: python screener/screener.py
+        run: python screener/backtest.py
 
       - name: 儲存結果
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/data
+          git add docs/data/backtest
           if git diff --cached --quiet; then
-            echo "沒有新資料"
+            echo "沒有變化"
           else
-            git commit -m "每日選股資料 $(TZ=Asia/Taipei date +%F)"
+            git commit -m "回測結果 $(TZ=Asia/Taipei date +%F)"
             for i in 1 2 3; do git pull --rebase origin main && git push && break; sleep 5; done
           fi

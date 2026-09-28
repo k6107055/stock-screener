@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SEPA 每日追蹤</title>
+<link rel="stylesheet" href="common.css">
+</head>
+<body>
+<header>
+  <h1>每日追蹤：系統上線後的真實紀錄</h1>
+  <div class="sub" id="sub">載入中…</div>
+  <nav><a href="./">每日選股</a><a href="backtest.html">歷史回測</a><a href="track.html" class="on">每日追蹤</a></nav>
+</header>
+<main id="main"><div class="empty">載入中…</div></main>
+
+<div id="modal"><div class="mbox">
+  <div class="mt"><b></b><button>關閉</button></div>
+  <div class="minfo"></div>
+  <div class="legend" style="padding:0 12px"><span><i style="background:#f59e0b"></i>50日線</span><span><i style="background:#2563eb"></i>買價</span><span><i style="background:#16a34a"></i>停損</span><span>● 訊號日　▲ 買進　■ 保本　▼ 賣出</span></div>
+  <div class="chart"></div>
+</div></div>
+<footer>這裡的交易是依規則自動記錄的模擬交易，不是實際下單，也不構成投資建議。</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+<script src="common.js"></script>
+<script>
+let D, BT = null, wShow = 100;
+(async function(){
+  try{ D = await getJSON('data/tracking/tracking.json'); }
+  catch(e){ $('#main').innerHTML = '<div class="empty">還沒有追蹤資料：下一次每日選股執行後就會開始記錄。</div>'; $('#sub').textContent = ''; return; }
+  BT = await getJSON('data/backtest/summary.json').catch(() => null);
+  render();
+})();
+
+function render(){
+  const s = D.stats, trades = D.trades;
+  const done = trades.filter(t => t.status === 'open' || t.status === 'closed');
+  const base = BT && BT.variants.find(v => v.key === 'base');
+  $('#sub').textContent = `從 ${D.since} 開始追蹤，共 ${D.days} 個交易日｜最新資料 ${D.date}｜更新於 ${D.generated_at.replace('T', ' ')}`;
+  const H = D.horizon;
+  $('#main').innerHTML = `
+  <div class="box">每天收盤後，系統會把符合<b>買進訊號</b>（與回測基本版相同）的股票記下來，隔天開盤「假裝買進」，之後照賣出規則 A 自動追蹤到出場。
+    這份紀錄是事先訂好規則、每天自動產生的，沒有事後挑選的空間，所以比回測更能代表真實表現。訊號本來就不多（大盤轉弱時會完全暫停），需要累積幾個月才有參考價值。</div>
+
+  <h2>買進訊號的模擬交易</h2>
+  <div class="cards">
+    <div class="card"><b>${trades.length}</b><span>訊號數</span><small>成交 ${done.length}、未成交 ${trades.length - done.length}</small></div>
+    <div class="card"><b>${D.open_n}</b><span>持有中</span></div>
+    <div class="card"><b>${D.closed_stats.n || 0}</b><span>已出場</span></div>
+    <div class="card"><b>${s.n ? num(s.win_rate, 1) + '%' : '-'}</b><span>勝率（含持有中）</span>${base ? `<small>回測 ${num(base.stats.win_rate, 1)}%</small>` : ''}</div>
+    <div class="card"><b>${s.n ? pct(s.expectancy, 2) : '-'}</b><span>每筆平均報酬</span>${base ? `<small>回測 ${pct(base.stats.expectancy, 2)}</small>` : ''}</div>
+    <div class="card"><b>${s.n ? sgn(s.avg_r) : '-'}</b><span>平均 R 倍數</span>${base ? `<small>回測 ${sgn(base.stats.avg_r)}</small>` : ''}</div>
+  </div>
+  <div class="wrap" style="margin-top:8px"><table><thead>${TRADE_HEAD}</thead>
+    <tbody id="ttb">${trades.length ? trades.map(tradeRow).join('') : '<tr><td colspan="15" class="empty">目前還沒有買進訊號</td></tr>'}</tbody></table></div>
+
+  <h2>觀察名單（每天評分 ≥ 3 的股票）之後的表現</h2>
+  <div class="sub">不管有沒有突破，只要當天評分 ≥ 3 就記錄收盤價，看之後幾天的漲跌，並與同期加權指數比較。這能更快累積樣本，檢查「評分高的股票是不是真的比較強」。</div>
+  <div class="wrap" style="margin-top:6px"><table>
+    <thead><tr><th class="l">之後</th><th>樣本數</th><th>平均漲跌</th><th>上漲比例</th><th>平均贏大盤</th><th>贏大盤比例</th></tr></thead>
+    <tbody>${['5', '10', '20', '60'].map(h => { const x = H[h] || {}; return `<tr><td class="l">${h} 個交易日</td><td>${x.n || 0}</td>
+      <td>${x.n ? pct(x.avg, 2) : '-'}</td><td>${x.n ? num(x.win, 1) + '%' : '-'}</td><td>${x.n ? pct(x.excess, 2) : '-'}</td><td>${x.n ? num(x.beat, 1) + '%' : '-'}</td></tr>`; }).join('')}</tbody>
+  </table></div>
+
+  <h2>最近的觀察名單</h2>
+  <div class="wrap"><table>
+    <thead><tr><th class="l">日期</th><th class="l">代號</th><th class="l">名稱</th><th>評分</th><th>當天收盤</th><th>5 日後</th><th>10 日後</th><th>20 日後</th><th>60 日後</th></tr></thead>
+    <tbody id="wtb"></tbody></table></div>
+  <div style="text-align:center;margin:10px"><button id="more">顯示更多</button></div>`;
+
+  $('#ttb').onclick = e => {
+    const tr = e.target.closest('tr[data-k]'); if(!tr) return;
+    const t = trades.find(x => x.id + '|' + x.sig === tr.dataset.k);
+    if(t && (t.status === 'open' || t.status === 'closed')) openTrade(t, `data/tracking/charts/${t.id}.json`);
+  };
+  const W = D.watch_recent.slice().reverse();
+  const wr = () => {
+    $('#wtb').innerHTML = W.length ? W.slice(0, wShow).map(w => `<tr><td class="l">${w.date}</td><td class="l"><b>${w.id}</b></td><td class="l">${esc(w.name)}</td>
+      <td>${w.score}</td><td>${num(w.close)}</td><td>${pct(w.r5, 2)}</td><td>${pct(w.r10, 2)}</td><td>${pct(w.r20, 2)}</td><td>${pct(w.r60, 2)}</td></tr>`).join('')
+      : '<tr><td colspan="9" class="empty">尚無資料</td></tr>';
+    $('#more').style.display = W.length > wShow ? '' : 'none';
+  };
+  $('#more').onclick = () => { wShow += 200; wr(); };
+  wr();
+}
+</script>
+</body>
+</html>

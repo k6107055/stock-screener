@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SEPA 回測</title>
+<link rel="stylesheet" href="common.css">
+</head>
+<body>
+<header>
+  <h1>歷史回測：這套規則過去賺不賺錢？</h1>
+  <div class="sub" id="sub">載入中…</div>
+  <nav><a href="./">每日選股</a><a href="backtest.html" class="on">歷史回測</a><a href="track.html">每日追蹤</a></nav>
+</header>
+<main id="main">
+  <div class="empty" id="loading">載入中…</div>
+</main>
+
+<div id="modal"><div class="mbox">
+  <div class="mt"><b></b><button>關閉</button></div>
+  <div class="minfo"></div>
+  <div class="legend" style="padding:0 12px"><span><i style="background:#f59e0b"></i>50日線</span><span><i style="background:#2563eb"></i>買價</span><span><i style="background:#16a34a"></i>停損</span><span>● 訊號日　▲ 買進　■ 保本　▼ 賣出</span></div>
+  <div class="chart"></div>
+</div></div>
+
+<footer>回測結果不代表未來績效，本頁只是研究工具，不構成投資建議。</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+<script src="common.js"></script>
+<script>
+const COLORS = { bench: '#9ca3af', base: '#2563eb', score4: '#e5343d', score2: '#f59e0b', anybo: '#8b5cf6', risk10: '#0ea5e9', stop15: '#16a34a', nomkt: '#ec4899' };
+let SUM, TRADES, CURVES, tFilter = 'all', tSort = null, tDir = -1, tShow = 200;
+
+(async function(){
+  try{
+    [SUM, CURVES, TRADES] = await Promise.all([getJSON('data/backtest/summary.json'), getJSON('data/backtest/curves.json'), getJSON('data/backtest/trades.json')]);
+  }catch(e){
+    $('#loading').innerHTML = '還沒有回測結果：請到 GitHub 的 Actions 頁面執行「歷史回測」（約 20～40 分鐘）。';
+    $('#sub').textContent = '';
+    return;
+  }
+  render();
+})();
+
+function render(){
+  const base = SUM.variants.find(v => v.key === 'base');
+  const s = base.stats, p = base.portfolio, b = SUM.bench;
+  $('#sub').textContent = `回測期間 ${SUM.start} ～ ${SUM.end}｜${SUM.stocks} 檔股票｜模擬資金 ${SUM.capital / 10000} 萬、每筆最多虧 ${SUM.risk_pct}%｜更新於 ${SUM.generated_at.replace('T', ' ')}`;
+
+  $('#main').innerHTML = `
+  <h2>基本版的結果</h2>
+  <div class="cards">
+    <div class="card"><b>${pct(p.cagr)}</b><span>年化報酬</span><small>大盤 ${pct(b.cagr)}</small></div>
+    <div class="card"><b>${pct(p.maxdd)}</b><span>最大回撤</span><small>大盤 ${pct(b.maxdd)}</small></div>
+    <div class="card"><b>${s.n}</b><span>交易筆數</span><small>資金夠做的 ${base.taken_stats.n} 筆</small></div>
+    <div class="card"><b>${num(s.win_rate, 1)}%</b><span>勝率</span><small>最長連虧 ${s.max_losing_streak} 筆</small></div>
+    <div class="card"><b>${num(s.payoff)}</b><span>賺賠比</span><small>平均賺 ${pct(s.avg_win)}／賠 ${pct(s.avg_loss)}</small></div>
+    <div class="card"><b>${pct(s.expectancy, 2)}</b><span>每筆期望值（扣成本）</span><small>平均 ${sgn(s.avg_r)}R，${s.big_wins} 筆賺 3R 以上</small></div>
+  </div>
+  <div class="box">
+    <b>怎麼看：</b>超級績效的方法通常<b>勝率不高（3～5 成）</b>，靠的是「賠小賺大」：賺賠比越高、期望值越大越好。
+    期望值是正的，代表長期照做會賺；最長連虧告訴你心理上要準備撐過幾次停損。
+  </div>
+
+  <h2>資金曲線</h2>
+  <div class="legend" id="lg"></div>
+  <div id="curve"></div>
+
+  <h2>參數比較</h2>
+  <div class="note"><b>看有沒有「過度最佳化」：</b>把期間切成兩段（${SUM.start}～${SUM.split} 與 ${SUM.split}～${SUM.end}）。
+    好的規則在<b>兩段都要賺</b>；只有前段漂亮、後段變差，代表只是剛好適合過去。</div>
+  <div class="wrap"><table>
+    <thead><tr><th class="l">版本</th><th class="l">說明</th><th>筆數</th><th>勝率</th><th>平均賺</th><th>平均賠</th><th>賺賠比</th>
+      <th>每筆期望值</th><th>前段期望值</th><th>後段期望值</th><th>年化</th><th>最大回撤</th><th>不買（跳空／追高／風險）</th></tr></thead>
+    <tbody>${SUM.variants.map(v => `<tr class="${v.key === 'base' ? 'base' : ''}">
+      <td class="l">${esc(v.name)}</td><td class="l mut" style="white-space:normal;min-width:220px">${esc(v.desc)}</td>
+      <td>${v.stats.n}</td><td>${num(v.stats.win_rate, 1)}%</td><td>${pct(v.stats.avg_win)}</td><td>${pct(v.stats.avg_loss)}</td>
+      <td>${num(v.stats.payoff)}</td><td>${pct(v.stats.expectancy, 2)}</td>
+      <td>${pct(v.stats_in.expectancy, 2)} <span class="mut">(${v.stats_in.n})</span></td>
+      <td>${pct(v.stats_out.expectancy, 2)} <span class="mut">(${v.stats_out.n})</span></td>
+      <td>${pct(v.portfolio.cagr)}</td><td>${pct(v.portfolio.maxdd)}</td>
+      <td class="mut">${v.skips.gap}／${v.skips.chase}／${v.skips.risk}</td></tr>`).join('')}</tbody>
+  </table></div>
+
+  <h2>每年報酬</h2>
+  <div class="wrap"><table>
+    <thead><tr><th class="l">年度</th>${Object.keys(p.yearly).map(y => `<th>${y}</th>`).join('')}</tr></thead>
+    <tbody>
+      <tr><td class="l">基本版</td>${Object.values(p.yearly).map(v => `<td>${pct(v)}</td>`).join('')}</tr>
+      <tr><td class="l">加權指數</td>${Object.keys(p.yearly).map(y => `<td>${pct(b.yearly[y])}</td>`).join('')}</tr>
+    </tbody></table></div>
+
+  <h2>每一筆交易（基本版）</h2>
+  <div class="controls">
+    <button class="chip on" data-f="all">全部</button><button class="chip" data-f="win">賺的</button>
+    <button class="chip" data-f="loss">賠的</button><button class="chip" data-f="big">賺 3R 以上</button>
+    <button class="chip" data-f="open">持有中</button><button class="chip" data-f="taken">資金夠實際有做的</button>
+    <input type="search" id="tq" placeholder="代號／名稱" style="width:130px">
+  </div>
+  <div class="sub" style="margin-bottom:6px">點任一筆可看 K 線上的訊號、買進、保本、賣出位置。</div>
+  <div class="wrap"><table><thead>${TRADE_HEAD}</thead><tbody id="ttb"></tbody></table></div>
+  <div style="text-align:center;margin:10px"><button id="more">顯示更多</button></div>
+
+  <h2>回測方法與限制</h2>
+  <div class="box">
+    <ol>
+      <li><b>買進訊號</b>：趨勢模板 8 條全過＋當天帶量突破樞紐點＋型態評分達標＋停損距離在上限內＋大盤在 50、200 日線之上（與「每日選股」完全同一套程式邏輯）。</li>
+      <li><b>買進</b>：訊號隔天開盤價。開盤已跌破停損、或離樞紐點超過 5%、或停損距離超過上限，就不買。</li>
+      <li><b>賣出規則 A</b>：碰到停損就賣；漲到 2 倍風險後停損移到買價（保本）；之後收盤跌破 50 日線，隔天開盤賣。</li>
+      <li><b>成本</b>：買賣手續費各 0.1425%、賣出證交稅 0.3%，都已扣除（沒有算折扣）。</li>
+      <li><b>資金</b>：每筆最多虧總資產 1%，單檔上限 25%，錢不夠就跳過（同一天多個訊號時 RS 高的優先）。</li>
+    </ol>
+    <p class="mut" style="margin:6px 0 0"><b>限制：</b>①資料只有目前仍上市的股票，已下市的抓不到（倖存者偏差），結果會偏樂觀；
+      ②停損假設能在停損價成交，實際可能有滑價；③大盤比較用加權指數（不含股息），對大盤稍不公平；
+      ④過去有效不代表未來有效，要和「每日追蹤」的真實紀錄一起看。</p>
+  </div>`;
+
+  drawCurves();
+  document.querySelectorAll('.chip').forEach(c => c.onclick = () => {
+    document.querySelectorAll('.chip').forEach(x => x.classList.remove('on')); c.classList.add('on');
+    tFilter = c.dataset.f; tShow = 200; renderTrades();
+  });
+  $('#tq').oninput = () => { tShow = 200; renderTrades(); };
+  $('#more').onclick = () => { tShow += 300; renderTrades(); };
+  document.querySelectorAll('thead th[data-k]').forEach(th => th.onclick = () => {
+    const k = th.dataset.k; if(tSort === k) tDir = -tDir; else { tSort = k; tDir = -1; } renderTrades();
+  });
+  $('#ttb').onclick = e => {
+    const tr = e.target.closest('tr[data-k]'); if(!tr) return;
+    const t = TRADES.find(x => x.id + '|' + x.sig === tr.dataset.k);
+    if(t) openTrade(t, `data/backtest/charts/${t.id}.json`);
+  };
+  renderTrades();
+}
+
+function renderTrades(){
+  const q = $('#tq').value.trim();
+  let l = TRADES.slice();
+  if(tFilter === 'win') l = l.filter(t => t.status === 'closed' && t.pct > 0);
+  if(tFilter === 'loss') l = l.filter(t => t.status === 'closed' && t.pct <= 0);
+  if(tFilter === 'big') l = l.filter(t => t.r >= 3);
+  if(tFilter === 'open') l = l.filter(t => t.status === 'open');
+  if(tFilter === 'taken') l = l.filter(t => t.taken);
+  if(q) l = l.filter(t => t.id.includes(q) || t.name.includes(q));
+  if(tSort) l.sort((a, b) => { const x = a[tSort], y = b[tSort]; return typeof x === 'string' ? tDir * String(x).localeCompare(String(y)) : tDir * ((x ?? -1e9) - (y ?? -1e9)); });
+  else l.reverse();
+  $('#ttb').innerHTML = l.length ? l.slice(0, tShow).map(tradeRow).join('') : '<tr><td colspan="15" class="empty">沒有交易</td></tr>';
+  $('#more').style.display = l.length > tShow ? '' : 'none';
+}
+
+function drawCurves(){
+  const el = $('#curve');
+  const dk = dark();
+  const chart = LightweightCharts.createChart(el, {
+    autoSize: true,
+    layout: { background: { color: 'transparent' }, textColor: dk ? '#9aa3ae' : '#4b5563', fontSize: 11 },
+    grid: { vertLines: { color: dk ? '#222' : '#f0f0f0' }, horzLines: { color: dk ? '#222' : '#f0f0f0' } },
+    rightPriceScale: { borderVisible: false, mode: 1 }, timeScale: { borderVisible: false },
+  });
+  const names = { bench: '加權指數' };
+  SUM.variants.forEach(v => names[v.key] = v.name);
+  const series = {};
+  const on = new Set(['bench', 'base', 'score4']);
+  Object.keys(names).forEach(k => {
+    if(!CURVES[k]) return;
+    const s = chart.addLineSeries({ color: COLORS[k] || '#999', lineWidth: k === 'base' ? 2 : 1, priceLineVisible: false, visible: on.has(k),
+      priceFormat: { type: 'custom', formatter: v => (v / 10000).toFixed(0) + '萬' } });
+    s.setData(CURVES.t.map((t, i) => ({ time: t, value: CURVES[k][i] })));
+    series[k] = s;
+  });
+  chart.timeScale().fitContent();
+  $('#lg').innerHTML = Object.keys(series).map(k => `<label><input type="checkbox" data-k="${k}" ${on.has(k) ? 'checked' : ''}> <i style="background:${COLORS[k]}"></i>${esc(names[k])}</label>`).join('') + '<span class="mut">（對數刻度，從 100 萬開始）</span>';
+  $('#lg').onchange = e => { const k = e.target.dataset.k; if(k) series[k].applyOptions({ visible: e.target.checked }); };
+}
+</script>
+</body>
+</html>

@@ -70,6 +70,9 @@ details li{margin:3px 0}
 #modal .info{padding:8px 12px;font-size:13px;color:var(--muted);border-bottom:1px solid var(--line)}
 #modal .chart{flex:1;min-height:0}
 #minfo a{color:var(--accent)}
+.nav{display:flex;gap:6px;margin:10px 0 0;flex-wrap:wrap}
+.nav a{padding:5px 12px;border-radius:8px;text-decoration:none;color:var(--fg);border:1px solid var(--line);background:var(--card)}
+.nav a.on{background:var(--accent);border-color:var(--accent);color:#fff}
 .empty{padding:30px;text-align:center;color:var(--muted)}
 @media (max-width:640px){ h1{font-size:18px} .stat{min-width:calc(50% - 4px)} }
 </style>
@@ -78,6 +81,7 @@ details li{margin:3px 0}
 <header>
   <h1>SEPA 選股：趨勢模板＋VCP 評分</h1>
   <div class="sub" id="sub">載入中…</div>
+  <nav class="nav"><a href="./" class="on">每日選股</a><a href="backtest.html">歷史回測</a><a href="track.html">每日追蹤</a></nav>
 </header>
 <main>
   <div id="banner" class="banner" style="display:none"></div>
