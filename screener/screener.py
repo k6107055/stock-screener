@@ -323,6 +323,7 @@ def run(universe: pd.DataFrame, prices: dict[str, pd.DataFrame], idx: pd.DataFra
     mkt_ret20 = (mkt["ret20"] or 0) / 100
 
     rows = []
+    dfs: dict[str, pd.DataFrame] = {}
     for _, u in universe.iterrows():
         t = u["id"] + (".TW" if u["market"] == "twse" else ".TWO")
         df = prices.get(t)
@@ -333,6 +334,7 @@ def run(universe: pd.DataFrame, prices: dict[str, pd.DataFrame], idx: pd.DataFra
             continue
         a.update(id=u["id"], name=u["name"], industry=u["industry"], market=u["market"])
         rows.append(a)
+        dfs[u["id"]] = df
     log(f"可計算股票：{len(rows)} 檔")
     if not rows:
         raise RuntimeError("沒有任何股票可計算，可能是資料來源失敗")
@@ -378,11 +380,33 @@ def run(universe: pd.DataFrame, prices: dict[str, pd.DataFrame], idx: pd.DataFra
         "date": mkt_date,
         "generated_at": dt.datetime.now(dt.timezone(dt.timedelta(hours=8))).isoformat(timespec="minutes"),
         "universe": len(rows), "market": mkt, "params": P, "stocks": picked,
+        "_charts": {p["id"]: chart_data(dfs[p["id"]]) for p in picked},
+    }
+
+
+def chart_data(df: pd.DataFrame, n: int = 260) -> dict:
+    """網站畫 K 線用：最近約一年的日 K 與 50/150/200 日線"""
+    c = df["Close"].astype(float)
+    mas = {k: c.rolling(k).mean() for k in (50, 150, 200)}
+    d = df.iloc[-n:]
+    r = lambda s: [None if pd.isna(x) else round(float(x), 2) for x in s]  # noqa: E731
+    return {
+        "t": [x.date().isoformat() for x in d.index],
+        "o": r(d["Open"]), "h": r(d["High"]), "l": r(d["Low"]), "c": r(d["Close"]),
+        "v": [int(x) for x in d["Volume"]],
+        "ma50": r(mas[50].iloc[-n:]), "ma150": r(mas[150].iloc[-n:]), "ma200": r(mas[200].iloc[-n:]),
     }
 
 
 def save(result: dict) -> None:
+    charts = result.pop("_charts", {})
     OUT_DIR.mkdir(parents=True, exist_ok=True)
+    cdir = OUT_DIR / "ohlc"
+    cdir.mkdir(exist_ok=True)
+    for f in cdir.glob("*.json"):
+        f.unlink()
+    for sid, cd in charts.items():
+        (cdir / f"{sid}.json").write_text(json.dumps(cd, separators=(",", ":")), encoding="utf-8")
     HIST_DIR.mkdir(parents=True, exist_ok=True)
     payload = json.dumps(result, ensure_ascii=False, separators=(",", ":"))
     (OUT_DIR / "latest.json").write_text(payload, encoding="utf-8")
