@@ -74,6 +74,22 @@ details li{margin:3px 0}
 .nav a{padding:5px 12px;border-radius:8px;text-decoration:none;color:var(--fg);border:1px solid var(--line);background:var(--card)}
 .nav a.on{background:var(--accent);border-color:var(--accent);color:#fff}
 .empty{padding:30px;text-align:center;color:var(--muted)}
+.dot.f.on{background:#d9363e} .dot.c.on{background:#ea8a00}
+.tag{display:inline-block;margin:0 2px;padding:0 6px;border-radius:6px;font-size:11px;line-height:18px;border:1px solid var(--line);color:var(--muted)}
+.tag.hi{color:var(--up);border-color:var(--up)} .tag.warn{color:var(--down);border-color:var(--down)} .tag.hot{background:#fff1e6;color:#c2410c;border-color:#fdba74}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .tag.hot{background:#3a2412;color:#fdba74;border-color:#7c3a12} }
+.spark{display:inline-flex;align-items:center;gap:1px;height:22px;vertical-align:middle}
+.spark i{display:block;width:4px;background:var(--no)} .spark i.p{background:var(--up)} .spark i.n{background:var(--down)}
+.trend-up{color:var(--up);font-weight:700} .trend-down{color:var(--down);font-weight:700} .trend-flat{color:var(--muted)}
+.lnk a.rep{background:#06c755;color:#fff;border-color:#06c755}
+.hotbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0;font-size:13px}
+.hotbar button{padding:3px 10px}
+.tabs{display:flex;gap:4px;padding:6px 12px;border-bottom:1px solid var(--line)}
+.tabs button{padding:3px 12px}
+.tabs button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.fundinfo{padding:6px 12px;font-size:13px;border-bottom:1px solid var(--line);line-height:1.8}
+.fundinfo .y{color:var(--up);font-weight:700} .fundinfo .n{color:var(--muted)}
+.indtbl td,.indtbl th{padding:4px 8px}
 @media (max-width:640px){ h1{font-size:18px} .stat{min-width:calc(50% - 4px)} }
 </style>
 </head>
@@ -87,6 +103,7 @@ details li{margin:3px 0}
   <div id="banner" class="banner" style="display:none"></div>
 
   <div class="stats" id="stats"></div>
+  <div class="hotbar" id="hotbar"></div>
 
   <div class="controls">
     <label>日期 <select id="date"></select></label>
@@ -99,6 +116,10 @@ details li{margin:3px 0}
     <button class="chip" data-f="bo">今日突破</button>
     <button class="chip" data-f="new">新上榜</button>
     <button class="chip" data-f="riskok">風險 ≤ 8%</button>
+    <button class="chip" data-f="fund">書中基本面 ≥ 2</button>
+    <button class="chip" data-f="cyc">循環分 ≥ 2</button>
+    <button class="chip" data-f="accel">營收加速</button>
+    <button class="chip" data-f="hot">主流族群</button>
     <select id="ind"><option value="">全部產業</option></select>
     <input type="search" id="q" placeholder="代號／名稱">
   </div>
@@ -113,6 +134,10 @@ details li{margin:3px 0}
         <th data-k="close">收盤</th>
         <th data-k="rs">RS</th>
         <th class="l" data-k="score" title="① 不追高 ② 近突破點 ③ 波動收斂 ④ 量縮">評分 ①②③④</th>
+        <th class="l" data-k="fscore" title="書中基本面：季EPS年增≥25%／EPS加速／營收年增≥20%且利潤率擴張">基本面</th>
+        <th class="l" data-k="cscore" title="循環分：月營收加速／毛利率翻揚／營收創24月新高">循環</th>
+        <th class="l" data-k="mrev_yoy" title="近 12 個月營收年增率（紅＝正、綠＝負）；數字為最新月年增率">月營收年增</th>
+        <th class="l">標籤</th>
         <th data-k="ret20">20日%</th>
         <th data-k="ext50">離50MA%</th>
         <th data-k="dist_hi">離高點%</th>
@@ -124,7 +149,7 @@ details li{margin:3px 0}
         <th data-k="shares">可買</th>
         <th class="l">連結</th>
       </tr></thead>
-      <tbody id="tb"><tr><td colspan="17" class="empty">載入中…</td></tr></tbody>
+      <tbody id="tb"><tr><td colspan="21" class="empty">載入中…</td></tr></tbody>
     </table>
   </div>
 
@@ -153,7 +178,27 @@ details li{margin:3px 0}
        <b>可買股數</b> = 總資金 × 每筆風險 ÷（買點 − 停損），單檔上限為總資金 25%。</p>
     <p>產業後面的數字是同產業今天有幾檔上榜，越多代表族群越強。<br>
        <b>新</b> = 過去 20 個交易日沒上榜過。</p>
+    <p><b>書中基本面（0～3）</b>：《超級績效》要求盈餘、營收成長且加速、利潤率擴張；門檻數字取自歐尼爾，屬量化假設</p>
+    <ol>
+      <li>最近一季 EPS 年增 ≥ 25%（去年同季虧損、今年轉盈也算）</li>
+      <li>EPS 年增率加速：最近一季 &gt; 前一季</li>
+      <li>最近一季營收年增 ≥ 20%，且營業利益率高於去年同季</li>
+    </ol>
+    <p><b>循環分（0～3）</b>：依循環課「接單→稼動率滿→漲價→擴產」自行量化</p>
+    <ol>
+      <li>月營收加速：最新月年增 ≥ 15%，且高於前 3 個月年增平均</li>
+      <li>毛利率翻揚：最近一季毛利率 &gt; 前 4 季平均 + 2 個百分點</li>
+      <li>月營收創 24 個月新高</li>
+    </ol>
+    <p><b>標籤</b>（只提示不計分）：營收新高；擴產中＝最近一季資本支出年增 ≥ 30%；<span class="neg">循環後段</span>＝資本支出連續 3 季大增，新產能快開出、要留意循環尾聲；🔥主流族群＝產業平均 RS 前 5 名且至少 3 檔過趨勢模板。</p>
+    <p>月營收年增欄：近 12 個月的小長條，紅＝年增、綠＝年減；數字紅色＝加速、綠色＝轉壞、灰色＝持平。</p>
+    <p><b>報告</b>按鈕：打開 LINE 並帶好「報告 代號」，送出後小幫手會抓優分析小助理、整合法人報告與這裡的技術面，產生整合報告。</p>
     <p style="color:var(--muted)">本頁只是篩選工具，不構成投資建議。</p>
+  </details>
+  <details>
+    <summary>產業族群強度（前 20 名）</summary>
+    <p class="sub">各產業所有可計算股票的平均 RS，以及過趨勢模板的檔數。平均 RS 高、過關檔數多＝資金集中的主流族群。</p>
+    <div id="indtbl"></div>
   </details>
 </main>
 
@@ -161,7 +206,9 @@ details li{margin:3px 0}
 <div id="modal"><div class="box">
   <div class="t"><b id="mt"></b><button id="mclose">關閉</button></div>
   <div class="info" id="minfo"></div>
-  <div class="legend"><span><i style="background:#f59e0b"></i>50日線</span><span><i style="background:#8b5cf6"></i>150日線</span><span><i style="background:#0ea5e9"></i>200日線</span><span><i style="background:#2563eb"></i>買點</span><span><i style="background:#16a34a"></i>停損</span></div>
+  <div class="fundinfo" id="mfund"></div>
+  <div class="tabs" id="mtabs"><button data-t="k" class="on">K 線</button><button data-t="rev">營收</button><button data-t="prof">獲利</button></div>
+  <div class="legend" id="mleg"><span><i style="background:#f59e0b"></i>50日線</span><span><i style="background:#8b5cf6"></i>150日線</span><span><i style="background:#0ea5e9"></i>200日線</span><span><i style="background:#2563eb"></i>買點</span><span><i style="background:#16a34a"></i>停損</span></div>
   <div class="chart"></div>
 </div></div>
 
@@ -170,6 +217,8 @@ details li{margin:3px 0}
 // ===== 設定 =====
 // 優分析個股網址：股票代號位置寫 {id}，例如 'https://xxx/stock/{id}'；留空就不顯示按鈕
 const UANALYZE_URL = '';
+// LINE 股票檔案小幫手的 ID：「報告」按鈕會打開 LINE 並帶好「報告 代號」
+const LINE_BOT_ID = '@364vdjtz';
 
 const $ = s => document.querySelector(s);
 const store = {
@@ -196,7 +245,7 @@ async function init(){
     await load(dates[0]);
   }catch(e){
     $('#sub').textContent = '還沒有資料：請到 GitHub 的 Actions 頁面手動執行一次「每日選股」。';
-    $('#tb').innerHTML = '<tr><td colspan="17" class="empty">尚無資料</td></tr>';
+    $('#tb').innerHTML = '<tr><td colspan="21" class="empty">尚無資料</td></tr>';
   }
 }
 
@@ -237,11 +286,16 @@ const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;
 
 function rows(){
   const q = $('#q').value.trim(), ind = $('#ind').value;
-  let list = DATA.stocks.map(s => ({...s, shares: shares(s)}));
+  let list = DATA.stocks.map(s => ({...s, shares: shares(s), fscore: s.fund ? s.fund.fscore : null,
+    cscore: s.fund ? s.fund.cscore : null, mrev_yoy: s.fund ? s.fund.mrev_yoy : null}));
   if(filter === 'full') list = list.filter(s => s.score === 4);
   if(filter === 'bo') list = list.filter(s => s.breakout);
   if(filter === 'new') list = list.filter(s => s.new);
   if(filter === 'riskok') list = list.filter(s => s.risk_ok);
+  if(filter === 'fund') list = list.filter(s => (s.fscore || 0) >= 2);
+  if(filter === 'cyc') list = list.filter(s => (s.cscore || 0) >= 2);
+  if(filter === 'accel') list = list.filter(s => s.fund && s.fund.mrev_trend === 'up');
+  if(filter === 'hot') list = list.filter(s => s.ind_hot);
   if(ind) list = list.filter(s => s.industry === ind);
   if(q) list = list.filter(s => s.id.includes(q) || s.name.includes(q));
   if(sortKey){
@@ -261,22 +315,41 @@ function render(){
     ['4 條全過', all.filter(s => s.score === 4).length],
     ['今日突破', all.filter(s => s.breakout).length],
     ['新上榜', all.filter(s => s.new).length],
+    ['基本面 ≥ 2', all.filter(s => s.fund && s.fund.fscore >= 2).length],
+    ['循環分 ≥ 2', all.filter(s => s.fund && s.fund.cscore >= 2).length],
   ].map(([k, v]) => `<div class="stat"><b>${v}</b><span>${k}</span></div>`).join('');
 
+  const hot = (DATA.industries || []).filter(x => x.hot);
+  $('#hotbar').innerHTML = hot.length
+    ? '🔥 主流族群：' + hot.map(x => `<button data-ind="${esc(x.industry)}" title="產業平均 RS ${x.avg_rs}｜${x.n} 檔中 ${x.n_pass} 檔過趨勢模板">${esc(x.industry)} <small>RS ${x.avg_rs}・${x.n_pass}檔</small></button>`).join('')
+    : '';
+  $('#hotbar').querySelectorAll('button').forEach(b => b.onclick = () => { $('#ind').value = b.dataset.ind; render(); });
+  renderInd();
+
   const list = rows();
-  if(!list.length){ $('#tb').innerHTML = '<tr><td colspan="17" class="empty">沒有符合條件的股票</td></tr>'; return; }
+  if(!list.length){ $('#tb').innerHTML = '<tr><td colspan="21" class="empty">沒有符合條件的股票</td></tr>'; return; }
   $('#tb').innerHTML = list.map(s => {
     const dots = ['r1','r2','r3','r4'].map((k, i) => `<span class="dot ${s.rules[k] ? 'on' : ''}">${'①②③④'[i]}</span>`).join('');
-    const links = [`<a href="https://tw.tradingview.com/chart/?symbol=${s.ex}:${s.id}" target="_blank" rel="noopener">TV</a>`];
+    const links = [`<a class="rep" href="${reportUrl(s.id)}" target="_blank" rel="noopener" title="開啟 LINE，送出「報告 ${s.id}」">報告</a>`,
+                   `<a href="https://tw.tradingview.com/chart/?symbol=${s.ex}:${s.id}" target="_blank" rel="noopener">TV</a>`];
+    const f = s.fund;
+    const fd = f ? ['f1','f2','f3'].map((k, i) => `<span class="dot f ${f.f[k] ? 'on' : ''}" title="${['季EPS年增≥25%','EPS年增加速','營收年增≥20%＋利潤率擴張'][i]}">${i+1}</span>`).join('') : '<span class="n">-</span>';
+    const cd = f ? ['c1','c2','c3'].map((k, i) => `<span class="dot c ${f.c[k] ? 'on' : ''}" title="${['月營收加速','毛利率翻揚','營收創24月新高'][i]}">${i+1}</span>`).join('') : '<span class="n">-</span>';
+    const spark = f && f.m12 && f.m12.length ? sparkline(f.m12) + ` <span class="trend-${f.mrev_trend || 'flat'}">${f.mrev_yoy == null ? '' : (f.mrev_yoy > 0 ? '+' : '') + f.mrev_yoy + '%'}</span>` : '-';
+    const tags = (f ? f.tags : []).map(t => `<span class="tag ${t === '營收新高' ? 'hi' : (t === '循環後段' ? 'warn' : '')}" title="${TAG_TIP[t] || ''}">${t}</span>`).join('') + (s.ind_hot ? '<span class="tag hot" title="產業平均 RS 前段，且多檔過趨勢模板">主流族群</span>' : '');
     if(UANALYZE_URL) links.unshift(`<a href="${UANALYZE_URL.replace('{id}', s.id)}" target="_blank" rel="noopener">優分析</a>`);
     return `<tr data-id="${s.id}">
       <td class="l">${s.new ? '<span class="new">新</span>' : ''}</td>
       <td class="l sid">${s.id}</td>
       <td class="l">${esc(s.name)}</td>
-      <td class="l">${esc(s.industry || '-')}${s.ind_n ? ` (${s.ind_n})` : ''}</td>
+      <td class="l">${s.ind_hot ? '🔥' : ''}${esc(s.industry || '-')}${s.ind_n ? ` (${s.ind_n})` : ''}</td>
       <td>${num(s.close)}</td>
       <td>${s.rs}</td>
       <td class="l"><span class="dots">${dots}</span>${s.breakout ? '<span class="bo">突破</span>' : ''}</td>
+      <td class="l"><span class="dots">${fd}</span></td>
+      <td class="l"><span class="dots">${cd}</span></td>
+      <td class="l">${spark}</td>
+      <td class="l">${tags}</td>
       <td>${pct(s.ret20)}</td>
       <td>${pct(s.ext50)}</td>
       <td>${pct(s.dist_hi)}</td>
@@ -344,6 +417,72 @@ async function drawChart(el, s){
   charts.set(el, chart);
 }
 
+// ===== 基本面、族群、報告 =====
+const TAG_TIP = { '營收新高': '月營收創 24 個月新高', '擴產中': '最近一季資本支出年增 ≥ 30%', '循環後段': '資本支出連續 3 季以上大增：新產能快開出，留意循環尾聲' };
+function reportUrl(id){ return `https://line.me/R/oaMessage/${LINE_BOT_ID}/?` + encodeURIComponent('報告 ' + id); }
+function sparkline(arr){
+  const mx = Math.max(10, ...arr.map(v => Math.abs(v || 0)));
+  return '<span class="spark">' + arr.map(v => v == null ? '<i style="height:2px"></i>'
+    : `<i class="${v >= 0 ? 'p' : 'n'}" style="height:${Math.max(2, Math.round(Math.abs(v) / mx * 22))}px" title="${v}%"></i>`).join('') + '</span>';
+}
+function renderInd(){
+  const el = $('#indtbl'); if(!el) return;
+  const list = (DATA.industries || []).slice(0, 20);
+  el.innerHTML = list.length ? '<table class="indtbl"><tr><th class="l">排名</th><th class="l">產業</th><th>平均 RS</th><th>過關／檔數</th><th>過關比例</th></tr>' +
+    list.map(x => `<tr><td class="l">${x.rank}</td><td class="l">${x.hot ? '🔥' : ''}${esc(x.industry)}</td><td>${x.avg_rs}</td><td>${x.n_pass}／${x.n}</td><td>${x.pass_pct}%</td></tr>`).join('') + '</table>'
+    : '<p class="n">下一次篩選後才有資料</p>';
+}
+const FUND = {};
+async function getFund(id){
+  if(!FUND[id]) FUND[id] = getJSON(`data/fund/${id}.view.json`).catch(() => null);
+  return FUND[id];
+}
+const cls = v => v == null ? '' : (v >= 0 ? 'pos' : 'neg');
+const sg = v => v == null ? '-' : `<span class="${cls(v)}">${v > 0 ? '+' : ''}${v}%</span>`;
+function fundText(s, v){
+  const f = s.fund;
+  if(!f || (!f.has_q && !f.has_m)) return '基本面資料還沒抓到（每天會陸續補齊）';
+  const mk = (ok, t) => `<span class="${ok ? 'y' : 'n'}">${ok ? '✔' : '✘'} ${t}</span>`;
+  v = v || {};
+  return `<b>書中基本面 ${f.fscore}/3</b>：${mk(f.f.f1, `季EPS年增 ${sg(v.eps_yoy)}`)}　${mk(f.f.f2, `EPS加速（前季 ${sg(v.eps_yoy_prev)}）`)}　${mk(f.f.f3, `營收年增 ${sg(v.rev_q_yoy)}、營益率 ${v.op_margin ?? '-'}%（去年 ${v.op_margin_ly ?? '-'}%）`)}<br>
+  <b>循環分 ${f.cscore}/3</b>：${mk(f.c.c1, `月營收年增 ${sg(v.mrev_yoy)}（前3月平均 ${sg(v.mrev_yoy_prev3)}）`)}　${mk(f.c.c2, `毛利率 ${v.gm ?? '-'}%（前4季 ${v.gm_avg4 ?? '-'}%）`)}　${mk(f.c.c3, '營收創24月新高')}<br>
+  資本支出年增 ${sg(v.capex_yoy)}${v.capex_streak ? `（連續 ${v.capex_streak} 季大增）` : ''}｜產業：${esc(s.industry)}${s.ind_rank ? `（族群排名 ${s.ind_rank}，平均 RS ${s.ind_rs}）` : ''}｜資料：${v.m_last || '-'} 月營收、${v.q_last || '-'} 季報`;
+}
+function baseChart(el){
+  const dk = dark();
+  return LightweightCharts.createChart(el, {
+    autoSize: true,
+    layout: { background: { color: 'transparent' }, textColor: dk ? '#9aa3ae' : '#4b5563', fontSize: 11 },
+    grid: { vertLines: { visible: false }, horzLines: { color: dk ? '#222' : '#f0f0f0' } },
+    rightPriceScale: { borderVisible: false }, leftPriceScale: { visible: true, borderVisible: false },
+    timeScale: { borderVisible: false }, localization: { locale: 'zh-TW' },
+  });
+}
+async function drawFund(el, s, kind){
+  if(charts.has(el)){ charts.get(el).remove(); charts.delete(el); }
+  el.innerHTML = '';
+  const v = await getFund(s.id);
+  const hist = v && (kind === 'rev' ? v.m_hist : v.q_hist);
+  if(!hist || !hist.length){ el.innerHTML = '<div class="empty">還沒有基本面資料</div>'; return; }
+  const chart = baseChart(el);
+  if(kind === 'rev'){
+    const t = h => h.m + '-01';
+    const bar = chart.addHistogramSeries({ priceScaleId: 'left', title: '營收(億)', priceFormat: { type: 'price', precision: 1, minMove: 0.1 } });
+    bar.setData(hist.map(h => ({ time: t(h), value: h.rev, color: 'rgba(37,99,235,.55)' })));
+    const ln = chart.addLineSeries({ priceScaleId: 'right', color: '#d9363e', lineWidth: 2, title: '年增%' });
+    ln.setData(hist.map(h => h.yoy == null ? { time: t(h) } : { time: t(h), value: h.yoy }));
+  } else {
+    const bar = chart.addHistogramSeries({ priceScaleId: 'left', title: 'EPS', priceFormat: { type: 'price', precision: 2, minMove: 0.01 } });
+    bar.setData(hist.map(h => ({ time: h.q, value: h.eps, color: (h.eps || 0) >= 0 ? 'rgba(217,54,62,.6)' : 'rgba(22,128,61,.6)' })));
+    for(const [k, color, title] of [['gm', '#ea8a00', '毛利率%'], ['om', '#8b5cf6', '營益率%']]){
+      const ln = chart.addLineSeries({ priceScaleId: 'right', color, lineWidth: 2, title });
+      ln.setData(hist.map(h => h[k] == null ? { time: h.q } : { time: h.q, value: h[k] }));
+    }
+  }
+  chart.timeScale().fitContent();
+  charts.set(el, chart);
+}
+
 const find = id => DATA.stocks.find(s => s.id === id);
 const pv = $('#preview'), pvChart = pv.querySelector('.chart');
 let pvId = null, pvTimer = null;
@@ -377,9 +516,20 @@ $('#tb').addEventListener('click', e => {
   const mo = $('#modal');
   $('#mt').textContent = `${s.id} ${s.name}`;
   $('#minfo').innerHTML = `買點 ${num(s.entry)}｜停損 ${num(s.stop)}｜風險 ${num(s.risk,1)}%${s.risk_ok ? '' : '（超過 8%，不做）'}｜可買 ${fmtShares(shares(s))}｜RS ${s.rs}　<a href="https://tw.tradingview.com/chart/?symbol=${s.ex}:${s.id}" target="_blank" rel="noopener">TradingView</a>`;
+  $('#minfo').innerHTML += `　<a href="${reportUrl(s.id)}" target="_blank" rel="noopener" style="color:#06c755;font-weight:700">📄 LINE 產生整合報告</a>`;
+  $('#mfund').innerHTML = fundText(s, null);
+  getFund(s.id).then(v => { if($('#mt').textContent.startsWith(s.id)) $('#mfund').innerHTML = fundText(s, v); });
   mo.style.display = 'flex';
-  drawChart(mo.querySelector('.chart'), s);
+  CUR = s; setTab('k');
 });
+let CUR = null;
+function setTab(t){
+  document.querySelectorAll('#mtabs button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
+  $('#mleg').style.display = t === 'k' ? 'flex' : 'none';
+  const el = $('#modal .chart');
+  if(t === 'k') drawChart(el, CUR); else drawFund(el, CUR, t);
+}
+document.querySelectorAll('#mtabs button').forEach(b => b.onclick = () => setTab(b.dataset.t));
 $('#mclose').onclick = () => { $('#modal').style.display = 'none'; };
 $('#modal').onclick = e => { if(e.target.id === 'modal') $('#modal').style.display = 'none'; };
 
