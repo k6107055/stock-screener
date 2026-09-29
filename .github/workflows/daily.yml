@@ -47,3 +47,10 @@ jobs:
             git commit -m "每日選股資料 $(TZ=Asia/Taipei date +%F)"
             for i in 1 2 3; do git pull --rebase origin main && git push && break; sleep 5; done
           fi
+
+      - name: LINE 推播與自動報告
+        if: success()
+        env:
+          GAS_URL: ${{ secrets.GAS_URL }}
+          GAS_KEY: ${{ secrets.GAS_KEY }}
+        run: python screener/notify.py
