@@ -6,7 +6,9 @@
 2. 用 yfinance 下載約 2 年日 K（還原權息）
 3. 先過「趨勢模板」8 條（超級績效），過關才進入評分
 4. 對過關股票計算 4 條型態規則＋突破訊號，並算出建議買點、停損、風險
-5. 輸出 docs/data/latest.json 與 docs/data/history/<日期>.json 給網站用
+5. 產業族群強度：各產業平均 RS、趨勢模板過關比例，找出主流族群
+6. 基本面（fundamentals.py）：書中基本面分、循環分、擴產標籤
+7. 輸出 docs/data/latest.json 與 docs/data/history/<日期>.json 給網站用
 """
 from __future__ import annotations
 
@@ -49,6 +51,10 @@ P = {
     # 部位
     "risk_max": 0.08,             # 停損距離超過 8% 就不做
     "new_lookback": 20,           # 近 N 個交易日沒上榜過 = 新
+    # 產業族群強度（自行量化）
+    "ind_min_n": 5,               # 產業至少幾檔可計算股票才排名
+    "ind_hot_top": 5,             # 平均 RS 前幾名的產業算「主流族群」
+    "ind_hot_pass": 3,            # 而且至少要有幾檔過趨勢模板
 }
 
 FINMIND_URL = "https://api.finmindtrade.com/api/v4/data"
@@ -375,7 +381,27 @@ def run(universe: pd.DataFrame, prices: dict[str, pd.DataFrame], idx: pd.DataFra
     for p in picked:
         p["ind_n"] = ind_count.get(p["industry"], 0) if p["industry"] else 0
 
-    picked.sort(key=lambda p: (p["score"], p["breakout"], p["risk_ok"], p["rs"]), reverse=True)
+    industries = industry_strength(rows, ind_count)
+    ind_map = {x["industry"]: x for x in industries}
+    for p in picked:
+        x = ind_map.get(p["industry"])
+        p["ind_rank"] = x["rank"] if x else None
+        p["ind_rs"] = x["avg_rs"] if x else None
+        p["ind_hot"] = bool(x and x["hot"])
+
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import fundamentals
+        fund_stat = fundamentals.attach(picked, OUT_DIR, dt.date.fromisoformat(mkt_date))
+    except Exception as e:  # noqa: BLE001  基本面失敗不影響技術面篩選
+        log(f"⚠️ 基本面更新失敗：{e}")
+        fund_stat = {"error": str(e)}
+
+    def fund_total(p):
+        f = p.get("fund") or {}
+        return f.get("fscore", 0) + f.get("cscore", 0)
+
+    picked.sort(key=lambda p: (p["score"], p["breakout"], p["risk_ok"], fund_total(p), p["rs"]), reverse=True)
     log(f"趨勢模板過關：{len(picked)} 檔；滿分 {sum(p['score'] == 4 for p in picked)} 檔；"
         f"今日突破 {sum(p['breakout'] for p in picked)} 檔")
 
@@ -383,8 +409,29 @@ def run(universe: pd.DataFrame, prices: dict[str, pd.DataFrame], idx: pd.DataFra
         "date": mkt_date,
         "generated_at": dt.datetime.now(dt.timezone(dt.timedelta(hours=8))).isoformat(timespec="minutes"),
         "universe": len(rows), "market": mkt, "params": P, "stocks": picked,
+        "industries": industries, "fund_stat": fund_stat,
         "_charts": {p["id"]: chart_data(dfs[p["id"]]) for p in picked},
     }
+
+
+def industry_strength(rows: list[dict], pass_count: dict[str, int]) -> list[dict]:
+    """產業族群強度：產業內所有可計算股票的平均 RS、過趨勢模板的檔數與比例"""
+    by: dict[str, list[int]] = {}
+    for r in rows:
+        if r.get("industry"):
+            by.setdefault(r["industry"], []).append(r["rs"])
+    out = []
+    for ind, rs in by.items():
+        if len(rs) < P["ind_min_n"]:
+            continue
+        n_pass = pass_count.get(ind, 0)
+        out.append({"industry": ind, "n": len(rs), "n_pass": n_pass,
+                    "pass_pct": _f(n_pass / len(rs) * 100, 1), "avg_rs": _f(sum(rs) / len(rs), 1)})
+    out.sort(key=lambda x: x["avg_rs"], reverse=True)
+    for i, x in enumerate(out, 1):
+        x["rank"] = i
+        x["hot"] = bool(i <= P["ind_hot_top"] and x["n_pass"] >= P["ind_hot_pass"])
+    return out
 
 
 def chart_data(df: pd.DataFrame, n: int = 260) -> dict:
