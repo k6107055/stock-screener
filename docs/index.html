@@ -90,6 +90,26 @@ details li{margin:3px 0}
 .fundinfo{padding:6px 12px;font-size:13px;border-bottom:1px solid var(--line);line-height:1.8}
 .fundinfo .y{color:var(--up);font-weight:700} .fundinfo .n{color:var(--muted)}
 .indtbl td,.indtbl th{padding:4px 8px}
+.act{margin:12px 0}
+.act h2{font-size:16px;margin:14px 0 6px;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.act h2 small{font-weight:400;color:var(--muted);font-size:13px}
+.acards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+.acard{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:grid;gap:6px;cursor:pointer;min-width:0}
+.acard:hover{background:var(--hl)}
+.acard.buy{border-left:4px solid var(--up)} .acard.ready{border-left:4px solid #ea8a00}
+.acard .h{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.acard .h b{font-size:16px}
+.acard .kv{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;font-size:12px;color:var(--muted)}
+.acard .kv span b{display:block;font-size:14px;color:var(--fg);font-variant-numeric:tabular-nums}
+.acard .todo{font-size:13px}
+.acard .todo b{color:var(--up)}
+.acard .w{font-size:12px;color:var(--down)}
+.tag.pref{background:#e8f0ff;color:#1d4ed8;border-color:#bfd3fb}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .tag.pref{background:#14223d;color:#93b4ff;border-color:#23365f} }
+.noact{color:var(--muted);font-size:13px;background:var(--card);border:1px dashed var(--line);border-radius:10px;padding:10px 12px}
+.rules{columns:2 320px;column-gap:24px}
+.rules h3{font-size:14px;margin:6px 0 4px;break-after:avoid}
+.rules ol,.rules ul{margin:0 0 10px;padding-left:1.3em}
 @media (max-width:640px){ h1{font-size:18px} .stat{min-width:calc(50% - 4px)} }
 </style>
 </head>
@@ -97,13 +117,46 @@ details li{margin:3px 0}
 <header>
   <h1>SEPA 選股：趨勢模板＋VCP 評分</h1>
   <div class="sub" id="sub">載入中…</div>
-  <nav class="nav"><a href="./" class="on">每日選股</a><a href="backtest.html">歷史回測</a><a href="track.html">每日追蹤</a></nav>
+  <nav class="nav"><a href="./" class="on">每日選股</a><a href="history.html">上榜紀錄</a><a href="backtest.html">歷史回測</a><a href="track.html">每日追蹤</a></nav>
 </header>
 <main>
   <div id="banner" class="banner" style="display:none"></div>
 
   <div class="stats" id="stats"></div>
   <div class="hotbar" id="hotbar"></div>
+  <section class="act" id="act"></section>
+  <details>
+    <summary>📋 買賣規則小抄（照這個做就好）</summary>
+    <div class="rules">
+      <h3>什麼時候可以買</h3>
+      <ol>
+        <li>大盤在 50、200 日線之上（上方橫幅是綠色）</li>
+        <li>股票出現在「🟢 今天可以買」：已經帶量突破、型態評分 ≥ 3、停損距離 ≤ 8%</li>
+        <li><b>隔天開盤買</b>；開盤價比樞紐點高 5% 以上就不追，開盤已經跌破停損就不買</li>
+        <li>張數照「可買」欄：每筆最多虧總資金 1%，單檔不超過 25%</li>
+        <li>同時有好幾檔時，優先：偏好產業（半導體）→ 書中基本面、循環分高 → 主流族群 → 連續上榜久的</li>
+      </ol>
+      <h3>🟡 準備區怎麼用</h3>
+      <ul>
+        <li>還沒突破，但收盤離樞紐點不到 3%、型態已經收斂</li>
+        <li>盤中漲過「突破價」而且成交量超過「突破量」＝突破，收盤確認後隔天可買</li>
+      </ul>
+      <h3>買了之後怎麼賣（賣出規則 A）</h3>
+      <ol>
+        <li>一買進就設好停損價，<b>碰到就賣</b>，不凹單</li>
+        <li>漲到「保本價」（買價＋2 倍風險）後，停損上移到買價，這筆最差打平</li>
+        <li>保本之後，<b>收盤跌破 50 日線 → 隔天開盤賣</b></li>
+        <li>標籤出現「循環後段」「月營收轉壞」時提高警覺</li>
+      </ol>
+      <h3>用 LINE 記錄持股，每天自動檢查</h3>
+      <ul>
+        <li>買了傳：<b>買 3167 250 2張</b>（代號、買價、張數；可加「停損 235」）</li>
+        <li>賣了傳：<b>賣 3167 280</b>　查看：<b>持股</b></li>
+        <li>每天收盤後會檢查停損、保本、50 日線，該動作時 LINE 通知你</li>
+      </ul>
+    </div>
+    <p style="color:var(--muted)">勝率本來就不高（回測約 5 成），賺錢靠「賠小賺大」：每筆最多虧 1%，贏的時候抱到規則叫你賣。這些規則是篩選工具，不構成投資建議。</p>
+  </details>
 
   <div class="controls">
     <label>日期 <select id="date"></select></label>
@@ -120,6 +173,7 @@ details li{margin:3px 0}
     <button class="chip" data-f="cyc">循環分 ≥ 2</button>
     <button class="chip" data-f="accel">營收加速</button>
     <button class="chip" data-f="hot">主流族群</button>
+    <button class="chip" data-f="pref">偏好產業</button>
     <select id="ind"><option value="">全部產業</option></select>
     <input type="search" id="q" placeholder="代號／名稱">
   </div>
@@ -296,6 +350,7 @@ function rows(){
   if(filter === 'cyc') list = list.filter(s => (s.cscore || 0) >= 2);
   if(filter === 'accel') list = list.filter(s => s.fund && s.fund.mrev_trend === 'up');
   if(filter === 'hot') list = list.filter(s => s.ind_hot);
+  if(filter === 'pref') list = list.filter(s => s.prefer);
   if(ind) list = list.filter(s => s.industry === ind);
   if(q) list = list.filter(s => s.id.includes(q) || s.name.includes(q));
   if(sortKey){
@@ -325,6 +380,7 @@ function render(){
     : '';
   $('#hotbar').querySelectorAll('button').forEach(b => b.onclick = () => { $('#ind').value = b.dataset.ind; render(); });
   renderInd();
+  renderAct();
 
   const list = rows();
   if(!list.length){ $('#tb').innerHTML = '<tr><td colspan="21" class="empty">沒有符合條件的股票</td></tr>'; return; }
@@ -483,6 +539,34 @@ async function drawFund(el, s, kind){
   charts.set(el, chart);
 }
 
+// ===== v3 今日行動清單 =====
+function actCard(s){
+  const f = s.fund || {};
+  const tags = (s.prefer ? '<span class="tag pref">偏好產業</span>' : '') + (s.why || []).filter(w => w !== '偏好產業').map(w => `<span class="tag">${esc(w)}</span>`).join('');
+  const todo = s.action === 'buy'
+    ? `👉 <b>明天開盤買</b>（開盤高於 ${num(s.pivot * 1.05)} 就不追；低於停損 ${num(s.stop)} 就不買）`
+    : `👉 盤中漲過 <b>${num(s.pivot)}</b>，而且成交量超過 <b>${s.bo_lots ? s.bo_lots.toLocaleString() : '-'} 張</b>＝突破，收盤確認後隔天可買`;
+  return `<div class="acard ${s.action}" data-id="${s.id}">
+    <div class="h"><b>${s.id} ${esc(s.name)}</b><span class="mut">${esc(s.industry || '')}</span><span class="mut">RS ${s.rs}｜評分 ${s.score}/4｜連續上榜 ${s.streak || 1} 天</span></div>
+    <div>${tags}</div>
+    <div class="kv"><span>買點<b>${num(s.entry)}</b></span><span>停損<b>${num(s.stop)}</b></span><span>風險<b>${num(s.risk,1)}%</b></span><span>可買<b>${fmtShares(shares(s))}</b></span></div>
+    <div class="todo">${todo}</div>
+    ${(s.warn || []).length ? `<div class="w">⚠️ ${s.warn.map(esc).join('；')}</div>` : ''}
+  </div>`;
+}
+function renderAct(){
+  const el = $('#act'); if(!el) return;
+  const m = DATA.market, ok = m.above50 && m.above200;
+  const buy = DATA.stocks.filter(s => s.action === 'buy');
+  const ready = DATA.stocks.filter(s => s.action === 'ready');
+  if(!('action' in (DATA.stocks[0] || {}))){ el.innerHTML = ''; return; }
+  el.innerHTML = `<h2>🟢 今天可以買 <small>${buy.length} 檔｜已帶量突破、評分 ≥ 3、停損 ≤ 8%</small></h2>` +
+    (buy.length ? `<div class="acards">${buy.map(actCard).join('')}</div>` : `<div class="noact">${ok ? '今天沒有買進訊號。沒有訊號就不買，也是規則的一部分。' : '大盤轉弱，規則是暫停新進場。'}</div>`) +
+    `<h2>🟡 準備區 <small>${ready.length} 檔｜離突破點 3% 以內、型態已收斂，明天突破就可買</small></h2>` +
+    (ready.length ? `<div class="acards">${ready.slice(0, 12).map(actCard).join('')}</div>` : '<div class="noact">目前沒有接近突破點的股票。</div>');
+  el.querySelectorAll('.acard').forEach(c => c.onclick = () => openModal(c.dataset.id));
+}
+
 const find = id => DATA.stocks.find(s => s.id === id);
 const pv = $('#preview'), pvChart = pv.querySelector('.chart');
 let pvId = null, pvTimer = null;
@@ -511,17 +595,20 @@ if(canHover){
 $('#tb').addEventListener('click', e => {
   if(e.target.closest('a')) return;
   const tr = e.target.closest('tr[data-id]'); if(!tr) return;
-  const s = find(tr.dataset.id); if(!s) return;
+  openModal(tr.dataset.id);
+});
+function openModal(id){
+  const s = find(id); if(!s) return;
   pv.style.display = 'none';
   const mo = $('#modal');
   $('#mt').textContent = `${s.id} ${s.name}`;
   $('#minfo').innerHTML = `買點 ${num(s.entry)}｜停損 ${num(s.stop)}｜風險 ${num(s.risk,1)}%${s.risk_ok ? '' : '（超過 8%，不做）'}｜可買 ${fmtShares(shares(s))}｜RS ${s.rs}　<a href="https://tw.tradingview.com/chart/?symbol=${s.ex}:${s.id}" target="_blank" rel="noopener">TradingView</a>`;
-  $('#minfo').innerHTML += `　<a href="${reportUrl(s.id)}" target="_blank" rel="noopener" style="color:#06c755;font-weight:700">📄 LINE 產生整合報告</a>`;
+  $('#minfo').innerHTML += `　<a href="${reportUrl(s.id)}" target="_blank" rel="noopener" style="color:#06c755;font-weight:700">📄 LINE 產生整合報告</a>　<a href="history.html?id=${s.id}">📜 上榜紀錄</a>`;
   $('#mfund').innerHTML = fundText(s, null);
   getFund(s.id).then(v => { if($('#mt').textContent.startsWith(s.id)) $('#mfund').innerHTML = fundText(s, v); });
   mo.style.display = 'flex';
   CUR = s; setTab('k');
-});
+}
 let CUR = null;
 function setTab(t){
   document.querySelectorAll('#mtabs button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
