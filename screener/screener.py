@@ -55,7 +55,12 @@ P = {
     "ind_min_n": 5,               # 產業至少幾檔可計算股票才排名
     "ind_hot_top": 5,             # 平均 RS 前幾名的產業算「主流族群」
     "ind_hot_pass": 3,            # 而且至少要有幾檔過趨勢模板
+    # 今日行動清單（v3）
+    "prefer_ind": ["半導體業"],    # 偏好產業：排在最前面（AI 週期優先看半導體）
+    "ready_pct": 0.03,            # 準備區：收盤在樞紐點下方 3% 以內
+    "min_score_action": 3,        # 可買／準備區都要型態評分 ≥ 3
 }
+PREFER_FILE = Path(__file__).resolve().parent / "prefer.txt"   # 自選的 AI 供應鏈代號（一行一個，可留空）
 
 FINMIND_URL = "https://api.finmindtrade.com/api/v4/data"
 UA = {"User-Agent": "Mozilla/5.0 (stock-screener; personal use)"}
@@ -367,12 +372,14 @@ def run(universe: pd.DataFrame, prices: dict[str, pd.DataFrame], idx: pd.DataFra
             "r1": _f(a["r1"] * 100, 1), "r2": _f(a["r2"] * 100, 1), "r3": _f(a["r3"] * 100, 1),
             "dry": _f(a["vol10"] / a["vol50"] if a["vol50"] else None),
             "vol_ratio": _f(s["vol_ratio"]),
+            "bo_lots": int(a["vol50"] * P["bo_vol_ratio"] / 1000) if a["vol50"] else None,   # 突破需要的成交量（張）
             "turnover": _f(a["turnover20"] / 1e8, 2),   # 億元
             "rules": {k: bool(v) for k, v in s["rules"].items()},
             "score": s["score"], "breakout": s["breakout"],
             "entry": _f(s["entry"]), "stop": _f(s["stop"]), "pivot": _f(a["pivot"]),
             "risk": _f(s["risk"] * 100), "risk_ok": s["risk_ok"],
             "beat_mkt": s["beat_mkt"], "new": a["id"] not in prev,
+            "newhigh": bool(a["high_today"] >= a["hi252"]),   # 今天創一年新高
         })
 
     ind_count: dict[str, int] = {}
@@ -401,7 +408,59 @@ def run(universe: pd.DataFrame, prices: dict[str, pd.DataFrame], idx: pd.DataFra
         f = p.get("fund") or {}
         return f.get("fscore", 0) + f.get("cscore", 0)
 
-    picked.sort(key=lambda p: (p["score"], p["breakout"], p["risk_ok"], fund_total(p), p["rs"]), reverse=True)
+    # ---- v3 今日行動清單：可買／準備區／偏好產業／連續上榜天數／理由
+    mkt_ok = bool(mkt["above50"] and mkt["above200"])
+    prefer_ids = set()
+    try:
+        prefer_ids = {x.strip()[:6] for x in PREFER_FILE.read_text(encoding="utf-8").splitlines() if x.strip() and not x.startswith("#")}
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        import history
+        streaks = history.streaks([p["id"] for p in picked], mkt_date, OUT_DIR)
+    except Exception as e:  # noqa: BLE001
+        log(f"⚠️ 連續上榜天數計算失敗：{e}")
+        streaks = {}
+    for p in picked:
+        p["streak"] = streaks.get(p["id"], 1)
+        p["prefer"] = bool(p["industry"] in P["prefer_ind"] or p["id"] in prefer_ids)
+        good = p["score"] >= P["min_score_action"] and p["risk_ok"]
+        near = p["pivot"] and p["close"] and p["pivot"] * (1 - P["ready_pct"]) <= p["close"] <= p["pivot"]
+        if good and p["breakout"] and mkt_ok:
+            p["action"] = "buy"
+        elif good and not p["breakout"] and near:
+            p["action"] = "ready"
+        else:
+            p["action"] = ""
+        f = p.get("fund") or {}
+        why = []
+        if p["prefer"]:
+            why.append("偏好產業")
+        if p.get("ind_hot"):
+            why.append("主流族群")
+        if f.get("fscore", 0) >= 2:
+            why.append(f"書中基本面{f['fscore']}/3")
+        if f.get("cscore", 0) >= 2:
+            why.append(f"循環分{f['cscore']}/3")
+        if "營收新高" in f.get("tags", []):
+            why.append("營收新高")
+        if p.get("newhigh"):
+            why.append("創一年新高")
+        if p["streak"] >= 20:
+            why.append(f"連續上榜{p['streak']}天")
+        if p["rs"] >= 90:
+            why.append(f"RS {p['rs']}")
+        warn = []
+        if "循環後段" in f.get("tags", []):
+            warn.append("循環後段（擴產連續多季）")
+        if f.get("mrev_trend") == "down":
+            warn.append("月營收轉壞")
+        if p["ext50"] is not None and p["ext50"] > 20:
+            warn.append(f"離50日線 {p['ext50']}%，偏高")
+        p["why"], p["warn"] = why, warn
+
+    rank = {"buy": 2, "ready": 1, "": 0}
+    picked.sort(key=lambda p: (rank[p["action"]], p["prefer"], p["score"], fund_total(p), p["streak"] >= 20, p["rs"]), reverse=True)
     log(f"趨勢模板過關：{len(picked)} 檔；滿分 {sum(p['score'] == 4 for p in picked)} 檔；"
         f"今日突破 {sum(p['breakout'] for p in picked)} 檔")
 
@@ -481,6 +540,12 @@ def main() -> int:
         return 1
     result = run(universe, prices, idx)
     save(result)
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import history
+        history.append_daily(result, OUT_DIR)
+    except Exception as e:  # noqa: BLE001  上榜歷史失敗不影響每日篩選
+        log(f"⚠️ 上榜歷史更新失敗：{e}")
     try:
         sys.path.insert(0, str(Path(__file__).resolve().parent))
         import tracking
