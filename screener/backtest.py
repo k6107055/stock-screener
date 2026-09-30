@@ -258,6 +258,11 @@ def run_backtest(universe, prices, idx) -> dict:
     ind = indicators(pn, ic)
     dates = ind["C"].index
     start_i = 260
+    try:
+        import history
+        history.rebuild_from_panel(ind, meta, start_i, S.OUT_DIR)
+    except Exception as e:  # noqa: BLE001
+        log(f"⚠️ 上榜歷史重建失敗：{e}")
     split_i = start_i + int((len(dates) - start_i) * 0.6)
     split_date = dates[split_i].date().isoformat()
 
