@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>個股上榜紀錄</title>
+<link rel="stylesheet" href="common.css">
+<style>
+.search{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:12px 0}
+.search input{font:inherit;font-size:16px;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 12px;width:min(360px,100%)}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
+.chip{font:inherit;cursor:pointer;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:16px;padding:4px 12px;font-size:13px}
+.chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.sugg{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 8px}
+.sugg button{font:inherit;cursor:pointer;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:3px 10px;color:var(--fg);font-size:13px}
+.head{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px}
+.head .sid{font-size:22px;font-weight:800;color:var(--accent)}
+.head .nm{font-size:18px;font-weight:700}
+.head .ind{color:var(--muted);font-size:13px}
+.streak{margin-left:auto;font-size:14px}
+.streak b{font-size:22px;color:var(--up)}
+.stint{background:var(--card);border:1px solid var(--line);border-radius:10px;margin:10px 0;overflow:hidden}
+.stint > .sh{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;padding:10px 14px;cursor:pointer}
+.stint > .sh .rng{font-weight:700}
+.stint.cur{border-left:4px solid var(--up)}
+.day{display:grid;grid-template-columns:110px 1fr auto;gap:8px;align-items:center;padding:7px 14px;border-top:1px solid var(--line);font-size:13px}
+.day:nth-child(even){background:color-mix(in srgb, var(--bg) 50%, var(--card))}
+.tag{display:inline-block;padding:0 8px;border-radius:10px;font-size:12px;line-height:20px;margin-right:4px;border:1px solid var(--line);color:var(--muted)}
+.t-new{background:#e8f7ee;color:#11632f;border-color:#b7e4c7}
+.t-list{background:#e6f0ff;color:#1d4ed8;border-color:#bfd3fb}
+.t-hi{background:#fff4e5;color:#9a4a00;border-color:#fcd9a8}
+.t-bo{background:#fde8e8;color:#b42318;border-color:#f7c1c1}
+.t-sc{background:#f3e8ff;color:#6b21a8;border-color:#dcc4fb}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  .t-new{background:#12301f;color:#86efac;border-color:#1f5134} .t-list{background:#14223d;color:#93b4ff;border-color:#23365f}
+  .t-hi{background:#3a2a12;color:#ffc47a;border-color:#5a4220} .t-bo{background:#3a1717;color:#ff9b9b;border-color:#5c2525}
+  .t-sc{background:#2a1a3d;color:#d3b2ff;border-color:#43305e} } }
+.more{display:block;width:100%;font:inherit;border:0;border-top:1px solid var(--line);background:transparent;color:var(--accent);padding:8px;cursor:pointer}
+.rmeta{color:var(--muted);font-size:12px}
+@media (max-width:640px){ .day{grid-template-columns:88px 1fr;padding:7px 10px} .day > span:last-child{grid-column:2} .streak{margin-left:0} }
+</style>
+</head>
+<body>
+<header>
+  <h1>個股上榜紀錄</h1>
+  <div class="sub" id="sub">輸入代號或名稱，看這檔股票什麼時候進入趨勢模板（上榜）、什麼時候創新高、突破</div>
+  <nav><a href="./">每日選股</a><a href="history.html" class="on">上榜紀錄</a><a href="backtest.html">歷史回測</a><a href="track.html">每日追蹤</a></nav>
+</header>
+<main>
+  <div class="search"><input id="q" type="search" placeholder="代號或名稱，例如 4551 或 智伸科" autocomplete="off"></div>
+  <div class="sugg" id="sugg"></div>
+  <div class="chips" id="chips">
+    <button class="chip on" data-f="all">全部上榜日</button>
+    <button class="chip" data-f="hi">創新高</button>
+    <button class="chip" data-f="bo">突破</button>
+    <button class="chip" data-f="sc">評分 ≥ 3</button>
+  </div>
+  <div id="out"><div class="empty">資料載入中…</div></div>
+  <div class="box rmeta">
+    <b>標記說明</b>：<span class="tag t-list">上榜</span>通過《超級績效》趨勢模板 8 條；
+    <span class="tag t-new">新</span>休息 20 個交易日以上後重新上榜的第一天；
+    <span class="tag t-hi">新高</span>當天最高價創一年新高；
+    <span class="tag t-bo">突破</span>帶量突破樞紐點；
+    <span class="tag t-sc">評分</span>VCP 型態評分（0～4）。<br>
+    「一段」＝連續每個交易日都在榜上；中間斷掉就算新的一段。歷史資料由每週六的回測重建（近一年），之後每天自動補上。
+  </div>
+</main>
+<footer>本頁只是篩選工具的紀錄，不構成投資建議。</footer>
+<script src="common.js"></script>
+<script>
+let IDX = [], CAL = [], CALPOS = {}, CUR = null, F = 'all';
+const NEWHIGH = 1, BREAKOUT = 2;
+
+(async function(){
+  try{
+    [IDX, CAL] = await Promise.all([getJSON('data/hist/_index.json'), getJSON('data/hist/_calendar.json')]);
+  }catch(e){
+    $('#out').innerHTML = '<div class="empty">還沒有上榜紀錄：下一次「每日選股」執行後會開始累積；週六「歷史回測」跑完會補齊過去 6 年。</div>';
+    return;
+  }
+  CAL.forEach((d, i) => CALPOS[d] = i);
+  $('#sub').textContent = `共 ${IDX.length} 檔曾經上榜｜資料 ${CAL[0] || '-'} ～ ${CAL[CAL.length - 1] || '-'}`;
+  const id = new URLSearchParams(location.search).get('id');
+  if(id){ $('#q').value = id; show(id); } else showRecent();
+})();
+
+$('#q').addEventListener('input', () => {
+  const q = $('#q').value.trim();
+  if(!q){ $('#sugg').innerHTML = ''; return; }
+  const hits = IDX.filter(x => x[0].startsWith(q) || x[1].includes(q)).slice(0, 12);
+  $('#sugg').innerHTML = hits.map(x => `<button data-id="${x[0]}">${x[0]} ${esc(x[1])}</button>`).join('') || '<span class="mut">找不到，這檔可能從沒上榜過</span>';
+  if(hits.length === 1 || (hits[0] && hits[0][0] === q)) show(hits[0][0]);
+});
+$('#q').addEventListener('keydown', e => { if(e.key === 'Enter'){ const b = $('#sugg button'); if(b) show(b.dataset.id); } });
+$('#sugg').addEventListener('click', e => { const b = e.target.closest('button[data-id]'); if(b){ $('#q').value = b.dataset.id; show(b.dataset.id); } });
+document.querySelectorAll('.chip').forEach(b => b.onclick = () => {
+  document.querySelectorAll('.chip').forEach(x => x.classList.remove('on')); b.classList.add('on'); F = b.dataset.f; if(CUR) render();
+});
+
+// 沒有輸入時：列出最新交易日上榜、而且是「新」的股票
+function showRecent(){
+  const last = CAL[CAL.length - 1];
+  const today = IDX.filter(x => x[3] === last).sort((a, b) => a[4] - b[4]);
+  $('#out').innerHTML = `<div class="box"><b>${last} 上榜 ${today.length} 檔</b>（上榜天數少的排前面，點名字看紀錄）<div class="sugg" style="margin-top:8px">` +
+    today.slice(0, 80).map(x => `<button data-id="${x[0]}">${x[0]} ${esc(x[1])} <span class="mut">${x[4]}天</span></button>`).join('') + '</div></div>';
+  $('#out').querySelectorAll('button[data-id]').forEach(b => b.onclick = () => { $('#q').value = b.dataset.id; show(b.dataset.id); });
+}
+
+async function show(id){
+  $('#sugg').innerHTML = '';
+  try{ CUR = await getJSON(`data/hist/${id}.json`); }
+  catch(e){ CUR = null; $('#out').innerHTML = `<div class="empty">${esc(id)} 在資料期間內沒有上榜過（沒有通過趨勢模板）。</div>`; return; }
+  history.replaceState(null, '', '?id=' + id);
+  render();
+}
+
+// 把上榜日切成「連續段」
+function stints(rows){
+  const out = []; let cur = null;
+  rows.forEach(r => {
+    const p = CALPOS[r[0]];
+    if(cur && p !== undefined && cur.lastPos !== undefined && p === cur.lastPos + 1){ cur.rows.push(r); cur.lastPos = p; }
+    else { cur = { rows: [r], lastPos: p }; out.push(cur); }
+  });
+  // 「新」：與上一段相隔 ≥ 20 個交易日（或第一段）
+  out.forEach((s, i) => {
+    const prev = out[i - 1];
+    const gap = prev && CALPOS[s.rows[0][0]] !== undefined && prev.lastPos !== undefined ? CALPOS[s.rows[0][0]] - prev.lastPos - 1 : 999;
+    s.isNew = gap >= 20;
+    const c0 = s.rows[0][5], c1 = s.rows[s.rows.length - 1][5];
+    s.chg = c0 && c1 ? (c1 / c0 - 1) * 100 : null;
+    s.hi = s.rows.filter(r => r[1] & NEWHIGH).length;
+    s.bo = s.rows.filter(r => r[1] & BREAKOUT).length;
+  });
+  return out;
+}
+
+function render(){
+  const d = CUR, rows = d.rows, last = CAL[CAL.length - 1];
+  const st = stints(rows);
+  const cur = st[st.length - 1];
+  const onNow = cur && cur.rows[cur.rows.length - 1][0] === last;
+  const months = rows.length ? Math.max(1, Math.round((new Date(rows[rows.length - 1][0]) - new Date(rows[0][0])) / 2629800000)) : 0;
+  const pass = r => F === 'all' || (F === 'hi' && (r[1] & NEWHIGH)) || (F === 'bo' && (r[1] & BREAKOUT)) || (F === 'sc' && r[2] >= 3);
+  let html = `<div class="box"><div class="head"><span class="sid">${d.id}</span><span class="nm">${esc(d.name)}</span><span class="ind">${esc(d.industry || '')}</span>
+    <span class="streak">${onNow ? `目前連續上榜 <b>${cur.rows.length}</b> 天` : `目前不在榜上（最後上榜 ${rows[rows.length - 1][0]}）`}</span></div>
+    <div class="rmeta" style="margin-top:6px">共上榜 ${rows.length} 天、分 ${st.length} 段｜第一次 ${rows[0][0]}｜期間約 ${months} 個月｜創新高 ${rows.filter(r => r[1] & NEWHIGH).length} 天｜突破 ${rows.filter(r => r[1] & BREAKOUT).length} 次
+    ｜<a href="https://tw.tradingview.com/chart/?symbol=${d.ex || 'TWSE'}:${d.id}" target="_blank" rel="noopener">TradingView</a></div></div>`;
+  const list = st.slice().reverse();
+  list.forEach((s, k) => {
+    const days = s.rows.filter(pass);
+    if(F !== 'all' && !days.length) return;
+    const a = s.rows[0][0], b = s.rows[s.rows.length - 1][0];
+    const isCur = k === 0 && onNow;
+    html += `<div class="stint ${isCur ? 'cur' : ''}"><div class="sh" data-k="${k}">
+      <span class="rng">${a}${a !== b ? ' ～ ' + b : ''}</span>${s.isNew ? '<span class="tag t-new">新</span>' : ''}
+      <span>${s.rows.length} 天${isCur ? '（持續中）' : ''}</span>
+      <span class="rmeta">期間漲跌 ${pct(s.chg)}｜新高 ${s.hi} 天｜突破 ${s.bo} 次</span></div>
+      <div class="days" data-k="${k}">` + dayRows(days.slice().reverse(), s, k === 0 ? 15 : 5, k) + '</div></div>';
+  });
+  $('#out').innerHTML = html;
+  $('#out').querySelectorAll('.more').forEach(b => b.onclick = () => {
+    const k = +b.dataset.k, s = list[k];
+    b.parentElement.innerHTML = dayRows(s.rows.filter(pass).slice().reverse(), s, 9999, k);
+  });
+}
+
+function dayRows(days, s, limit, k){
+  const first = s.rows[0][0];
+  let h = days.slice(0, limit).map(r => `<div class="day"><span>${r[0]}</span><span>
+      ${r[0] === first && s.isNew ? '<span class="tag t-new">新</span>' : ''}<span class="tag t-list">上榜</span>${r[1] & NEWHIGH ? '<span class="tag t-hi">新高</span>' : ''}${r[1] & BREAKOUT ? '<span class="tag t-bo">突破</span>' : ''}<span class="tag t-sc">評分 ${r[2]}</span></span>
+      <span class="rmeta">20日 ${pct(r[3])}　RS ${r[4] ?? '-'}</span></div>`).join('');
+  if(days.length > limit) h += `<button class="more" data-k="${k}">顯示全部 ${days.length} 天</button>`;
+  return h;
+}
+</script>
+</body>
+</html>
