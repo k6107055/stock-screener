@@ -39,6 +39,10 @@ FP = {
     "rev_q_yoy_min": 0.20,     # F3
     "mrev_yoy_min": 0.15,      # C1
     "gm_uptick_pp": 2.0,       # C2（百分點）
+    # 超額利潤型態（優分析產業循環框架：價量齊揚／價轉量／價跌量增）
+    "pv_rev_yoy": 10.0,        # 季營收年增 ≥ 10% 才算「量增」
+    "pv_gm_up_pp": 2.0,        # 毛利率比去年同季 +2 個百分點以上＝「價漲」
+    "pv_gm_down_pp": 1.5,      # 毛利率比上一季、去年同季都少 1.5 個百分點以上＝「價跌」
     "mrev_high_months": 24,    # C3
     "capex_yoy_min": 0.30,     # 擴產
     "capex_late_q": 3,         # 連續幾季算循環後段
@@ -246,6 +250,24 @@ def evaluate(cache: dict) -> dict:
         res["gm_avg4"] = _pp(sum(prev4) / len(prev4)) if prev4 else None
         res["c"]["c2"] = bool(gm_last is not None and len(prev4) >= 3
                               and gm_last * 100 > sum(prev4) / len(prev4) * 100 + FP["gm_uptick_pp"])
+        # 超額利潤型態：量＝季營收年增；價＝毛利率變化（年比、季比）
+        gm_ly = _margin(gross, rev, _lag_year(last))
+        gm_pq = gms[-2] if len(gms) >= 2 else None
+        gy = (gm_last - gm_ly) * 100 if gm_last is not None and gm_ly is not None else None
+        gq = (gm_last - gm_pq) * 100 if gm_last is not None and gm_pq is not None else None
+        pv = None
+        if ry is not None and gy is not None and ry * 100 >= FP["pv_rev_yoy"]:
+            if gy >= FP["pv_gm_up_pp"] and (gq is None or gq > -FP["pv_gm_down_pp"]):
+                pv = "價量齊揚"
+            elif gy <= -FP["pv_gm_down_pp"] and gq is not None and gq <= -FP["pv_gm_down_pp"]:
+                pv = "價跌量增"
+            else:
+                pv = "價平量增"
+        res["pv"] = pv
+        res["gm_yoy_pp"] = None if gy is None else round(gy, 1)
+        res["gm_qoq_pp"] = None if gq is None else round(gq, 1)
+        if pv:
+            res["tags"].append(pv)
         # 給網站畫圖：近 12 季
         res["q_hist"] = [{"q": d, "eps": eps.get(d), "gm": _pp(_margin(gross, rev, d)),
                           "om": _pp(_margin(opinc, rev, d))} for d in qs[-12:]]
@@ -360,7 +382,7 @@ def attach(stocks: list[dict], out_dir: Path, today: dt.date | None = None, budg
             p.write_text(json.dumps(cache, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
         ev = evaluate(cache)
         s["fund"] = {k: ev[k] for k in ("fscore", "cscore", "f", "c", "tags", "has_q", "has_m") }
-        for k in ("eps_yoy", "rev_q_yoy", "gm", "mrev_yoy", "mrev_trend", "capex_yoy", "q_last", "m_last"):
+        for k in ("eps_yoy", "rev_q_yoy", "gm", "mrev_yoy", "mrev_trend", "capex_yoy", "q_last", "m_last", "pv", "gm_yoy_pp", "gm_qoq_pp"):
             if k in ev:
                 s["fund"][k] = ev[k]
         s["fund"]["m12"] = [h["yoy"] for h in ev.get("m_hist", [])[-12:]]   # 表格迷你圖用
