@@ -1,5 +1,5 @@
 /**
- * LINE 股票檔案小幫手 v2.16（選股網站：個股法人預估／小助理／我的關注；v2.15 報告加入供應鏈順序、上下修性質、EPS 時間軸；同步上修雷達；v2.14 主程式放 GitHub，由啟動程式載入；v2.13 一鍵更新：GitHub＋Apps Script＋竄改猴；v2.12 X 長文抓全文＋圖片文字、存檔後自我檢查完整度；v2.11 連結不再卡住沒回應、額度查詢；v2.10 自動報告標示來源＋可關閉；v2.9 股號一律附股名、筆記判斷修正與一鍵改；v2.8 清單裡沒有的股號即時查證交所；v2.7 指令可打股名；補齊上櫃股票清單；v2.6 提高連結判斷準確率＋分錯了一鍵改；v2.5 一則多檔股票的整理自動拆到各公司；v2.4 圖片／PDF 用文字辨識判斷股票；v2.3 文字筆記 memo 自動歸檔；v2.2 報告改為決策卡＋證據的精簡版；v2.1 報告加入超額利潤期判斷；v2.0 美股：歸檔＋整合報告；小助理更新重點：追蹤推播 08:30／21:00、雷達、歷史紀錄）
+ * LINE 股票檔案小幫手 v2.17（選股網站超額利潤階段；v2.16 選股網站：個股法人預估／小助理／我的關注；v2.15 報告加入供應鏈順序、上下修性質、EPS 時間軸；同步上修雷達；v2.14 主程式放 GitHub，由啟動程式載入；v2.13 一鍵更新：GitHub＋Apps Script＋竄改猴；v2.12 X 長文抓全文＋圖片文字、存檔後自我檢查完整度；v2.11 連結不再卡住沒回應、額度查詢；v2.10 自動報告標示來源＋可關閉；v2.9 股號一律附股名、筆記判斷修正與一鍵改；v2.8 清單裡沒有的股號即時查證交所；v2.7 指令可打股名；補齊上櫃股票清單；v2.6 提高連結判斷準確率＋分錯了一鍵改；v2.5 一則多檔股票的整理自動拆到各公司；v2.4 圖片／PDF 用文字辨識判斷股票；v2.3 文字筆記 memo 自動歸檔；v2.2 報告改為決策卡＋證據的精簡版；v2.1 報告加入超額利潤期判斷；v2.0 美股：歸檔＋整合報告；小助理更新重點：追蹤推播 08:30／21:00、雷達、歷史紀錄）
  * ------------------------------------------------------------
  * v1.0 功能：把 PDF 轉傳給 LINE bot → 自動判斷股票／產業 → 重新命名
  *            → 存進 Google 雲端對應資料夾（沒有就自動建立）→ LINE 回報
@@ -3986,7 +3986,7 @@ function fetchXPostFull(url) {
 
 
 // v2.14 一鍵更新改由「啟動程式」（Apps Script 裡的 Code.gs）負責；這份主程式放在 GitHub 的 gas/Code.gs
-const APP_VERSION = 'v2.16';
+const APP_VERSION = 'v2.17';
 
 // ===== v2.13 清理暫存屬性（指令碼屬性超過 50 個時，畫面會變唯讀）=====
 function cleanupProps() {
@@ -4053,6 +4053,7 @@ function siteApi(body) {
     if (body.op === 'watch') return siteWatch();
     if (body.op === 'stock') return code ? siteStock(code) : { ok: false, error: 'no code' };
     if (body.op === 'pub') return code ? sitePub(code) : { ok: false, error: 'no code' };
+    if (body.op === 'phases') return sitePhases(body.codes);
     if (body.op === 'cmd') return siteCmd(String(body.cmd || ''), code);
     return { ok: false, error: 'unknown op' };
   } catch (e) {
@@ -4338,4 +4339,37 @@ function siteCmd(cmd, code) {
     return { ok: true, msg: t };
   }
   return { ok: false, error: 'unknown cmd' };
+}
+
+
+// ---------- op=phases：我的關注裡「不在強勢榜」的股票，給季營收＋毛利率算超額利潤階段 ----------
+// 一次最多 40 檔，FinMind 平行抓（fetchAll），每檔快取 12 小時
+function sitePhases(codes) {
+  codes = (Array.isArray(codes) ? codes : []).map(function (c) { return String(c).trim().toUpperCase(); })
+    .filter(function (c) { return /^\d{4,6}[A-Z]?$/.test(c); }).slice(0, 40);
+  const out = {}, need = [];
+  codes.forEach(function (c) {
+    const p = siteCacheGet('SITE_P_' + c);
+    const q = p && p.q_hist && p.q_hist.length ? p.q_hist : siteCacheGet('SITE_Q_' + c);
+    if (q) out[c] = q; else need.push(c);
+  });
+  if (need.length) {
+    const tk = prop('FINMIND_TOKEN');
+    const start = Utilities.formatDate(new Date(Date.now() - (365 * 4 + 40) * 86400000), TZ, 'yyyy-MM-dd');
+    const reqs = need.map(function (c) {
+      return { url: 'https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockFinancialStatements&data_id=' + c + '&start_date=' + start,
+        muteHttpExceptions: true, headers: tk ? { Authorization: 'Bearer ' + tk } : {} };
+    });
+    let res = [];
+    try { res = UrlFetchApp.fetchAll(reqs); } catch (e) { console.warn('FinMind fetchAll 失敗：' + e); }
+    res.forEach(function (r, i) {
+      try {
+        if (r.getResponseCode() !== 200) return;
+        const q = pubQuarterly(JSON.parse(r.getContentText()).data || []).map(function (h) { return { q: h.q, rev: h.rev, gm: h.gm }; });
+        out[need[i]] = q;
+        if (q.length) siteCachePut('SITE_Q_' + need[i], q, 12 * 3600);
+      } catch (e) { /* 這檔跳過 */ }
+    });
+  }
+  return { ok: true, q: out };
 }

@@ -189,6 +189,28 @@ def refresh(sid: str, cache: dict, today: dt.date, budget: Budget) -> dict:
 
 
 # ---------------------------------------------------------------- 計算
+# 超額利潤階段（整合報告「超額利潤期判斷框架」的量化版；網站 docs/index.html 的 PHASE 要用同一套門檻）
+#   量：季營收年增 ≥ 10% 量增、< 0 量縮；價：毛利率比去年同季 +2pp 以上且比上季沒掉超過 1.5pp＝價漲，
+#   比去年同季與上季都少 1.5pp 以上＝價跌
+PHASE_LABEL = {
+    "pq": "價量齊揚", "p": "價漲期", "q": "價轉量", "dq": "價跌量增", "d": "價量齊跌", "n": "持平",
+}
+
+
+def phase_of(ry: float | None, gy: float | None, gq: float | None) -> str | None:
+    """ry 營收年增 %、gy 毛利率年增 pp、gq 毛利率季增 pp"""
+    if ry is None or gy is None:
+        return None
+    up = gy >= FP["pv_gm_up_pp"] and (gq is None or gq > -FP["pv_gm_down_pp"])
+    down = gy <= -FP["pv_gm_down_pp"] and gq is not None and gq <= -FP["pv_gm_down_pp"]
+    vol = ry >= FP["pv_rev_yoy"]
+    if up:
+        return "pq" if vol else "p"
+    if down:
+        return "dq" if vol else "d"
+    return "q" if vol else "n"
+
+
 def _yoy(series: dict[str, float], key: str, lag_key: str) -> float | None:
     a, b = series.get(key), series.get(lag_key)
     if a is None or b is None or b <= 0:
@@ -269,13 +291,26 @@ def evaluate(cache: dict) -> dict:
         res["pv"] = pv
         res["gm_yoy_pp"] = None if gy is None else round(gy, 1)
         res["gm_qoq_pp"] = None if gq is None else round(gq, 1)
-        if pv:
-            res["tags"].append(pv)
         # 給網站畫圖：近 12 季
         yi = lambda s, d: None if s.get(d) is None else round(s[d] / 1e8, 2)  # noqa: E731  億元（網站算近四季用）
         res["q_hist"] = [{"q": d, "eps": eps.get(d), "gm": _pp(_margin(gross, rev, d)),
                           "om": _pp(_margin(opinc, rev, d)), "nm": _pp(_margin(net, rev, d)),
                           "rev": yi(rev, d), "gp": yi(gross, d), "op": yi(opinc, d), "ni": yi(net, d)} for d in qs[-16:]]
+        # 每一季的價量階段
+        prev_gm = None
+        for h in res["q_hist"]:
+            d = h["q"]
+            g = _margin(gross, rev, d)
+            g_ly = _margin(gross, rev, _lag_year(d))
+            r_y = _yoy(rev, d, _lag_year(d))
+            h["ry"] = _pct(r_y)
+            h["gy"] = None if g is None or g_ly is None else round((g - g_ly) * 100, 1)
+            h["gq"] = None if g is None or prev_gm is None else round((g - prev_gm) * 100, 1)
+            h["ph"] = phase_of(h["ry"], h["gy"], h["gq"])
+            prev_gm = g
+        phs = [h["ph"] for h in res["q_hist"]]
+        res["phase"] = phs[-1] if phs else None
+        res["ph6"] = phs[-6:]
 
     # ---- 資本支出（取絕對值；現金流量表為負數）
     capex = {d: abs(v) for d, v in _qtr_ytd_to_single(q.get("capex", {})).items()}
@@ -387,7 +422,8 @@ def attach(stocks: list[dict], out_dir: Path, today: dt.date | None = None, budg
             p.write_text(json.dumps(cache, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
         ev = evaluate(cache)
         s["fund"] = {k: ev[k] for k in ("fscore", "cscore", "f", "c", "tags", "has_q", "has_m") }
-        for k in ("eps_yoy", "rev_q_yoy", "gm", "mrev_yoy", "mrev_trend", "capex_yoy", "q_last", "m_last", "pv", "gm_yoy_pp", "gm_qoq_pp"):
+        for k in ("eps_yoy", "rev_q_yoy", "gm", "mrev_yoy", "mrev_trend", "capex_yoy", "q_last", "m_last", "pv", "gm_yoy_pp", "gm_qoq_pp",
+                  "phase", "ph6", "capex_streak"):
             if k in ev:
                 s["fund"][k] = ev[k]
         s["fund"]["m12"] = [h["yoy"] for h in ev.get("m_hist", [])[-12:]]   # 表格迷你圖用

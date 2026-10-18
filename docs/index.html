@@ -110,6 +110,23 @@ details li{margin:3px 0}
 .rules{columns:2 320px;column-gap:24px}
 .rules h3{font-size:14px;margin:6px 0 4px;break-after:avoid}
 .rules ol,.rules ul{margin:0 0 10px;padding-left:1.3em}
+/* v5 超額利潤階段 */
+.ph{display:inline-block;padding:0 7px;border-radius:6px;font-size:12px;line-height:20px;font-weight:700;white-space:nowrap;cursor:pointer}
+.ph-pq{background:#d9363e;color:#fff} .ph-p{background:#fde2e2;color:#b42318} .ph-q{background:#fff1d6;color:#9a4a00}
+.ph-dq{background:#16a34a;color:#fff} .ph-d{background:#dcefe2;color:#14532d} .ph-n{background:var(--line);color:var(--muted)} .ph-x{background:transparent;color:var(--muted);font-weight:400}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .ph-p{background:#4a1d1f;color:#fca5a5} :root:not([data-theme="light"]) .ph-q{background:#3a2a12;color:#fdba74} :root:not([data-theme="light"]) .ph-d{background:#12301f;color:#86efac} }
+.phs{display:inline-flex;gap:2px;vertical-align:middle;margin-left:4px}
+.phs i{display:block;width:9px;height:14px;border-radius:2px}
+.phs i.ph-x{background:var(--line)}
+.phs i.ph-pq{background:#d9363e} .phs i.ph-p{background:#f29599} .phs i.ph-q{background:#f0a33a} .phs i.ph-dq{background:#16a34a} .phs i.ph-d{background:#7cc496} .phs i.ph-n{background:#c3cad4}
+.phbig{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:12px;border-radius:10px;background:var(--bg);margin-bottom:10px}
+.phbig .ph{font-size:18px;line-height:30px;padding:0 12px}
+.phbig .act{font-size:16px;font-weight:700}
+.phtl{display:flex;gap:4px;flex-wrap:wrap;margin:6px 0 10px}
+.phtl div{text-align:center;font-size:11px;color:var(--muted)}
+.phtl div .ph{display:block;margin-bottom:2px;font-size:11px;padding:0 5px}
+.hint{border-left:3px solid var(--accent);padding:6px 10px;margin:6px 0;background:var(--bg);border-radius:0 8px 8px 0;font-size:13px}
+.hint.w{border-left-color:#ea8a00}
 /* v4 搜尋／我的關注／個股🔒分頁 */
 .topbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}
 .gs{position:relative;flex:1 1 260px;max-width:420px}
@@ -231,6 +248,8 @@ button.pri{background:var(--accent);color:#fff;border-color:var(--accent)}
     <button class="chip" data-f="fund">書中基本面 ≥ 2</button>
     <button class="chip" data-f="cyc">循環分 ≥ 2</button>
     <button class="chip" data-f="accel">營收加速</button>
+    <button class="chip" data-f="phup" title="最近一季是價量齊揚或價漲期">🔺 價漲期</button>
+    <button class="chip" data-f="phdq" title="最近一季價跌量增：超額利潤可能見頂">⚠️ 價跌量增</button>
     <button class="chip" data-f="hot">主流族群</button>
     <button class="chip" data-f="pref">偏好產業</button>
     <select id="ind"><option value="">全部產業</option></select>
@@ -249,6 +268,7 @@ button.pri{background:var(--accent);color:#fff;border-color:var(--accent)}
         <th class="l" data-k="score" title="① 不追高 ② 近突破點 ③ 波動收斂 ④ 量縮">評分 ①②③④</th>
         <th class="l" data-k="fscore" title="書中基本面：季EPS年增≥25%／EPS加速／營收年增≥20%且利潤率擴張">基本面</th>
         <th class="l" data-k="cscore" title="循環分：月營收加速／毛利率翻揚／營收創24月新高">循環</th>
+        <th class="l" data-k="phk" title="超額利潤階段（最近一季）＋近 6 季變化；點一下看詳細">超額利潤</th>
         <th class="l" data-k="mrev_yoy" title="近 12 個月營收年增率（紅＝正、綠＝負）；數字為最新月年增率">月營收年增</th>
         <th class="l">標籤</th>
         <th data-k="ret20">20日%</th>
@@ -262,7 +282,7 @@ button.pri{background:var(--accent);color:#fff;border-color:var(--accent)}
         <th data-k="shares">可買</th>
         <th class="l">連結</th>
       </tr></thead>
-      <tbody id="tb"><tr><td colspan="21" class="empty">載入中…</td></tr></tbody>
+      <tbody id="tb"><tr><td colspan="22" class="empty">載入中…</td></tr></tbody>
     </table>
   </div>
 
@@ -304,6 +324,15 @@ button.pri{background:var(--accent);color:#fff;border-color:var(--accent)}
       <li>月營收創 24 個月新高</li>
     </ol>
     <p><b>標籤</b>（只提示不計分）：營收新高；擴產中＝最近一季資本支出年增 ≥ 30%；<span class="neg">循環後段</span>＝資本支出連續 3 季大增，新產能快開出、要留意循環尾聲；🔥主流族群＝產業平均 RS 前 5 名且至少 3 檔過趨勢模板。</p>
+    <p><b>超額利潤</b>（整合報告「超額利潤期」框架的數字版，每季判定一次；點欄位看詳細）：</p>
+    <ul>
+      <li><span class="ph ph-pq">價量齊揚</span> 毛利率比去年同季 +2pp 以上、營收年增 ≥ 10% → <b>續抱</b>（價、量雙驅動）</li>
+      <li><span class="ph ph-p">價漲期</span> 毛利率 +2pp 以上，但營收年增還不到 10% → 超額利潤啟動，<b>觀察／佈局</b></li>
+      <li><span class="ph ph-q">價轉量</span> 營收年增 ≥ 10%，毛利率沒再提升 → <b>趁高檔，有更好的就換</b></li>
+      <li><span class="ph ph-dq">價跌量增</span> 營收還在成長，毛利率比去年和上季都少 1.5pp 以上 → <b>快跑</b></li>
+      <li><span class="ph ph-d">價量齊跌</span> 營收、毛利率都下滑 → 避開　<span class="ph ph-n">持平</span> 沒有明顯變化</li>
+    </ul>
+    <p>後面的小方塊是近 6 季的階段（左舊右新），看得出是剛進價漲期、還是正從價量齊揚轉成價轉量。數字只看得出「價、量」，價漲是原地漲價還是產品組合升級、新產能何時開出，要看整合報告。</p>
     <p>月營收年增欄：近 12 個月的小長條，紅＝年增、綠＝年減；數字紅色＝加速、綠色＝轉壞、灰色＝持平。</p>
     <p><b>報告</b>按鈕：打開 LINE 並帶好「報告 代號」，送出後小幫手會抓優分析小助理、整合法人報告與這裡的技術面，產生整合報告。</p>
     <p style="color:var(--muted)">本頁只是篩選工具，不構成投資建議。</p>
@@ -321,7 +350,7 @@ button.pri{background:var(--accent);color:#fff;border-color:var(--accent)}
   <div class="t"><b id="mt"></b><button id="mclose">關閉</button></div>
   <div class="info" id="minfo"></div>
   <div class="fundinfo" id="mfund"></div>
-  <div class="tabs" id="mtabs"><button data-t="k" class="on">K 線</button><button data-t="rev">營收</button><button data-t="prof">獲利</button><button data-t="gm">毛利率</button><button data-t="est">法人預估 🔒</button><button data-t="ai">小助理 🔒</button></div>
+  <div class="tabs" id="mtabs"><button data-t="k" class="on">K 線</button><button data-t="rev">營收</button><button data-t="prof">獲利</button><button data-t="gm">毛利率</button><button data-t="ex">超額利潤</button><button data-t="est">法人預估 🔒</button><button data-t="ai">小助理 🔒</button></div>
   <div class="legend" id="mleg"><span><i style="background:#f59e0b"></i>50日線</span><span><i style="background:#8b5cf6"></i>150日線</span><span><i style="background:#0ea5e9"></i>200日線</span><span><i style="background:#2563eb"></i>買點</span><span><i style="background:#16a34a"></i>停損</span></div>
   <div class="chartbar" id="mbar" style="display:none"></div>
   <div class="chart"></div>
@@ -361,7 +390,7 @@ async function init(){
     await load(dates[0]);
   }catch(e){
     $('#sub').textContent = '還沒有資料：請到 GitHub 的 Actions 頁面手動執行一次「每日選股」。';
-    $('#tb').innerHTML = '<tr><td colspan="21" class="empty">尚無資料</td></tr>';
+    $('#tb').innerHTML = '<tr><td colspan="22" class="empty">尚無資料</td></tr>';
   }
 }
 
@@ -403,7 +432,10 @@ const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;
 function rows(){
   const q = $('#q').value.trim(), ind = $('#ind').value;
   let list = DATA.stocks.map(s => ({...s, shares: shares(s), fscore: s.fund ? s.fund.fscore : null,
-    cscore: s.fund ? s.fund.cscore : null, mrev_yoy: s.fund ? s.fund.mrev_yoy : null}));
+    cscore: s.fund ? s.fund.cscore : null, mrev_yoy: s.fund ? s.fund.mrev_yoy : null,
+    phk: s.fund && s.fund.phase ? PHASE[s.fund.phase].rank : null}));
+  if(filter === 'phup') list = list.filter(s => s.fund && (s.fund.phase === 'pq' || s.fund.phase === 'p'));
+  if(filter === 'phdq') list = list.filter(s => s.fund && s.fund.phase === 'dq');
   if(filter === 'full') list = list.filter(s => s.score === 4);
   if(filter === 'bo') list = list.filter(s => s.breakout);
   if(filter === 'new') list = list.filter(s => s.new);
@@ -445,7 +477,7 @@ function render(){
   renderAct();
 
   const list = rows();
-  if(!list.length){ $('#tb').innerHTML = '<tr><td colspan="21" class="empty">沒有符合條件的股票</td></tr>'; return; }
+  if(!list.length){ $('#tb').innerHTML = '<tr><td colspan="22" class="empty">沒有符合條件的股票</td></tr>'; return; }
   $('#tb').innerHTML = list.map(s => {
     const dots = ['r1','r2','r3','r4'].map((k, i) => `<span class="dot ${s.rules[k] ? 'on' : ''}">${'①②③④'[i]}</span>`).join('');
     const links = [`<a class="rep" href="${reportUrl(s.id)}" target="_blank" rel="noopener" title="開啟 LINE，送出「報告 ${s.id}」">報告</a>`,
@@ -454,7 +486,7 @@ function render(){
     const fd = f ? ['f1','f2','f3'].map((k, i) => `<span class="dot f ${f.f[k] ? 'on' : ''}" title="${['季EPS年增≥25%','EPS年增加速','營收年增≥20%＋利潤率擴張'][i]}">${i+1}</span>`).join('') : '<span class="n">-</span>';
     const cd = f ? ['c1','c2','c3'].map((k, i) => `<span class="dot c ${f.c[k] ? 'on' : ''}" title="${['月營收加速','毛利率翻揚','營收創24月新高'][i]}">${i+1}</span>`).join('') : '<span class="n">-</span>';
     const spark = f && f.m12 && f.m12.length ? sparkline(f.m12) + ` <span class="trend-${f.mrev_trend || 'flat'}">${f.mrev_yoy == null ? '' : (f.mrev_yoy > 0 ? '+' : '') + f.mrev_yoy + '%'}</span>` : '-';
-    const tags = (f ? f.tags : []).map(t => `<span class="tag ${t === '營收新高' || t === '價量齊揚' ? 'hi' : (t === '循環後段' || t === '價跌量增' ? 'warn' : '')}" title="${TAG_TIP[t] || ''}">${t}</span>`).join('') + (s.ind_hot ? '<span class="tag hot" title="產業平均 RS 前段，且多檔過趨勢模板">主流族群</span>' : '');
+    const tags = (f ? f.tags : []).filter(t => !PV_TAGS.includes(t)).map(t => `<span class="tag ${t === '營收新高' || t === '價量齊揚' ? 'hi' : (t === '循環後段' || t === '價跌量增' ? 'warn' : '')}" title="${TAG_TIP[t] || ''}">${t}</span>`).join('') + (s.ind_hot ? '<span class="tag hot" title="產業平均 RS 前段，且多檔過趨勢模板">主流族群</span>' : '');
     if(UANALYZE_URL) links.unshift(`<a href="${UANALYZE_URL.replace('{id}', s.id)}" target="_blank" rel="noopener">優分析</a>`);
     return `<tr data-id="${s.id}">
       <td class="l">${s.new ? '<span class="new">新</span>' : ''}</td>
@@ -466,6 +498,7 @@ function render(){
       <td class="l"><span class="dots">${dots}</span>${s.breakout ? '<span class="bo">突破</span>' : ''}</td>
       <td class="l"><span class="dots">${fd}</span></td>
       <td class="l"><span class="dots">${cd}</span></td>
+      <td class="l phc">${phaseCell(f)}</td>
       <td class="l">${spark}</td>
       <td class="l">${tags}</td>
       <td>${pct(s.ret20)}</td>
@@ -621,7 +654,7 @@ async function drawFund(el, s, kind){
 // ===== v3 今日行動清單 =====
 function actCard(s){
   const f = s.fund || {};
-  const tags = (s.prefer ? '<span class="tag pref">偏好產業</span>' : '') + (s.why || []).filter(w => w !== '偏好產業').map(w => `<span class="tag">${esc(w)}</span>`).join('');
+  const tags = (f.phase ? phaseBadge(f.phase) + ' ' : '') + (s.prefer ? '<span class="tag pref">偏好產業</span>' : '') + (s.why || []).filter(w => w !== '偏好產業').map(w => `<span class="tag">${esc(w)}</span>`).join('');
   const todo = s.action === 'buy'
     ? `👉 <b>明天開盤買</b>（開盤高於 ${num(s.pivot * 1.05)} 就不追；低於停損 ${num(s.stop)} 就不買）`
     : `👉 盤中漲過 <b>${num(s.pivot)}</b>，而且成交量超過 <b>${s.bo_lots ? s.bo_lots.toLocaleString() : '-'} 張</b>＝突破，收盤確認後隔天可買`;
@@ -674,7 +707,7 @@ if(canHover){
 $('#tb').addEventListener('click', e => {
   if(e.target.closest('a')) return;
   const tr = e.target.closest('tr[data-id]'); if(!tr) return;
-  openModal(tr.dataset.id);
+  openModal(tr.dataset.id, e.target.closest('.phc') ? 'ex' : undefined);
 });
 function openModal(id, tab){
   const s = find(id) || stub(id); if(!s) return;
@@ -704,7 +737,7 @@ function setTab(t){
   document.querySelectorAll('#mtabs button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
   $('#mleg').style.display = t === 'k' ? 'flex' : 'none';
   const el = $('#modal .chart'), panel = $('#mpanel'), bar = $('#mbar');
-  const isPanel = t === 'est' || t === 'ai';
+  const isPanel = t === 'est' || t === 'ai' || t === 'ex';
   el.style.display = isPanel ? 'none' : '';
   panel.style.display = isPanel ? 'block' : 'none';
   bar.style.display = t === 'gm' ? 'flex' : 'none';
@@ -712,6 +745,7 @@ function setTab(t){
     bar.querySelectorAll('button').forEach(b => b.onclick = () => { GM_TTM = b.dataset.g === '1'; setTab('gm'); });
   if(t === 'k') drawChart(el, CUR);
   else if(t === 'est') drawEst(panel, CUR);
+  else if(t === 'ex') drawEx(panel, CUR);
   else if(t === 'ai') drawAI(panel, CUR);
   else drawFund(el, CUR, t);
 }
@@ -915,6 +949,7 @@ function wcard(id, name, hold){
   return { lamp, html: `<div class="wcard ${lamp}" data-id="${id}" title="${esc(why.join('、'))}">
     <div class="h"><b>${id} ${esc(name || (s && s.name) || a.name || '')}</b>${statusBadge(id)}${why.length ? `<span class="${lamp === 'warn' ? 'wtx' : 'pos'}" style="font-size:12px">${esc(why.join('、'))}</span>` : ''}</div>
     <div class="kv">${kv}</div>
+    <div class="ln">超額利潤：${watchPhase(id)}</div>
     <div class="ln">${est}</div><div class="ln">${fd}</div></div>` };
 }
 function group(title, sub, items){
@@ -954,6 +989,7 @@ async function renderWatch(fresh){
     `<p class="note" style="margin-top:14px">資料時間 ${esc(WATCH.at || '')}｜法人預估最後更新 ${WATCH.estLast ? md(WATCH.estLast) : '-'}
       　<button type="button" id="wRefresh">🔄 重新整理</button>　<button type="button" id="wLogout">這台裝置登出（清除 KEY）</button></p>`;
   bindCards(el);
+  fillPhases([...holds.map(h => h.code), ...watch.map(x => x.code), ...rec]);
   $('#wRefresh').onclick = () => renderWatch(true);
   $('#wLogout').onclick = logout;
 }
@@ -1080,6 +1116,125 @@ async function askReport(id){
   toast('送出中…');
   try{ const r = await gas('cmd', { cmd: 'report', code: id }); toast(r.msg); }
   catch(e){ toast('❌ ' + e.message); }
+}
+
+// ===================== v5：超額利潤階段（價漲期／量增期）=====================
+// 門檻和 GitHub 端 screener/fundamentals.py 的 phase_of() 一樣
+const PHASE = {
+  pq: { t: '價量齊揚', s: '價漲期・雙驅動', act: '續抱', rank: 6, d: '毛利率比去年同季提升 2pp 以上，營收也年增 10% 以上：漲價（或產品組合升級）加上出貨量成長，超額利潤還在。若同時在擴產、新產能也被吃下＝續抱型。' },
+  p:  { t: '價漲期', s: '量還沒放大', act: '超額利潤啟動：觀察／佈局', rank: 5, d: '毛利率明顯提升，但營收年增還不到 10%：原地漲價、稼動率提升或產品組合改善，量還沒放大。框架說要盡量在超額利潤發生前或剛發生時佈局。' },
+  q:  { t: '價轉量', s: '量增期', act: '趁高檔，有更好的就換', rank: 3, d: '營收年增 10% 以上，但毛利率沒有再提升：只剩量驅動。能成長，但難有超額漲幅。' },
+  dq: { t: '價跌量增', s: '轉折', act: '快跑', rank: 1, d: '營收還在成長，但毛利率比去年同季和上一季都下滑 1.5pp 以上：跌價抵銷量增，常見於同業新產能開出、分食搶單，超額利潤可能見頂。' },
+  d:  { t: '價量齊跌', s: '衰退', act: '避開', rank: 0, d: '營收衰退、毛利率也下滑。' },
+  n:  { t: '持平', s: '', act: '沒有超額利潤', rank: 2, d: '營收和毛利率都沒有明顯變化。' },
+};
+const PV_TAGS = ['價量齊揚', '價平量增', '價跌量增'];
+const qlabel = q => q ? String(q).slice(2, 4) + 'Q' + Math.ceil(+String(q).slice(5, 7) / 3) : '';
+function phaseBadge(k, extra){ const p = PHASE[k]; return p ? `<span class="ph ph-${k}" title="${esc(p.act + '：' + p.d)}">${p.t}${extra || ''}</span>` : ''; }
+function phaseStrip(list){
+  return '<span class="phs">' + list.map(x => { const k = x && (x.ph || x); const p = PHASE[k];
+    return `<i class="ph-${p ? k : 'x'}" title="${esc((x && x.q ? qlabel(x.q) + ' ' : '') + (p ? p.t : '資料不足'))}"></i>`; }).join('') + '</span>';
+}
+function phaseCell(f){
+  if(!f || !f.phase) return '<span class="ph ph-x">-</span>';
+  return phaseBadge(f.phase) + phaseStrip(f.ph6 || []);
+}
+// 由季資料（q, rev, gm）算每一季的階段；q_hist 已有 ph 就直接用
+function phaseList(qh){
+  if(!qh || !qh.length) return [];
+  if(qh.some(h => 'ph' in h)) return qh.map(h => ({ q: h.q, ry: h.ry, gy: h.gy, gq: h.gq, gm: h.gm, ph: h.ph }));
+  const by = {}; qh.forEach(h => by[h.q] = h);
+  let prev = null;
+  return qh.map(h => {
+    const ly = by[(+h.q.slice(0, 4) - 1) + h.q.slice(4)];
+    const ry = h.rev != null && ly && ly.rev > 0 ? Math.round((h.rev / ly.rev - 1) * 1000) / 10 : null;
+    const gy = h.gm != null && ly && ly.gm != null ? Math.round((h.gm - ly.gm) * 10) / 10 : null;
+    const gq = h.gm != null && prev && prev.gm != null ? Math.round((h.gm - prev.gm) * 10) / 10 : null;
+    prev = h;
+    let ph = null;
+    if(ry != null && gy != null){
+      const up = gy >= 2 && (gq == null || gq > -1.5), dn = gy <= -1.5 && gq != null && gq <= -1.5, vol = ry >= 10;
+      ph = up ? (vol ? 'pq' : 'p') : dn ? (vol ? 'dq' : 'd') : (vol ? 'q' : 'n');
+    }
+    return { q: h.q, ry, gy, gq, gm: h.gm, ph };
+  });
+}
+const sgn = (v, u) => v == null ? '-' : `<span class="${v >= 0 ? 'pos' : 'neg'}">${v > 0 ? '+' : ''}${v}${u || ''}</span>`;
+
+// ---------- 個股「超額利潤」分頁 ----------
+async function drawEx(panel, s){
+  if(!find(s.id) && !gasReady()){ needKey(panel, '不在強勢榜的股票，季報資料要由你的 Apps Script 抓'); return; }
+  panel.innerHTML = '<div class="empty">計算中…</div>';
+  const v = await getFund(s.id);
+  if(CUR !== s || TAB !== 'ex') return;
+  const L = phaseList(v && v.q_hist).filter(x => x.q);
+  const valid = L.filter(x => x.ph);
+  if(!valid.length){
+    panel.innerHTML = `<div class="noact">還算不出超額利潤階段：${v && v.q_hist && v.q_hist.length ? '需要季營收資料，下一次每日更新後就會有' : '還沒有季報資料'}。</div>`; return;
+  }
+  const cur = valid[valid.length - 1], P = PHASE[cur.ph];
+  const f = s.fund || {};
+  const mh = (v && v.m_hist) || [];
+  const m3 = mh.slice(-3).map(x => x.yoy).filter(x => x != null);
+  const m3avg = m3.length ? Math.round(m3.reduce((a, b) => a + b, 0) / m3.length * 10) / 10 : null;
+  const hints = [];
+  if(m3avg != null){
+    if((cur.ph === 'p' || cur.ph === 'n') && m3avg >= 10) hints.push(['', `🔜 最近 3 個月營收年增平均 ${sgn(m3avg, '%')}：量開始放大，下一季可能進入「價量齊揚」。`]);
+    else if((cur.ph === 'pq' || cur.ph === 'q') && cur.ry != null && m3avg < cur.ry - 10) hints.push(['w', `📉 最近 3 個月營收年增平均 ${sgn(m3avg, '%')}，比上一季的 ${sgn(cur.ry, '%')} 明顯放緩：留意量能轉弱。`]);
+    else hints.push(['', `最近 3 個月營收年增平均 ${sgn(m3avg, '%')}（月營收比季報早公布，是「量」的領先訊號）。`]);
+  }
+  const streak = f.capex_streak ?? (v && v.capex_streak);
+  if(streak >= 3) hints.push(['w', `🏗️ 資本支出連續 ${streak} 季大增：新產能（Greenfield）陸續開出，供給增加，正是框架說的「轉折點觀察期」，要盯毛利率有沒有開始掉。`]);
+  else if(streak >= 1) hints.push(['', `🏗️ 資本支出年增 ${sgn(f.capex_yoy ?? (v && v.capex_yoy), '%')}（擴產中）：初期擴產＝訂單多是正面；產能大量開出後仍上修，就要擔心缺口變小。`]);
+  const prevPh = valid.length >= 2 ? valid[valid.length - 2].ph : null;
+  if(prevPh && prevPh !== cur.ph) hints.unshift(['', `🔄 上一季是「${PHASE[prevPh].t}」，這一季轉成「${P.t}」。`]);
+  const tl = L.slice(-8).map(x => `<div>${x.ph ? `<span class="ph ph-${x.ph}">${PHASE[x.ph].t}</span>` : '<span class="ph ph-x">資料不足</span>'}${qlabel(x.q)}</div>`).join('');
+  panel.innerHTML = `
+    <div class="phbig"><span class="ph ph-${cur.ph}">${P.t}</span><div><div class="act">👉 ${P.act}</div>
+      <div class="note">${qlabel(cur.q)}：營收年增 ${sgn(cur.ry, '%')}、毛利率 ${cur.gm ?? '-'}%（比去年同季 ${sgn(cur.gy, 'pp')}、比上季 ${sgn(cur.gq, 'pp')}）</div></div></div>
+    <p style="margin:0 0 8px">${esc(P.d)}</p>
+    ${hints.map(h => `<div class="hint ${h[0]}">${h[1]}</div>`).join('')}
+    <h3>近 8 季變化（左舊右新）</h3><div class="phtl">${tl}</div>
+    <div style="overflow-x:auto"><table><tr><th>季</th><th>營收年增</th><th>毛利率</th><th>比去年同季</th><th>比上季</th><th>判定</th></tr>
+      ${L.slice(-8).reverse().map(x => `<tr><td>${qlabel(x.q)}</td><td>${sgn(x.ry, '%')}</td><td>${x.gm ?? '-'}%</td><td>${sgn(x.gy, 'pp')}</td><td>${sgn(x.gq, 'pp')}</td><td>${x.ph ? phaseBadge(x.ph) : '-'}</td></tr>`).join('')}</table></div>
+    <h3>數字看不出來、要看整合報告的</h3>
+    <ul style="margin:0;padding-left:1.2em;font-size:13px">
+      <li>價漲是哪一種：①原地漲價＋稼動率（持續性有上限）還是 ②產品組合升級（可以撐比較久）</li>
+      <li>公司和同業的新產能：Brownfield 還剩多少、Greenfield 何時開出</li>
+      <li>法人上修是「需求端」（週期還沒到尾巴）還是「供給端」（可能到尾段）</li>
+    </ul>
+    <div class="btnrow" style="margin-top:8px"><button type="button" class="pri" id="exAi">⚡ 看整合報告決策卡（小助理 🔒）</button><button type="button" id="exEst">法人預估 🔒</button></div>
+    <details><summary>判斷門檻與三種劇本</summary>
+      <p class="note">量：季營收年增 ≥ 10%＝量增。價：毛利率比去年同季 +2pp 以上、且比上季沒掉超過 1.5pp＝價漲；比去年同季、上季都少 1.5pp 以上＝價跌。每季財報公布後更新（月營收當領先訊號）。</p>
+      <ul class="note"><li>價量齊揚（價↑量↑）→ 續抱</li><li>價轉量（價→量↑）→ 趁高檔，有更好的就換</li><li>價跌量增（價↓量↑）→ 快跑</li><li>驅動力越少，越接近離場時刻。</li></ul>
+    </details>`;
+  $('#exAi').onclick = () => setTab('ai');
+  $('#exEst').onclick = () => setTab('est');
+}
+
+// ---------- 我的關注：不在強勢榜的股票也算階段 ----------
+const QPH = {};
+let qphBusy = false;
+async function fillPhases(codes){
+  const need = codes.filter(c => !find(c) && !(c in QPH));
+  if(!need.length || !gasReady() || qphBusy) return;
+  qphBusy = true;
+  try{
+    const r = await gas('phases', { codes: need.slice(0, 40) });
+    need.forEach(c => { QPH[c] = phaseList((r.q || {})[c] || []); });
+    if(MODE === 'watch' && $('#modal').style.display !== 'flex') renderWatch();
+  }catch(e){ need.forEach(c => QPH[c] = []); }
+  finally{ qphBusy = false; }
+}
+function watchPhase(id){
+  const s = find(id);
+  if(s && s.fund && s.fund.phase) return phaseBadge(s.fund.phase) + phaseStrip(s.fund.ph6 || []) + ` <span class="mut">${PHASE[s.fund.phase].act}</span>`;
+  const L = QPH[id];
+  if(!L) return gasReady() ? '<span class="mut">計算中…</span>' : '<span class="mut">-</span>';
+  const v = L.filter(x => x.ph);
+  if(!v.length) return '<span class="mut">資料不足</span>';
+  const k = v[v.length - 1].ph;
+  return phaseBadge(k) + phaseStrip(L.slice(-6)) + ` <span class="mut">${PHASE[k].act}</span>`;
 }
 
 loadAll();
