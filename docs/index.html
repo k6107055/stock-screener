@@ -392,7 +392,7 @@ function render(){
     const fd = f ? ['f1','f2','f3'].map((k, i) => `<span class="dot f ${f.f[k] ? 'on' : ''}" title="${['季EPS年增≥25%','EPS年增加速','營收年增≥20%＋利潤率擴張'][i]}">${i+1}</span>`).join('') : '<span class="n">-</span>';
     const cd = f ? ['c1','c2','c3'].map((k, i) => `<span class="dot c ${f.c[k] ? 'on' : ''}" title="${['月營收加速','毛利率翻揚','營收創24月新高'][i]}">${i+1}</span>`).join('') : '<span class="n">-</span>';
     const spark = f && f.m12 && f.m12.length ? sparkline(f.m12) + ` <span class="trend-${f.mrev_trend || 'flat'}">${f.mrev_yoy == null ? '' : (f.mrev_yoy > 0 ? '+' : '') + f.mrev_yoy + '%'}</span>` : '-';
-    const tags = (f ? f.tags : []).map(t => `<span class="tag ${t === '營收新高' ? 'hi' : (t === '循環後段' ? 'warn' : '')}" title="${TAG_TIP[t] || ''}">${t}</span>`).join('') + (s.ind_hot ? '<span class="tag hot" title="產業平均 RS 前段，且多檔過趨勢模板">主流族群</span>' : '');
+    const tags = (f ? f.tags : []).map(t => `<span class="tag ${t === '營收新高' || t === '價量齊揚' ? 'hi' : (t === '循環後段' || t === '價跌量增' ? 'warn' : '')}" title="${TAG_TIP[t] || ''}">${t}</span>`).join('') + (s.ind_hot ? '<span class="tag hot" title="產業平均 RS 前段，且多檔過趨勢模板">主流族群</span>' : '');
     if(UANALYZE_URL) links.unshift(`<a href="${UANALYZE_URL.replace('{id}', s.id)}" target="_blank" rel="noopener">優分析</a>`);
     return `<tr data-id="${s.id}">
       <td class="l">${s.new ? '<span class="new">新</span>' : ''}</td>
@@ -474,7 +474,10 @@ async function drawChart(el, s){
 }
 
 // ===== 基本面、族群、報告 =====
-const TAG_TIP = { '營收新高': '月營收創 24 個月新高', '擴產中': '最近一季資本支出年增 ≥ 30%', '循環後段': '資本支出連續 3 季以上大增：新產能快開出，留意循環尾聲' };
+const TAG_TIP = { '營收新高': '月營收創 24 個月新高', '擴產中': '最近一季資本支出年增 ≥ 30%', '循環後段': '資本支出連續 3 季以上大增：新產能快開出，留意循環尾聲',
+  '價量齊揚': '季營收年增≥10%，毛利率比去年同季+2個百分點以上：價、量雙驅動，超額利潤還在（若同時擴產＝續抱型）',
+  '價平量增': '季營收年增≥10%，但毛利率沒有明顯提升：只剩量驅動，能成長但難有超額漲幅（趁高檔、有更好的就換）',
+  '價跌量增': '季營收年增≥10%，但毛利率比上季與去年同季都下滑：跌價抵銷量增，超額利潤可能見頂（快跑訊號）' };
 function reportUrl(id){ return `https://line.me/R/oaMessage/${LINE_BOT_ID}/?` + encodeURIComponent('報告 ' + id); }
 function sparkline(arr){
   const mx = Math.max(10, ...arr.map(v => Math.abs(v || 0)));
