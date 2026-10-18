@@ -205,6 +205,10 @@ def _f(x, nd=2):
     return round(float(x), nd)
 
 
+def _s(x) -> str:
+    return x if isinstance(x, str) else ""
+
+
 def _ret(c: np.ndarray, k: int) -> float:
     if len(c) <= k:
         return float("nan")
@@ -359,8 +363,13 @@ def run(universe: pd.DataFrame, prices: dict[str, pd.DataFrame], idx: pd.DataFra
 
     prev = recent_ids(mkt_date)
     picked = []
+    allrows = []   # v4 全市場摘要（網站搜尋／我的關注用；只有公開的技術面數字）
     for a in rows:
         s = score(a, mkt_ret20)
+        fails = "".join(k[1] for k, v in s["trend"].items() if not v)
+        allrows.append([a["id"], a["name"], _s(a["industry"]), "TPEX" if a["market"] == "tpex" else "TWSE",
+                        _f(a["close"]), _f(a["ret20"] * 100, 1), a["rs"], _f(s["dist_hi"] * 100, 1),
+                        _f(s["ext50"] * 100, 1), fails, s["score"]])
         if not s["trend_ok"]:
             continue
         picked.append({
@@ -470,6 +479,12 @@ def run(universe: pd.DataFrame, prices: dict[str, pd.DataFrame], idx: pd.DataFra
         "universe": len(rows), "market": mkt, "params": P, "stocks": picked,
         "industries": industries, "fund_stat": fund_stat,
         "_charts": {p["id"]: chart_data(dfs[p["id"]]) for p in picked},
+        "_all": {"date": mkt_date,
+                 "cols": ["id", "name", "industry", "ex", "close", "ret20", "rs", "dist_hi", "ext50", "fails", "score"],
+                 "rows": allrows,
+                 # 成交太冷門、沒有計算的股票也列名稱，讓搜尋找得到
+                 "names": [[u["id"], _s(u["name"]), _s(u["industry"]), "TPEX" if u["market"] == "tpex" else "TWSE"]
+                           for _, u in universe.iterrows() if u["id"] not in dfs]},
     }
 
 
@@ -509,6 +524,7 @@ def chart_data(df: pd.DataFrame, n: int = 260) -> dict:
 
 def save(result: dict) -> None:
     charts = result.pop("_charts", {})
+    allsum = result.pop("_all", None)
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     cdir = OUT_DIR / "ohlc"
     cdir.mkdir(exist_ok=True)
@@ -526,6 +542,8 @@ def save(result: dict) -> None:
     (HIST_DIR / f"{result['date']}.json").write_text(json.dumps(hist, ensure_ascii=False), encoding="utf-8")
     dates = sorted(p.stem for p in HIST_DIR.glob("*.json"))
     (OUT_DIR / "dates.json").write_text(json.dumps(dates[::-1]), encoding="utf-8")
+    if allsum:
+        (OUT_DIR / "all.json").write_text(json.dumps(allsum, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     log(f"已輸出 {OUT_DIR / 'latest.json'}")
 
 

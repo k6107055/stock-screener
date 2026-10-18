@@ -54,6 +54,7 @@ TYPES = {
     "revenue": (("Revenue", "OperatingRevenue"), ("營業收入",)),
     "gross": (("GrossProfit",), ("營業毛利",)),
     "opinc": (("OperatingIncome",), ("營業利益",)),
+    "net": (("IncomeAfterTaxes", "NetIncome", "ProfitLoss"), ("本期淨利", "本期稅後淨利")),
     "capex": (("PropertyAndPlantAndEquipment", "AcquisitionOfPropertyPlantAndEquipment"), ("取得不動產",)),
     "dep": (("Depreciation", "DepreciationExpense"), ("折舊",)),
 }
@@ -170,11 +171,12 @@ def refresh(sid: str, cache: dict, today: dt.date, budget: Budget) -> dict:
     # 季報：還沒拿到應公布的季度（或完全沒資料），且距離上次抓超過 3 天
     q = cache.get("q", {})
     last_q = max(q.get("eps", {})) if q.get("eps") else ""
-    if last_q < expected_quarter(today) and _age_days(cache.get("q_ts"), today) >= 3:
+    need_net = bool(q.get("eps")) and "net" not in q          # 舊快取沒有淨利：補抓一次（給網站的淨利率）
+    if (last_q < expected_quarter(today) and _age_days(cache.get("q_ts"), today) >= 3) or need_net:
         fin = _get("TaiwanStockFinancialStatements", sid, start_q, budget)
         cf = _get("TaiwanStockCashFlowsStatement", sid, start_q, budget) if fin is not None else None
         if fin is not None:
-            cache["q"] = {k: dict(sorted(_pick(fin, k).items())) for k in ("eps", "revenue", "gross", "opinc")}
+            cache["q"] = {k: dict(sorted(_pick(fin, k).items())) for k in ("eps", "revenue", "gross", "opinc", "net")}
             if cf is not None:
                 cache["q"]["capex"] = dict(sorted(_pick(cf, "capex").items()))
                 cache["q"]["dep"] = dict(sorted(_pick(cf, "dep").items()))
@@ -222,6 +224,7 @@ def evaluate(cache: dict) -> dict:
     res: dict = {"f": {}, "c": {}, "tags": []}
     q = cache.get("q", {})
     eps, rev, gross, opinc = (q.get(k, {}) for k in ("eps", "revenue", "gross", "opinc"))
+    net = q.get("net", {})
 
     # ---- 季資料
     qs = sorted(eps)
@@ -269,8 +272,10 @@ def evaluate(cache: dict) -> dict:
         if pv:
             res["tags"].append(pv)
         # 給網站畫圖：近 12 季
+        yi = lambda s, d: None if s.get(d) is None else round(s[d] / 1e8, 2)  # noqa: E731  億元（網站算近四季用）
         res["q_hist"] = [{"q": d, "eps": eps.get(d), "gm": _pp(_margin(gross, rev, d)),
-                          "om": _pp(_margin(opinc, rev, d))} for d in qs[-12:]]
+                          "om": _pp(_margin(opinc, rev, d)), "nm": _pp(_margin(net, rev, d)),
+                          "rev": yi(rev, d), "gp": yi(gross, d), "op": yi(opinc, d), "ni": yi(net, d)} for d in qs[-16:]]
 
     # ---- 資本支出（取絕對值；現金流量表為負數）
     capex = {d: abs(v) for d, v in _qtr_ytd_to_single(q.get("capex", {})).items()}

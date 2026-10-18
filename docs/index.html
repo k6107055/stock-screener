@@ -110,7 +110,60 @@ details li{margin:3px 0}
 .rules{columns:2 320px;column-gap:24px}
 .rules h3{font-size:14px;margin:6px 0 4px;break-after:avoid}
 .rules ol,.rules ul{margin:0 0 10px;padding-left:1.3em}
-@media (max-width:640px){ h1{font-size:18px} .stat{min-width:calc(50% - 4px)} }
+/* v4 搜尋／我的關注／個股🔒分頁 */
+.topbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}
+.gs{position:relative;flex:1 1 260px;max-width:420px}
+.gs input{width:100%;padding:9px 12px;font-size:15px;border-radius:10px}
+.gres{position:absolute;left:0;right:0;top:calc(100% + 4px);background:var(--card);border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.18);z-index:40;display:none;max-height:340px;overflow:auto}
+.gres div{padding:8px 12px;cursor:pointer;display:flex;gap:8px;align-items:baseline}
+.gres div:hover,.gres div.sel{background:var(--hl)}
+.gres small{color:var(--muted)}
+.modes{display:flex;gap:4px}
+.modes button{padding:8px 14px;border-radius:10px;font-weight:600}
+.modes button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.wgroup h2{font-size:16px;margin:16px 0 8px;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.wgroup h2 small{font-weight:400;color:var(--muted);font-size:13px}
+.wcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px}
+.wcard{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:grid;gap:6px;cursor:pointer;min-width:0;border-left:4px solid var(--line)}
+.wcard:hover{background:var(--hl)}
+.wcard.warn{border-left-color:#ea8a00} .wcard.good{border-left-color:var(--up)}
+.wtx{color:#c2410c} @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .wtx{color:#fdba74} }
+.wcard .h{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.wcard .h b{font-size:16px}
+.wcard .kv{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;font-size:12px;color:var(--muted)}
+.wcard .kv span b{display:block;font-size:14px;color:var(--fg);font-variant-numeric:tabular-nums}
+.wcard .ln{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wcard .ln.mut{color:var(--muted)}
+.st{display:inline-block;padding:0 7px;border-radius:6px;font-size:12px;line-height:20px;border:1px solid var(--line)}
+.st.g{background:var(--good-bg);color:var(--good-fg);border-color:transparent}
+.st.y{background:var(--warn-bg);color:var(--warn-fg);border-color:transparent}
+.st.x{color:var(--muted)}
+.bdot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--accent);vertical-align:middle}
+.mut{color:var(--muted)}
+.cfg{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:grid;gap:8px;max-width:640px}
+.cfg label{display:grid;gap:4px;font-size:13px;color:var(--muted)}
+.cfg input{width:100%}
+.cfg .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button.pri{background:var(--accent);color:#fff;border-color:var(--accent)}
+.tabs{flex-wrap:wrap}
+#mpanel{flex:1;min-height:0;overflow:auto;padding:10px 12px;display:none;font-size:14px}
+#mpanel h3{font-size:14px;margin:14px 0 6px}
+#mpanel h3:first-child{margin-top:0}
+#mpanel table{white-space:normal}
+#mpanel td,#mpanel th{text-align:left;padding:5px 8px;vertical-align:top;font-size:13px}
+#mpanel th{position:static;cursor:default}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;border-radius:0;padding:3px 12px}
+.seg button.on{background:var(--accent);color:#fff}
+.minichart{height:240px;border:1px solid var(--line);border-radius:8px;margin:6px 0}
+.chartbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:6px 12px;border-bottom:1px solid var(--line);font-size:13px}
+.feed{list-style:none;margin:0;padding:0}
+.feed li{padding:5px 0;border-bottom:1px dashed var(--line);font-size:13px}
+.feed li b{font-variant-numeric:tabular-nums;margin-right:6px}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 10px}
+.note{font-size:12px;color:var(--muted)}
+.memo{background:var(--bg);border-radius:8px;padding:8px 10px;margin:6px 0;white-space:pre-wrap;font-size:13px}
+@media (max-width:640px){ h1{font-size:18px} .stat{min-width:calc(50% - 4px)} #modal{padding:0} #modal .box{height:100vh;height:100dvh;border-radius:0} .wcard .kv{grid-template-columns:repeat(4,1fr)} }
 </style>
 </head>
 <body>
@@ -121,6 +174,12 @@ details li{margin:3px 0}
 </header>
 <main>
   <div id="banner" class="banner" style="display:none"></div>
+  <div class="topbar">
+    <div class="gs"><input type="search" id="gq" placeholder="🔍 查任何股票：代號或名稱" autocomplete="off" enterkeyhint="search"><div id="gres" class="gres" role="listbox"></div></div>
+    <div class="modes"><button data-m="screen" class="on">📈 今日強勢</button><button data-m="watch">⭐ 我的關注</button></div>
+  </div>
+  <section id="watchView" style="display:none"></section>
+  <div id="screenView">
 
   <div class="stats" id="stats"></div>
   <div class="hotbar" id="hotbar"></div>
@@ -254,6 +313,7 @@ details li{margin:3px 0}
     <p class="sub">各產業所有可計算股票的平均 RS，以及過趨勢模板的檔數。平均 RS 高、過關檔數多＝資金集中的主流族群。</p>
     <div id="indtbl"></div>
   </details>
+  </div>
 </main>
 
 <div id="preview"><div class="t"></div><div class="chart"></div></div>
@@ -261,9 +321,11 @@ details li{margin:3px 0}
   <div class="t"><b id="mt"></b><button id="mclose">關閉</button></div>
   <div class="info" id="minfo"></div>
   <div class="fundinfo" id="mfund"></div>
-  <div class="tabs" id="mtabs"><button data-t="k" class="on">K 線</button><button data-t="rev">營收</button><button data-t="prof">獲利</button></div>
+  <div class="tabs" id="mtabs"><button data-t="k" class="on">K 線</button><button data-t="rev">營收</button><button data-t="prof">獲利</button><button data-t="gm">毛利率</button><button data-t="est">法人預估 🔒</button><button data-t="ai">小助理 🔒</button></div>
   <div class="legend" id="mleg"><span><i style="background:#f59e0b"></i>50日線</span><span><i style="background:#8b5cf6"></i>150日線</span><span><i style="background:#0ea5e9"></i>200日線</span><span><i style="background:#2563eb"></i>買點</span><span><i style="background:#16a34a"></i>停損</span></div>
+  <div class="chartbar" id="mbar" style="display:none"></div>
   <div class="chart"></div>
+  <div id="mpanel"></div>
 </div></div>
 
 <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
@@ -438,7 +500,8 @@ $('#riskPct').oninput = () => { store.set('riskPct', $('#riskPct').value); rende
 // K 線（用自己的資料畫，不受 TradingView 授權限制）
 const OHLC = {};
 async function getOHLC(id){
-  if(!OHLC[id]) OHLC[id] = getJSON(`data/ohlc/${id}.json`).catch(() => null);
+  if(!OHLC[id]) OHLC[id] = DATA && find(id) ? getJSON(`data/ohlc/${id}.json`).catch(() => null)
+    : getPub(id).then(p => p && p.chart).catch(() => null).then(c => { if(!c) delete OHLC[id]; return c; });
   return OHLC[id];
 }
 const dark = () => matchMedia('(prefers-color-scheme: dark)').matches;
@@ -446,8 +509,13 @@ let charts = new Map();
 async function drawChart(el, s){
   if(charts.has(el)){ charts.get(el).remove(); charts.delete(el); }
   el.innerHTML = '';
+  if(!find(s.id) && !gasReady()){ needKey(el, '不在強勢榜的股票，K 線要由你的 Apps Script 抓'); return; }
+  if(!find(s.id)) el.innerHTML = '<div class="empty">載入中…（第一次約 3～8 秒）</div>';
   const d = await getOHLC(s.id);
-  if(!d){ el.innerHTML = `<div class="empty">這檔的 K 線資料要等下一次篩選後才會有<br><a href="https://tw.tradingview.com/chart/?symbol=${s.ex}:${s.id}" target="_blank" rel="noopener">改到 TradingView 看</a></div>`; return; }
+  if(el.closest('#modal') && (CUR !== s || TAB !== 'k')) return;
+  if(charts.has(el)){ charts.get(el).remove(); charts.delete(el); }
+  el.innerHTML = '';
+  if(!d){ el.innerHTML = `<div class="empty">抓不到這檔的 K 線${PUBERR[s.id] ? '（' + esc(PUBERR[s.id]) + '）' : ''}<br><a href="https://tw.tradingview.com/chart/?symbol=${s.ex}:${s.id}" target="_blank" rel="noopener">改到 TradingView 看</a></div>`; return; }
   const dk = dark();
   const chart = LightweightCharts.createChart(el, {
     autoSize: true,
@@ -493,7 +561,9 @@ function renderInd(){
 }
 const FUND = {};
 async function getFund(id){
-  if(!FUND[id]) FUND[id] = getJSON(`data/fund/${id}.view.json`).catch(() => null);
+  if(!FUND[id]) FUND[id] = DATA && find(id) ? getJSON(`data/fund/${id}.view.json`).catch(() => null)
+    : (gasReady() ? getPub(id).then(p => p && { m_hist: p.m_hist || [], q_hist: p.q_hist || [], pub: true }).catch(() => null) : Promise.resolve(null))
+      .then(v => { if(!v) delete FUND[id]; return v; });
   return FUND[id];
 }
 const cls = v => v == null ? '' : (v >= 0 ? 'pos' : 'neg');
@@ -517,12 +587,18 @@ function baseChart(el){
     timeScale: { borderVisible: false }, localization: { locale: 'zh-TW' },
   });
 }
+let GM_TTM = false;
 async function drawFund(el, s, kind){
   if(charts.has(el)){ charts.get(el).remove(); charts.delete(el); }
   el.innerHTML = '';
+  if(!find(s.id) && !gasReady()){ needKey(el, '不在強勢榜的股票，基本面要由你的 Apps Script 抓'); return; }
+  if(!find(s.id)) el.innerHTML = '<div class="empty">載入中…</div>';
   const v = await getFund(s.id);
-  const hist = v && (kind === 'rev' ? v.m_hist : v.q_hist);
+  if(CUR !== s || TAB !== kind) return;
+  el.innerHTML = '';
+  let hist = v && (kind === 'rev' ? v.m_hist : v.q_hist);
   if(!hist || !hist.length){ el.innerHTML = '<div class="empty">還沒有基本面資料</div>'; return; }
+  if(kind === 'gm') return drawMargins(el, hist);
   const chart = baseChart(el);
   if(kind === 'rev'){
     const t = h => h.m + '-01';
@@ -570,7 +646,7 @@ function renderAct(){
   el.querySelectorAll('.acard').forEach(c => c.onclick = () => openModal(c.dataset.id));
 }
 
-const find = id => DATA.stocks.find(s => s.id === id);
+const find = id => DATA && DATA.stocks.find(s => s.id === id);
 const pv = $('#preview'), pvChart = pv.querySelector('.chart');
 let pvId = null, pvTimer = null;
 const canHover = matchMedia('(hover: hover) and (pointer: fine)').matches;
@@ -600,30 +676,414 @@ $('#tb').addEventListener('click', e => {
   const tr = e.target.closest('tr[data-id]'); if(!tr) return;
   openModal(tr.dataset.id);
 });
-function openModal(id){
-  const s = find(id); if(!s) return;
+function openModal(id, tab){
+  const s = find(id) || stub(id); if(!s) return;
   pv.style.display = 'none';
+  $('#gres').style.display = 'none';
+  addRecent(s.id);
   const mo = $('#modal');
-  $('#mt').textContent = `${s.id} ${s.name}`;
-  $('#minfo').innerHTML = `買點 ${num(s.entry)}｜停損 ${num(s.stop)}｜風險 ${num(s.risk,1)}%${s.risk_ok ? '' : '（超過 8%，不做）'}｜可買 ${fmtShares(shares(s))}｜RS ${s.rs}　<a href="https://tw.tradingview.com/chart/?symbol=${s.ex}:${s.id}" target="_blank" rel="noopener">TradingView</a>`;
-  $('#minfo').innerHTML += `　<a href="${reportUrl(s.id)}" target="_blank" rel="noopener" style="color:#06c755;font-weight:700">📄 LINE 產生整合報告</a>　<a href="history.html?id=${s.id}">📜 上榜紀錄</a>`;
-  $('#mfund').innerHTML = fundText(s, null);
-  getFund(s.id).then(v => { if($('#mt').textContent.startsWith(s.id)) $('#mfund').innerHTML = fundText(s, v); });
+  $('#mt').textContent = `${s.id} ${s.name || ''}`;
+  const tv = `<a href="https://tw.tradingview.com/chart/?symbol=${s.ex || 'TWSE'}:${s.id}" target="_blank" rel="noopener">TradingView</a>`;
+  const rep = `<a href="${reportUrl(s.id)}" data-rep="${s.id}" target="_blank" rel="noopener" style="color:#06c755;font-weight:700">📄 LINE 產生整合報告</a>`;
+  if(s.stub){
+    const h = holdOf(s.id);
+    $('#minfo').innerHTML = `${statusBadge(s.id)}　收盤 ${num(s.close)}｜20日 ${s.ret20 == null ? '-' : pct(s.ret20)}%｜RS ${s.rs ?? '-'}｜離高點 ${s.dist_hi == null ? '-' : pct(s.dist_hi)}%` +
+      (h ? `｜持股：買 ${h.price}、停損 ${h.stop}` : '') + `　${tv}　${rep}`;
+    $('#mfund').innerHTML = `產業：${esc(s.industry || '-')}｜不在今日強勢榜：K 線、營收、毛利率由你的 Apps Script 即時抓公開資料（未還原權息）`;
+  } else {
+    $('#minfo').innerHTML = `買點 ${num(s.entry)}｜停損 ${num(s.stop)}｜風險 ${num(s.risk,1)}%${s.risk_ok ? '' : '（超過 8%，不做）'}｜可買 ${fmtShares(shares(s))}｜RS ${s.rs}　${tv}　${rep}　<a href="history.html?id=${s.id}">📜 上榜紀錄</a>`;
+    $('#mfund').innerHTML = fundText(s, null);
+    getFund(s.id).then(v => { if(CUR === s) $('#mfund').innerHTML = fundText(s, v); });
+  }
   mo.style.display = 'flex';
-  CUR = s; setTab('k');
+  CUR = s; setTab(tab || 'k');
 }
-let CUR = null;
+let CUR = null, TAB = 'k';
 function setTab(t){
+  TAB = t;
   document.querySelectorAll('#mtabs button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
   $('#mleg').style.display = t === 'k' ? 'flex' : 'none';
-  const el = $('#modal .chart');
-  if(t === 'k') drawChart(el, CUR); else drawFund(el, CUR, t);
+  const el = $('#modal .chart'), panel = $('#mpanel'), bar = $('#mbar');
+  const isPanel = t === 'est' || t === 'ai';
+  el.style.display = isPanel ? 'none' : '';
+  panel.style.display = isPanel ? 'block' : 'none';
+  bar.style.display = t === 'gm' ? 'flex' : 'none';
+  if(t === 'gm') bar.innerHTML = `<span class="seg"><button data-g="0" class="${GM_TTM ? '' : 'on'}">單季</button><button data-g="1" class="${GM_TTM ? 'on' : ''}">近四季</button></span><span class="mut">毛利率、營業利益率、淨利率（%）</span>`,
+    bar.querySelectorAll('button').forEach(b => b.onclick = () => { GM_TTM = b.dataset.g === '1'; setTab('gm'); });
+  if(t === 'k') drawChart(el, CUR);
+  else if(t === 'est') drawEst(panel, CUR);
+  else if(t === 'ai') drawAI(panel, CUR);
+  else drawFund(el, CUR, t);
 }
 document.querySelectorAll('#mtabs button').forEach(b => b.onclick = () => setTab(b.dataset.t));
-$('#mclose').onclick = () => { $('#modal').style.display = 'none'; };
-$('#modal').onclick = e => { if(e.target.id === 'modal') $('#modal').style.display = 'none'; };
+$('#mclose').onclick = closeModal;
+$('#modal').onclick = e => { if(e.target.id === 'modal') closeModal(); };
+function closeModal(){ $('#modal').style.display = 'none'; if(MODE === 'watch') renderWatch(); }
+document.addEventListener('keydown', e => { if(e.key === 'Escape' && $('#modal').style.display === 'flex') closeModal(); });
+$('#minfo').addEventListener('click', e => {
+  const a = e.target.closest('a[data-rep]');
+  if(a && gasReady()){ e.preventDefault(); askReport(a.dataset.rep); }
+});
 
-init();
+// ===================== v4：搜尋任何股票、我的關注、個股 🔒 分頁 =====================
+// 🔒 的資料（持股、自選股、法人預估、小助理、筆記）不在 GitHub：打開時用這台裝置記住的
+// Apps Script 網址＋KEY 直接向你的 LINE 小幫手要，別人打開網站只會看到設定畫面。
+store.del = k => { try{ localStorage.removeItem(k); }catch(e){} };
+const GAS = { get url(){ return store.get('gasUrl', ''); }, get key(){ return store.get('gasKey', ''); } };
+const gasReady = () => !!(GAS.url && GAS.key);
+const PUBERR = {}, PUB = {}, STOCKC = {};
+let WATCH = null, WATCH_AT = 0, ALL = null, ALLMAP = {}, NAMEMAP = {}, MODE = store.get('mode', 'screen');
+
+async function gas(op, extra){
+  let r;
+  try{
+    r = await fetch(GAS.url, { method: 'POST', body: JSON.stringify(Object.assign({ action: 'site', key: GAS.key, op }, extra || {})) });
+  }catch(e){ throw new Error('連不上 Apps Script（網路或網址錯誤）'); }
+  let j;
+  try{ j = await r.json(); }catch(e){ throw new Error('Apps Script 回應的不是資料：請確認網址是 /exec 結尾，而且 LINE 小幫手已更新到 v2.16'); }
+  if(!j.ok) throw new Error(j.error === 'bad key' ? 'KEY 不對，請重新輸入' : (j.error || '失敗'));
+  return j;
+}
+function getPub(id){
+  if(!PUB[id]) PUB[id] = gas('pub', { code: id }).then(p => {
+    PUBERR[id] = p.chartErr || p.revErr || p.qErr || '';
+    return p;
+  }).catch(e => { PUBERR[id] = e.message; delete PUB[id]; return null; });
+  return PUB[id];
+}
+async function getStock(id, fresh){
+  const c = STOCKC[id];
+  if(!fresh && c && Date.now() - c.t < 600000) return c.p;
+  const p = await gas('stock', { code: id });
+  STOCKC[id] = { t: Date.now(), p };
+  return p;
+}
+async function getWatch(fresh){
+  if(!fresh && WATCH && Date.now() - WATCH_AT < 300000) return WATCH;
+  WATCH = await gas('watch'); WATCH_AT = Date.now();
+  return WATCH;
+}
+const holdOf = id => WATCH && (WATCH.holds || []).find(h => h.code === id);
+
+// ---------- 設定（每台裝置一次）----------
+function cfgHtml(msg){
+  return `<div class="cfg"><b>🔒 ${esc(msg)}</b>
+    <div class="note">每台裝置設定一次。網址和 KEY 只存在這台裝置的瀏覽器，不會上傳到 GitHub。KEY 就是 LINE 小幫手的 SCRAPE_KEY（一鍵更新頁用的同一組）。</div>
+    <label>Apps Script 網址（結尾是 /exec）<input class="cu" type="url" placeholder="https://script.google.com/macros/s/…/exec" value="${esc(GAS.url)}"></label>
+    <label>KEY<input class="ck" type="password" autocomplete="off" value="${esc(GAS.key)}"></label>
+    <div class="row"><button class="pri cs" type="button">儲存並測試</button><span class="note cm" aria-live="polite"></span></div></div>`;
+}
+function needKey(el, msg, after){
+  el.innerHTML = `<div style="padding:12px">${cfgHtml(msg)}</div>`;
+  const q = s => el.querySelector(s);
+  q('.cs').onclick = async () => {
+    const u = q('.cu').value.trim(), k = q('.ck').value.trim();
+    if(!/^https:\/\/script\.google\.com\/.+\/exec$/.test(u)){ q('.cm').textContent = '網址要是 https://script.google.com/…/exec'; return; }
+    if(!k){ q('.cm').textContent = '請填 KEY'; return; }
+    store.set('gasUrl', u); store.set('gasKey', k);
+    q('.cm').textContent = '測試中…';
+    try{
+      const r = await gas('ping');
+      q('.cm').textContent = '✅ 連線成功（LINE 小幫手 ' + r.v + '）';
+      Object.keys(OHLC).forEach(k => delete OHLC[k]); Object.keys(FUND).forEach(k => delete FUND[k]);
+      setTimeout(() => after ? after() : (MODE === 'watch' && $('#modal').style.display !== 'flex' ? renderWatch() : setTab(TAB)), 400);
+    }catch(e){ q('.cm').textContent = '❌ ' + e.message; }
+  };
+}
+function logout(){
+  if(!confirm('要清除這台裝置記住的 Apps Script 網址和 KEY 嗎？')) return;
+  store.del('gasUrl'); store.del('gasKey');
+  WATCH = null; Object.keys(STOCKC).forEach(k => delete STOCKC[k]); Object.keys(PUB).forEach(k => delete PUB[k]);
+  renderWatch();
+}
+function toast(msg){
+  let t = $('#toast');
+  if(!t){ t = document.createElement('div'); t.id = 'toast'; t.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#1f2937;color:#fff;padding:10px 16px;border-radius:10px;z-index:90;max-width:90vw;white-space:pre-wrap;font-size:14px;box-shadow:0 8px 24px rgba(0,0,0,.3)'; document.body.appendChild(t); }
+  t.textContent = msg; t.style.display = 'block';
+  clearTimeout(t._h); t._h = setTimeout(() => t.style.display = 'none', 6000);
+}
+
+// ---------- 全市場摘要（公開資料，每天由 GitHub 產生）----------
+const TFAIL = { '1': '股價在150/200日線下', '2': '150日線低於200日線', '3': '200日線還沒上揚', '4': '50日線沒在150/200日線上',
+  '5': '股價在50日線下', '6': '離一年低點不到+30%', '7': '離一年高點超過25%', '8': 'RS 低於 70' };
+async function loadAll(){
+  if(ALL) return ALL;
+  ALL = getJSON('data/all.json').then(d => {
+    const c = d.cols;
+    d.rows.forEach(r => { const o = {}; c.forEach((k, i) => o[k] = r[i]); ALLMAP[o.id] = o; NAMEMAP[o.id] = o.name; });
+    (d.names || []).forEach(r => { NAMEMAP[r[0]] = r[1]; if(!ALLMAP[r[0]]) ALLMAP[r[0]] = { id: r[0], name: r[1], industry: r[2], ex: r[3], cold: true }; });
+    return d;
+  }).catch(() => null);
+  return ALL;
+}
+function stub(id){
+  id = String(id || '').trim().toUpperCase();
+  if(!/^\d{4,6}[A-Z]?$/.test(id)) return null;
+  const a = ALLMAP[id] || {};
+  const h = holdOf(id);
+  return { stub: true, id, name: a.name || NAMEMAP[id] || (WATCH && [...(WATCH.holds||[]), ...(WATCH.watch||[])].find(x => x.code === id) || {}).name || '',
+    industry: a.industry || '', ex: a.ex || 'TWSE', close: a.close ?? null, ret20: a.ret20 ?? null, rs: a.rs ?? null,
+    dist_hi: a.dist_hi ?? null, entry: null, stop: h ? h.stop : null };
+}
+function status(id){
+  const s = find(id);
+  if(s) return { k: 'g', t: s.action === 'buy' ? '🟢 強勢榜・今天可買' : s.action === 'ready' ? '🟢 強勢榜・準備區' : '🟢 強勢榜', tip: `評分 ${s.score}/4` };
+  const a = ALLMAP[id];
+  if(!a) return { k: 'x', t: ALL ? '⚪ 沒有資料' : '…', tip: '' };
+  if(a.cold) return { k: 'x', t: '⚪ 成交太少未計算', tip: '近 20 日平均成交金額不到 1000 萬' };
+  const f = String(a.fails || '');
+  const why = f.split('').map(x => TFAIL[x]).join('、');
+  if(f.length <= 2) return { k: 'y', t: `🟡 差${f.length}條：${why}`, tip: why };
+  return { k: 'x', t: `⚪ 不符（${f.length} 條沒過）`, tip: why };
+}
+function statusBadge(id){ const st = status(id); return `<span class="st ${st.k}" title="${esc(st.tip)}">${esc(st.t)}</span>`; }
+
+// ---------- 搜尋 ----------
+let gsSel = -1, gsHits = [];
+function searchHits(q){
+  q = q.trim().toUpperCase(); if(!q) return [];
+  const pool = new Map();
+  (DATA ? DATA.stocks : []).forEach(s => pool.set(s.id, s.name));
+  Object.keys(NAMEMAP).forEach(id => { if(!pool.has(id)) pool.set(id, NAMEMAP[id]); });
+  const a = [], b = [];
+  for(const [id, name] of pool){
+    if(id.startsWith(q)) a.push({ id, name });
+    else if(name && name.toUpperCase().includes(q)) b.push({ id, name });
+  }
+  a.sort((x, y) => x.id.localeCompare(y.id));
+  const out = a.concat(b).slice(0, 10);
+  if(!out.length && /^\d{4,6}[A-Z]?$/.test(q)) out.push({ id: q, name: '（清單裡沒有，直接查）' });
+  return out;
+}
+function renderHits(){
+  const el = $('#gres');
+  if(!gsHits.length){ el.innerHTML = $('#gq').value.trim() ? '<div class="mut">找不到。可以直接輸入 4 碼股號。</div>' : ''; el.style.display = $('#gq').value.trim() ? 'block' : 'none'; return; }
+  el.innerHTML = gsHits.map((h, i) => `<div data-id="${h.id}" class="${i === gsSel ? 'sel' : ''}" role="option"><b>${h.id}</b> ${esc(h.name)} <small>${esc(status(h.id).t)}</small></div>`).join('');
+  el.style.display = 'block';
+}
+$('#gq').addEventListener('input', () => { loadAll().then(() => { gsHits = searchHits($('#gq').value); gsSel = -1; renderHits(); }); });
+$('#gq').addEventListener('focus', () => loadAll());
+$('#gq').addEventListener('keydown', e => {
+  if(e.key === 'ArrowDown'){ gsSel = Math.min(gsHits.length - 1, gsSel + 1); renderHits(); e.preventDefault(); }
+  else if(e.key === 'ArrowUp'){ gsSel = Math.max(0, gsSel - 1); renderHits(); e.preventDefault(); }
+  else if(e.key === 'Enter'){
+    const h = gsHits[gsSel >= 0 ? gsSel : 0];
+    if(h){ $('#gq').blur(); openModal(h.id); }
+  } else if(e.key === 'Escape'){ $('#gres').style.display = 'none'; }
+});
+$('#gres').addEventListener('mousedown', e => { const d = e.target.closest('[data-id]'); if(d){ e.preventDefault(); $('#gq').blur(); openModal(d.dataset.id); } });
+$('#gq').addEventListener('blur', () => setTimeout(() => $('#gres').style.display = 'none', 150));
+
+function addRecent(id){
+  let r = []; try{ r = JSON.parse(store.get('recent', '[]')); }catch(e){}
+  r = [id].concat(r.filter(x => x !== id)).slice(0, 20);
+  store.set('recent', JSON.stringify(r));
+}
+const recentList = () => { try{ return JSON.parse(store.get('recent', '[]')); }catch(e){ return []; } };
+
+// ---------- 模式切換 ----------
+function setMode(m){
+  MODE = m; store.set('mode', m);
+  document.querySelectorAll('.modes button').forEach(b => b.classList.toggle('on', b.dataset.m === m));
+  $('#screenView').style.display = m === 'screen' ? '' : 'none';
+  $('#watchView').style.display = m === 'watch' ? '' : 'none';
+  if(m === 'watch') renderWatch();
+}
+document.querySelectorAll('.modes button').forEach(b => b.onclick = () => setMode(b.dataset.m));
+
+// ---------- 我的關注 ----------
+const ymd = d => { const s = String(d); return new Date(+s.slice(0, 4), +s.slice(4, 6) - 1, +s.slice(6, 8)); };
+const md = d => { const s = String(d); return s.length === 8 ? +s.slice(4, 6) + '/' + +s.slice(6, 8) : s.slice(5, 10).replace('-', '/'); };
+const daysAgo = dt => (Date.now() - dt.getTime()) / 86400000;
+const FICON = { '偏多': '🔴', '偏空': '🟢', '中性': '⚪' };
+
+function wcard(id, name, hold){
+  const s = find(id), a = ALLMAP[id] || {};
+  const close = s ? s.close : a.close, rs = s ? s.rs : a.rs, r20 = s ? s.ret20 : a.ret20, dh = s ? s.dist_hi : a.dist_hi;
+  const e = WATCH && WATCH.est ? WATCH.est[id] : null, f = WATCH && WATCH.feed ? WATCH.feed[id] : null;
+  let lamp = '', why = [];
+  const eNew = e && daysAgo(ymd(e.d)) <= 7;
+  if(hold && close && hold.stop && (close - hold.stop) / close < 0.03){ lamp = 'warn'; why.push('⚠️ 接近停損'); }
+  if(eNew && e.pct < 0){ lamp = 'warn'; why.push('⚠️ 法人下修'); }
+  if(!lamp && ((s && s.new) || (eNew && e.pct > 0))){ lamp = 'good'; why.push(s && s.new ? '🔺 新進強勢榜' : '🔺 法人上修'); }
+  const fNew = f && daysAgo(new Date(String(f.d).replace(' ', 'T'))) <= 3;
+  const kv = hold
+    ? `<span>成本<b>${num(hold.price)}</b></span><span>損益<b>${close ? pct((close / hold.price - 1) * 100) + '%' : '-'}</b></span><span>距停損<b>${close && hold.stop ? num((close - hold.stop) / close * 100, 1) + '%' : '-'}</b></span><span>收盤<b>${num(close)}</b></span>`
+    : `<span>收盤<b>${num(close)}</b></span><span>20日<b>${r20 == null ? '-' : pct(r20) + '%'}</b></span><span>RS<b>${rs ?? '-'}</b></span><span>離高點<b>${dh == null ? '-' : pct(dh) + '%'}</b></span>`;
+  const est = e ? `法人：${e.y}F ${e.pct > 0 ? '上修' : '下修'} <span class="${e.pct > 0 ? 'pos' : 'neg'}">${e.pct > 0 ? '+' : ''}${e.pct}%</span>（${md(e.d)}）EPS ${e.eps}` : '<span class="mut">法人：近期沒有調整預估</span>';
+  const fd = f ? `${fNew ? '<span class="bdot" title="3 天內有新的小助理更新"></span> ' : ''}小助理：${FICON[f.cls] || '⚪'} ${md(f.d)} ${esc(f.text)}` : '<span class="mut">小助理：最近沒有更新</span>';
+  return { lamp, html: `<div class="wcard ${lamp}" data-id="${id}" title="${esc(why.join('、'))}">
+    <div class="h"><b>${id} ${esc(name || (s && s.name) || a.name || '')}</b>${statusBadge(id)}${why.length ? `<span class="${lamp === 'warn' ? 'wtx' : 'pos'}" style="font-size:12px">${esc(why.join('、'))}</span>` : ''}</div>
+    <div class="kv">${kv}</div>
+    <div class="ln">${est}</div><div class="ln">${fd}</div></div>` };
+}
+function group(title, sub, items){
+  if(!items.length) return '';
+  const order = { warn: 0, good: 1, '': 2 };
+  items.sort((x, y) => order[x.lamp] - order[y.lamp]);
+  return `<div class="wgroup"><h2>${title} <small>${sub}</small></h2><div class="wcards">${items.map(x => x.html).join('')}</div></div>`;
+}
+async function renderWatch(fresh){
+  const el = $('#watchView');
+  const recent = recentList();
+  const lead = `<p class="note"><b class="wtx">橘邊⚠️</b> 要注意：接近停損 3% 內、7 天內法人下修　<b class="pos">紅邊🔺</b> 好消息：新進強勢榜、7 天內法人上修（紅＝漲，跟台股習慣一樣）　<span class="bdot"></span> 3 天內有新的小助理更新｜點任一張卡片看完整資料，上面的搜尋框可以查任何股票。</p>`;
+  await loadAll();
+  if(!gasReady()){
+    el.innerHTML = lead + `<div style="margin:10px 0">${cfgHtml('設定一次 Apps Script 網址和 KEY，就能看你的持股、自選股、法人預估和小助理')}</div>` +
+      group('🕘 最近查過', `${recent.length} 檔（記在這台裝置）`, recent.map(id => wcard(id, NAMEMAP[id], null)));
+    needKey(el.querySelector('.cfg').parentNode, '設定一次 Apps Script 網址和 KEY，就能看你的持股、自選股、法人預估和小助理', () => renderWatch(true));
+    bindCards(el); return;
+  }
+  if(!WATCH || fresh) el.innerHTML = lead + '<div class="empty">讀取你的持股和自選股…（約 3～6 秒）</div>';
+  try{ await getWatch(fresh); }
+  catch(e){
+    el.innerHTML = lead + `<div class="noact">❌ ${esc(e.message)}</div>` + `<div style="margin:10px 0" class="kfix"></div>`;
+    needKey(el.querySelector('.kfix'), '請確認 Apps Script 網址和 KEY', () => renderWatch(true));
+    return;
+  }
+  const holds = WATCH.holds || [];
+  const hc = new Set(holds.map(h => h.code));
+  const watch = (WATCH.watch || []).filter(x => !hc.has(x.code));
+  const wc = new Set(watch.map(x => x.code));
+  const rec = recent.filter(id => !hc.has(id) && !wc.has(id));
+  el.innerHTML = lead +
+    group('💼 持股', `${holds.length} 檔`, holds.map(h => wcard(h.code, h.name, h))) +
+    group('👀 自選股', `${watch.length} 檔（Watchlist；和 LINE、法人預估推播共用）`, watch.map(x => wcard(x.code, x.name, null))) +
+    group('🕘 最近查過', `${rec.length} 檔（記在這台裝置）`, rec.map(id => wcard(id, NAMEMAP[id], null))) +
+    (!holds.length && !watch.length && !rec.length ? '<div class="noact">還沒有關注的股票：用上面的搜尋框打開一檔，按「⭐ 加入自選股」。</div>' : '') +
+    `<p class="note" style="margin-top:14px">資料時間 ${esc(WATCH.at || '')}｜法人預估最後更新 ${WATCH.estLast ? md(WATCH.estLast) : '-'}
+      　<button type="button" id="wRefresh">🔄 重新整理</button>　<button type="button" id="wLogout">這台裝置登出（清除 KEY）</button></p>`;
+  bindCards(el);
+  $('#wRefresh').onclick = () => renderWatch(true);
+  $('#wLogout').onclick = logout;
+}
+function bindCards(el){ el.querySelectorAll('.wcard').forEach(c => c.onclick = () => openModal(c.dataset.id)); }
+
+// ---------- 毛利率分頁 ----------
+function drawMargins(el, hist){
+  let rows = hist, note = '';
+  if(GM_TTM){
+    if(!hist.some(h => h.rev != null)){ note = '近四季要等下一次每日更新後才有資料，先顯示單季'; }
+    else{
+      rows = [];
+      for(let i = 3; i < hist.length; i++){
+        const w = hist.slice(i - 3, i + 1);
+        const sum = k => w.every(h => h[k] != null) ? w.reduce((a, h) => a + h[k], 0) : null;
+        const rv = sum('rev'), g = sum('gp'), o = sum('op'), n = sum('ni');
+        const p = x => x == null || !rv ? null : Math.round(x / rv * 1000) / 10;
+        rows.push({ q: hist[i].q, gm: p(g), om: p(o), nm: p(n) });
+      }
+    }
+  }
+  const chart = baseChart(el);
+  chart.applyOptions({ leftPriceScale: { visible: false } });
+  for(const [k, color, title] of [['gm', '#ea8a00', '毛利率%'], ['om', '#8b5cf6', '營益率%'], ['nm', '#16a34a', '淨利率%']]){
+    if(!rows.some(h => h[k] != null)) continue;
+    const ln = chart.addLineSeries({ color, lineWidth: 2, title, priceFormat: { type: 'price', precision: 1, minMove: 0.1 } });
+    ln.setData(rows.map(h => h[k] == null ? { time: h.q } : { time: h.q, value: h[k] }));
+  }
+  chart.timeScale().fitContent();
+  charts.set(el, chart);
+  const missNm = !rows.some(h => h.nm != null);
+  if(note || missNm) $('#mbar').insertAdjacentHTML('beforeend', `<span class="note">${esc(note || '淨利率要等下一次每日更新後才會出現')}</span>`);
+}
+
+// ---------- 法人預估分頁 ----------
+let EST_PE = false;
+async function drawEst(panel, s){
+  if(!gasReady()){ needKey(panel, '法人預估是你的私人資料，要用 KEY 向 Apps Script 讀'); return; }
+  panel.innerHTML = '<div class="empty">讀取法人預估…</div>';
+  let d;
+  try{ d = await getStock(s.id); }catch(e){ panel.innerHTML = `<div class="noact">❌ ${esc(e.message)}</div><div class="kfix" style="margin-top:10px"></div>`; needKey(panel.querySelector('.kfix'), '請確認 Apps Script 網址和 KEY'); return; }
+  if(CUR !== s || TAB !== 'est') return;
+  const est = d.est || { years: {} };
+  const yrs = Object.keys(est.years).sort();
+  const cov = `法人預估資料從 ${est.first ? md(est.first) + '（' + String(est.first).slice(0, 4) + '）' : '-'} 開始記錄，最後更新 ${est.last ? md(est.last) : '-'}；來源：優分析法人預估（你的試算表），每個點＝一次法人調整。`;
+  let html = '';
+  if(!yrs.length){
+    html += `<div class="noact">近期沒有法人調整這檔的預估。</div><p class="note">${cov}</p>`;
+  } else {
+    const cy = new Date().getFullYear();
+    const show = yrs.filter(y => +y >= cy - 1).slice(-3);
+    const lastClose = s.close ?? (() => { for(const y of yrs){ const a = est.years[y]; if(a.length && a[a.length - 1][3]) return a[a.length - 1][3]; } return null; })();
+    html += '<h3>最新預估與換算本益比</h3><table><tr><th>年度</th><th>最新 EPS</th><th>最近一次調整</th><th>換算本益比</th></tr>' + show.map(y => {
+      const a = est.years[y], last = a[a.length - 1];
+      const ch = [...a].reverse().find(x => x[2] != null && x[2] !== 0);
+      const pe = lastClose && last[1] > 0 ? (lastClose / last[1]).toFixed(1) + ' 倍' : '-';
+      return `<tr><td>${y}F</td><td><b>${last[1]}</b>${last[4] ? '（初評）' : ''}</td><td>${ch ? `${md(ch[0])} <span class="${ch[2] > 0 ? 'pos' : 'neg'}">${ch[2] > 0 ? '上修 +' : '下修 '}${ch[2]}%</span>` : '-'}</td><td>${pe}</td></tr>`;
+    }).join('') + `</table><p class="note">本益比 = 收盤 ${num(lastClose)} ÷ 預估 EPS。</p>`;
+    html += `<h3>預估走勢 <span class="seg" style="margin-left:6px"><button data-pe="0" class="${EST_PE ? '' : 'on'}">EPS</button><button data-pe="1" class="${EST_PE ? 'on' : ''}">本益比</button></span></h3><div class="minichart" id="estChart"></div>`;
+  }
+  const br = d.brokers || [];
+  html += '<h3>券商明細</h3>' + (br.length
+    ? '<div style="overflow-x:auto"><table><tr><th>日期</th><th>券商</th><th>評等</th><th>目標價</th><th>當年F EPS</th><th>次年F EPS</th><th>等級</th></tr>' +
+      br.map(b => `<tr><td>${esc(b.date)}</td><td>${esc(b.broker)}</td><td>${esc(b.rating)}</td><td>${b.tp ?? '-'}</td><td>${b.eps1 ?? '-'}</td><td>${b.eps2 ?? '-'}</td><td>${esc(b.grade)}</td></tr>`).join('') + '</table></div>'
+    : '<div class="note">還沒有券商明細：把券商 PDF 傳給 LINE 小幫手，跑過整合報告後就會出現在這裡。</div>');
+  if(yrs.length) html += `<p class="note">${cov}</p>`;
+  panel.innerHTML = html;
+  panel.querySelectorAll('[data-pe]').forEach(b => b.onclick = () => { EST_PE = b.dataset.pe === '1'; drawEst(panel, s); });
+  const ce = panel.querySelector('#estChart');
+  if(ce){
+    const chart = baseChart(ce);
+    chart.applyOptions({ leftPriceScale: { visible: false } });
+    const colors = ['#94a3b8', '#d9363e', '#2563eb', '#ea8a00'];
+    const yy = yrs.filter(y => +y >= new Date().getFullYear() - 1).slice(-3);
+    yy.forEach((y, i) => {
+      const a = est.years[y];
+      const ln = chart.addLineSeries({ color: colors[(i + 4 - yy.length) % 4], lineWidth: 2, title: y + 'F', lineType: 1, priceFormat: { type: 'price', precision: EST_PE ? 1 : 2, minMove: 0.01 } });
+      const iso = d => { const t = String(d); return t.slice(0, 4) + '-' + t.slice(4, 6) + '-' + t.slice(6, 8); };
+      const pts = a.map(x => ({ time: iso(x[0]), value: EST_PE ? (x[3] && x[1] > 0 ? Math.round(x[3] / x[1] * 10) / 10 : null) : x[1] })).filter(p => p.value != null);
+      ln.setData(pts);
+      if(!EST_PE) ln.setMarkers(a.filter(x => x[2]).map(x => ({ time: iso(x[0]), position: x[2] > 0 ? 'belowBar' : 'aboveBar', color: x[2] > 0 ? '#d9363e' : '#16a34a', shape: x[2] > 0 ? 'arrowUp' : 'arrowDown', text: (x[2] > 0 ? '+' : '') + x[2] + '%' })));
+    });
+    chart.timeScale().fitContent();
+  }
+}
+
+// ---------- 小助理分頁 ----------
+async function drawAI(panel, s){
+  if(!gasReady()){ needKey(panel, '小助理、報告、筆記是你的私人資料，要用 KEY 向 Apps Script 讀'); return; }
+  panel.innerHTML = '<div class="empty">讀取小助理、報告和筆記…</div>';
+  let d;
+  try{ d = await getStock(s.id); }catch(e){ panel.innerHTML = `<div class="noact">❌ ${esc(e.message)}</div><div class="kfix" style="margin-top:10px"></div>`; needKey(panel.querySelector('.kfix'), '請確認 Apps Script 網址和 KEY'); return; }
+  if(CUR !== s || TAB !== 'ai') return;
+  const doc = d.docs || {};
+  let html = `<div class="btnrow"><button class="pri" type="button" data-act="report">📄 產生整合報告</button>` +
+    (d.hold ? '<span class="note">💼 這檔是持股，自動在關注清單裡</span>' : `<button type="button" data-act="${d.watch ? 'watchDel' : 'watchAdd'}">${d.watch ? '✖ 移出自選股' : '⭐ 加入自選股'}</button>`) +
+    (doc.folder ? `<a href="${doc.folder}" target="_blank" rel="noopener" style="align-self:center">📁 Drive 資料夾</a>` : '') + '</div>';
+  if(doc.report){
+    html += `<h3>⚡ 決策卡 <span class="note">（${esc(doc.report.date)} 的整合報告）</span>　<a href="${doc.report.url}" target="_blank" rel="noopener">打開完整報告 ↗</a></h3>`;
+    const c = doc.report.card;
+    html += c && c.length ? '<div style="overflow-x:auto"><table>' + c.map((r, i) => '<tr>' + r.map(x => i ? `<td>${esc(x)}</td>` : `<th>${esc(x)}</th>`).join('') + '</tr>').join('') + '</table></div>'
+      : '<div class="note">這份報告沒有決策卡表格（可能是舊格式），請打開完整報告。</div>';
+  } else html += '<h3>⚡ 決策卡</h3><div class="note">還沒有整合報告，按上面「📄 產生整合報告」。</div>';
+  const fd = d.feed || [];
+  html += `<h3>📰 小助理更新重點 <span class="note">近 4 個月 ${fd.length} 則（🔴偏多 🟢偏空 ⚪中性）</span></h3>` +
+    (fd.length ? '<ul class="feed">' + fd.slice(0, 40).map(x => `<li><b>${FICON[x.cls] || '⚪'} ${esc(String(x.d).slice(5, 10).replace('-', '/'))}</b>${esc(x.text)}</li>`).join('') + '</ul>'
+      : '<div class="note">最近 4 個月沒有收到這檔的小助理更新（加入自選股後，竄改猴收集到的更新會出現在早晚摘要）。</div>');
+  html += '<h3>📖 小助理原文</h3>' + (doc.raw ? `<a href="${doc.raw.url}" target="_blank" rel="noopener">${esc(doc.raw.name)} ↗</a>` : '<div class="note">還沒有，產生整合報告時會一起抓。</div>');
+  html += '<h3>📝 我的筆記</h3>' + (doc.memo ? (doc.memo.recent || []).map(m => `<div class="memo"><b>${esc(m.h)}</b>\n${esc(m.text)}</div>`).join('') + `<a href="${doc.memo.url}" target="_blank" rel="noopener">打開全部筆記 ↗</a>`
+    : '<div class="note">還沒有筆記：在 LINE 傳文字給小幫手，會自動存到這檔。</div>');
+  html += `<p class="note">資料時間 ${esc(d.at || '')}（10 分鐘內重開不會重讀）　<button type="button" data-act="reload">🔄 重新讀取</button></p>`;
+  panel.innerHTML = html;
+  panel.querySelectorAll('[data-act]').forEach(b => b.onclick = async () => {
+    const act = b.dataset.act;
+    if(act === 'report') return askReport(s.id);
+    if(act === 'reload'){ delete STOCKC[s.id]; return drawAI(panel, s); }
+    b.disabled = true;
+    try{ const r = await gas('cmd', { cmd: act, code: s.id }); toast(r.msg); delete STOCKC[s.id]; WATCH = null; drawAI(panel, s); }
+    catch(e){ toast('❌ ' + e.message); b.disabled = false; }
+  });
+}
+async function askReport(id){
+  if(!confirm(`要產生 ${id} ${NAMEMAP[id] || (find(id) || {}).name || ''} 的整合報告嗎？\n會用到 Claude 額度和 LINE 推播，約 10～20 分鐘完成，結果傳到 LINE。`)) return;
+  toast('送出中…');
+  try{ const r = await gas('cmd', { cmd: 'report', code: id }); toast(r.msg); }
+  catch(e){ toast('❌ ' + e.message); }
+}
+
+loadAll();
+init().then(() => setMode(MODE));
 </script>
 </body>
 </html>

@@ -1,5 +1,5 @@
 /**
- * LINE 股票檔案小幫手 v2.15（報告加入供應鏈順序、上下修性質、EPS 時間軸；同步上修雷達；v2.14 主程式放 GitHub，由啟動程式載入；v2.13 一鍵更新：GitHub＋Apps Script＋竄改猴；v2.12 X 長文抓全文＋圖片文字、存檔後自我檢查完整度；v2.11 連結不再卡住沒回應、額度查詢；v2.10 自動報告標示來源＋可關閉；v2.9 股號一律附股名、筆記判斷修正與一鍵改；v2.8 清單裡沒有的股號即時查證交所；v2.7 指令可打股名；補齊上櫃股票清單；v2.6 提高連結判斷準確率＋分錯了一鍵改；v2.5 一則多檔股票的整理自動拆到各公司；v2.4 圖片／PDF 用文字辨識判斷股票；v2.3 文字筆記 memo 自動歸檔；v2.2 報告改為決策卡＋證據的精簡版；v2.1 報告加入超額利潤期判斷；v2.0 美股：歸檔＋整合報告；小助理更新重點：追蹤推播 08:30／21:00、雷達、歷史紀錄）
+ * LINE 股票檔案小幫手 v2.16（選股網站：個股法人預估／小助理／我的關注；v2.15 報告加入供應鏈順序、上下修性質、EPS 時間軸；同步上修雷達；v2.14 主程式放 GitHub，由啟動程式載入；v2.13 一鍵更新：GitHub＋Apps Script＋竄改猴；v2.12 X 長文抓全文＋圖片文字、存檔後自我檢查完整度；v2.11 連結不再卡住沒回應、額度查詢；v2.10 自動報告標示來源＋可關閉；v2.9 股號一律附股名、筆記判斷修正與一鍵改；v2.8 清單裡沒有的股號即時查證交所；v2.7 指令可打股名；補齊上櫃股票清單；v2.6 提高連結判斷準確率＋分錯了一鍵改；v2.5 一則多檔股票的整理自動拆到各公司；v2.4 圖片／PDF 用文字辨識判斷股票；v2.3 文字筆記 memo 自動歸檔；v2.2 報告改為決策卡＋證據的精簡版；v2.1 報告加入超額利潤期判斷；v2.0 美股：歸檔＋整合報告；小助理更新重點：追蹤推播 08:30／21:00、雷達、歷史紀錄）
  * ------------------------------------------------------------
  * v1.0 功能：把 PDF 轉傳給 LINE bot → 自動判斷股票／產業 → 重新命名
  *            → 存進 Google 雲端對應資料夾（沒有就自動建立）→ LINE 回報
@@ -75,6 +75,7 @@ function doPost(e) {
   if (p.action === 'submitReport') return json(runnerSubmit(p, body)); // Windows 小程式交報告
   if (p.action === 'screener') return json(screenerPush(p, body));     // v1.6 選股系統每日結果
   if (p.action === 'feed') return json(feedIngest(p, body));            // v1.9 竄改猴交「小助理更新重點」
+  if (body.action === 'site') return json(siteApi(body));               // v2.16 選股網站個股視窗／我的關注
   (body.events || []).forEach(function (ev) {
     try {
       handleEvent(ev);
@@ -3985,7 +3986,7 @@ function fetchXPostFull(url) {
 
 
 // v2.14 一鍵更新改由「啟動程式」（Apps Script 裡的 Code.gs）負責；這份主程式放在 GitHub 的 gas/Code.gs
-const APP_VERSION = 'v2.15';
+const APP_VERSION = 'v2.16';
 
 // ===== v2.13 清理暫存屬性（指令碼屬性超過 50 個時，畫面會變唯讀）=====
 function cleanupProps() {
@@ -4035,4 +4036,306 @@ function revisionClusterText() {
     const names = Object.keys(r.stocks).slice(0, 4).map(function (c) { return c + ' ' + r.stocks[c].name; }).join('、');
     return (r.kind === 'up' ? '🔺 上修｜' : '🔻 下修｜') + r.theme + '：' + names;
   }).join('\n') + '\n（上修看原因：需求端＝週期未到尾；供給端＝可能尾段）';
+}
+
+
+// ===== v2.16 選股網站查詢（個股視窗的 🔒 分頁、我的關注）=====
+// 網站用 POST（text/plain）送 {action:'site', key, op, code}；KEY 錯誤一律拒絕。
+// 只讀資料、不碰優分析；按鈕動作只有「報告」「加入／移出自選股」。
+const SITE_CACHE_SEC = 600;
+const UA_RAW_TAB = 'Raw';   // 法人預估紀錄1.0 的 Raw 分頁（runApiCheck 每天寫入全市場法人預估調整）
+
+function siteApi(body) {
+  if (!checkScrapeKey({ key: body.key })) return { ok: false, error: 'bad key' };
+  const code = String(body.code || '').trim().toUpperCase();
+  try {
+    if (body.op === 'ping') return { ok: true, v: APP_VERSION };
+    if (body.op === 'watch') return siteWatch();
+    if (body.op === 'stock') return code ? siteStock(code) : { ok: false, error: 'no code' };
+    if (body.op === 'pub') return code ? sitePub(code) : { ok: false, error: 'no code' };
+    if (body.op === 'cmd') return siteCmd(String(body.cmd || ''), code);
+    return { ok: false, error: 'unknown op' };
+  } catch (e) {
+    console.error(e && e.stack ? e.stack : e);
+    return { ok: false, error: String((e && e.message) || e) };
+  }
+}
+
+function siteCacheGet(k) { try { const v = CacheService.getScriptCache().get(k); return v ? JSON.parse(v) : null; } catch (e) { return null; } }
+function siteCachePut(k, o, sec) { try { const s = JSON.stringify(o); if (s.length < 95000) CacheService.getScriptCache().put(k, s, sec || SITE_CACHE_SEC); } catch (e) { /* 太大就不快取 */ } }
+
+// ---------- 法人預估（Raw 分頁）----------
+function uaRawSheet() {
+  const id = prop('WATCHLIST_SHEET_ID') || DEFAULT_WATCHLIST_SHEET_ID;
+  try { return SpreadsheetApp.openById(id).getSheetByName(UA_RAW_TAB); } catch (e) { console.warn('打不開法人預估 Raw：' + e); return null; }
+}
+let UA_RAW_MEMO = null;
+// 回傳 { rows: [[日期數字, 代號, 名稱, 收盤, 年度, EPS, 初評, 方向]], first, last }
+function uaRawAll() {
+  if (UA_RAW_MEMO) return UA_RAW_MEMO;
+  const sh = uaRawSheet();
+  const out = { rows: [], first: '', last: '' };
+  if (!sh) return (UA_RAW_MEMO = out);
+  const n = sh.getLastRow();
+  if (n < 2) return (UA_RAW_MEMO = out);
+  const v = sh.getRange(2, 1, n - 1, 9).getValues();   // 日期 代號 名稱 收盤價 漲跌幅% 年度 EPS 初評 方向
+  let lo = 99999999, hi = 0;
+  v.forEach(function (r) {
+    const d = Number(r[0]);
+    if (!(d > 19900000)) return;
+    if (d < lo) lo = d;
+    if (d > hi) hi = d;
+    out.rows.push([d, String(r[1]).trim().replace(/\.0$/, ''), String(r[2]), +r[3] || null, Number(r[5]), +r[6], r[7] === '初評', String(r[8] || '')]);
+  });
+  out.first = lo < 99999999 ? String(lo) : '';
+  out.last = hi ? String(hi) : '';
+  return (UA_RAW_MEMO = out);
+}
+
+// 一檔的法人預估時間序列：{ years: {2026: [[日期, EPS, 調幅%, 收盤, 初評]]}, first, last }
+function uaEstimateSeries(code) {
+  const raw = uaRawAll();
+  const mine = raw.rows.filter(function (r) { return r[1] === code; }).sort(function (a, b) { return a[0] - b[0]; });
+  const years = {};
+  mine.forEach(function (r) {
+    const y = r[4];
+    const arr = years[y] = years[y] || [];
+    const prev = arr.length ? arr[arr.length - 1] : null;
+    if (prev && prev[0] === r[0]) arr.pop();   // 同一天只留最後一筆
+    const base = arr.length ? arr[arr.length - 1][1] : null;
+    const pct = !r[6] && base ? Math.round((r[5] - base) / Math.abs(base) * 1000) / 10 : null;
+    arr.push([r[0], r[5], pct, r[3], r[6]]);
+  });
+  return { years: years, first: raw.first, last: raw.last, name: mine.length ? mine[mine.length - 1][2] : '' };
+}
+
+// 最近一次變動（我的關注列表用）：{ d, y, eps, pct }
+function uaLatestChange(series) {
+  let best = null;
+  Object.keys(series.years).forEach(function (y) {
+    const arr = series.years[y];
+    for (let i = arr.length - 1; i >= 0; i--) {
+      if (arr[i][2] !== null && arr[i][2] !== 0) {
+        if (!best || arr[i][0] > best.d || (arr[i][0] === best.d && Math.abs(arr[i][2]) > Math.abs(best.pct))) best = { d: arr[i][0], y: Number(y), eps: arr[i][1], pct: arr[i][2] };
+        break;
+      }
+    }
+  });
+  return best;
+}
+
+// ---------- 雲端檔案（只找、不建立）----------
+function findStockFolderRO(code) {
+  if (isUS(code)) return null;
+  const it = rootFolder().getFolders();
+  const re = new RegExp('^' + code + '(?![0-9A-Z])');
+  while (it.hasNext()) { const f = it.next(); if (re.test(f.getName())) return f; }
+  return null;
+}
+
+// 報告裡的「⚡ 決策卡」表格 → [[問題, 結論, 信心, 佐證], ...]
+function reportCard(docId) {
+  try {
+    const b = DocumentApp.openById(docId).getBody();
+    let seen = false;
+    for (let i = 0; i < b.getNumChildren() && i < 120; i++) {
+      const c = b.getChild(i);
+      const t = c.getType();
+      if (t === DocumentApp.ElementType.TABLE) {
+        if (!seen) continue;
+        const tb = c.asTable(), rows = [];
+        for (let r = 0; r < tb.getNumRows() && r < 12; r++) {
+          const row = tb.getRow(r), cells = [];
+          for (let k = 0; k < row.getNumCells(); k++) cells.push(row.getCell(k).getText().trim().slice(0, 300));
+          rows.push(cells);
+        }
+        return rows;
+      }
+      let tx = '';
+      try {
+        if (t === DocumentApp.ElementType.PARAGRAPH) tx = c.asParagraph().getText();
+        else if (t === DocumentApp.ElementType.LIST_ITEM) tx = c.asListItem().getText();
+      } catch (e) { tx = ''; }
+      if (/決策卡/.test(tx)) seen = true;
+    }
+  } catch (e) { console.warn('讀決策卡失敗：' + e); }
+  return null;
+}
+
+// 我的筆記：最新幾則（每則開頭是「🗓 日期｜誰」）
+function memoRecent(docId, n) {
+  try {
+    const t = DocumentApp.openById(docId).getBody().getText();
+    return t.split(/\n(?=🗓 )/).slice(1, 1 + (n || 3)).map(function (s) {
+      const lines = s.split('\n');
+      return { h: lines[0].replace(/^🗓\s*/, ''), text: lines.slice(1).join('\n').trim().slice(0, 400) };
+    });
+  } catch (e) { return []; }
+}
+
+function stockDocs(code) {
+  const f = findStockFolderRO(code);
+  const out = { folder: f ? f.getUrl() : '', report: null, raw: null, memo: null };
+  if (!f) return out;
+  let rep = null, raw = null, memo = null;
+  const it = f.getFiles();
+  while (it.hasNext()) {
+    const x = it.next();
+    if (x.getMimeType() !== MimeType.GOOGLE_DOCS) continue;
+    const n = x.getName();
+    if (/_舊版/.test(n)) continue;
+    if (n.indexOf(code + REPORT_TITLE) === 0) { if (!rep || x.getDateCreated() > rep.getDateCreated()) rep = x; }
+    else if (n.indexOf(code + '_優分析小助理_') === 0) { if (!raw || x.getDateCreated() > raw.getDateCreated()) raw = x; }
+    else if (n.indexOf(MEMO_SUFFIX) >= 0) memo = x;
+  }
+  const d = function (x) { return Utilities.formatDate(x.getDateCreated(), TZ, 'yyyy-MM-dd'); };
+  if (rep) out.report = { name: rep.getName(), url: rep.getUrl(), date: d(rep), card: reportCard(rep.getId()) };
+  if (raw) out.raw = { name: raw.getName(), url: raw.getUrl(), date: d(raw) };
+  if (memo) out.memo = { url: memo.getUrl(), updated: Utilities.formatDate(memo.getLastUpdated(), TZ, 'yyyy-MM-dd'), recent: memoRecent(memo.getId(), 3) };
+  return out;
+}
+
+// 法人預估追蹤表（券商明細）
+function brokerRows(code) {
+  try {
+    const rows = getEstimateSheet().getDataRange().getValues().slice(1);
+    return rows.filter(function (r) { return normalizeCell(r[0], 0) === code; }).map(function (r) {
+      return { broker: String(r[2] || ''), date: normalizeCell(r[3], 3), rating: String(r[4] || ''), tp: r[5] === '' ? null : r[5],
+        eps1: r[7] === '' ? null : r[7], eps2: r[8] === '' ? null : r[8], year: String(r[11] || ''), grade: String(r[12] || '') };
+    }).sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); }).slice(0, 30);
+  } catch (e) { return []; }
+}
+
+// ---------- op=stock：一檔的 🔒 資料 ----------
+function siteStock(code) {
+  const ck = 'SITE_S_' + code;
+  const hit = siteCacheGet(ck);
+  if (hit) return hit;
+  const map = getStockMap();
+  const est = uaEstimateSeries(code);
+  const w = getWatchCodes();
+  const hold = holdRows().filter(function (h) { return h.code === code && h.status === '持有'; }).pop() || null;
+  const feed = feedRecent(120).filter(function (x) { return x.code === code; }).map(function (x) { return { d: x.d, text: x.text, cls: x.cls }; }).reverse();
+  const res = { ok: true, code: code, name: map[code] || est.name || '', est: est, brokers: brokerRows(code), feed: feed,
+    docs: stockDocs(code), watch: !!w[code], hold: hold ? { price: hold.price, lots: hold.lots, stop: hold.stop, be: hold.be, buyDate: hold.buyDate ? Utilities.formatDate(hold.buyDate, TZ, 'yyyy-MM-dd') : '' } : null,
+    at: now() };
+  siteCachePut(ck, res);
+  return res;
+}
+
+// ---------- op=watch：我的關注（持股＋自選股）----------
+function siteWatch() {
+  const hit = siteCacheGet('SITE_WATCH');
+  if (hit) return hit;
+  const map = getStockMap();
+  const holds = holdRows().filter(function (h) { return h.status === '持有'; }).map(function (h) {
+    return { code: h.code, name: h.name || map[h.code] || '', price: h.price, lots: h.lots, stop: h.stop, be: h.be, user: h.user };
+  });
+  const w = getWatchCodes();
+  const watch = Object.keys(w).filter(function (c) { return w[c] === 'watch'; }).sort().map(function (c) { return { code: c, name: map[c] || '' }; });
+  const codes = {};
+  holds.forEach(function (h) { codes[h.code] = 1; });
+  watch.forEach(function (x) { codes[x.code] = 1; });
+  const raw = uaRawAll();
+  const est = {}, feed = {};
+  Object.keys(codes).forEach(function (c) {
+    const ch = uaLatestChange(uaEstimateSeries(c));
+    if (ch) est[c] = ch;
+  });
+  feedRecent(120).forEach(function (x) { if (codes[x.code]) feed[x.code] = { d: x.d, text: x.text.slice(0, 80), cls: x.cls }; });   // 舊→新，最後留下最新
+  const res = { ok: true, holds: holds, watch: watch, est: est, feed: feed, estLast: raw.last, at: now() };
+  siteCachePut('SITE_WATCH', res, 300);
+  return res;
+}
+
+// ---------- op=pub：不在強勢榜的股票，用 FinMind 公開資料畫圖 ----------
+function finmind(dataset, code, start) {
+  const tk = prop('FINMIND_TOKEN');
+  const url = 'https://api.finmindtrade.com/api/v4/data?dataset=' + dataset + '&data_id=' + encodeURIComponent(code) + '&start_date=' + start;
+  const r = UrlFetchApp.fetch(url, { muteHttpExceptions: true, headers: tk ? { Authorization: 'Bearer ' + tk } : {} });
+  if (r.getResponseCode() !== 200) throw new Error('FinMind ' + dataset + ' ' + r.getResponseCode());
+  return JSON.parse(r.getContentText()).data || [];
+}
+
+function sitePub(code) {
+  const ck = 'SITE_P_' + code;
+  const hit = siteCacheGet(ck);
+  if (hit) return hit;
+  const ago = function (days) { return Utilities.formatDate(new Date(Date.now() - days * 86400000), TZ, 'yyyy-MM-dd'); };
+  const res = { ok: true, code: code, chart: null, m_hist: [], q_hist: [], src: 'FinMind（未還原權息）' };
+  try { res.chart = pubChart(finmind('TaiwanStockPrice', code, ago(560))); } catch (e) { res.chartErr = String(e.message || e); }
+  try { res.m_hist = pubMonthly(finmind('TaiwanStockMonthRevenue', code, ago(365 * 3 + 40))); } catch (e) { res.revErr = String(e.message || e); }
+  try { res.q_hist = pubQuarterly(finmind('TaiwanStockFinancialStatements', code, ago(365 * 4 + 40))); } catch (e) { res.qErr = String(e.message || e); }
+  if (res.chart || res.m_hist.length || res.q_hist.length) siteCachePut(ck, res, 6 * 3600);
+  return res;
+}
+
+function pubChart(rows) {
+  rows = rows.filter(function (r) { return r.close > 0; });
+  if (rows.length < 30) return null;
+  const c = rows.map(function (r) { return +r.close; });
+  const ma = function (k, i) { if (i + 1 < k) return null; let s = 0; for (let j = i - k + 1; j <= i; j++) s += c[j]; return Math.round(s / k * 100) / 100; };
+  const from = Math.max(0, rows.length - 260);
+  const out = { t: [], o: [], h: [], l: [], c: [], v: [], ma50: [], ma150: [], ma200: [] };
+  for (let i = from; i < rows.length; i++) {
+    const r = rows[i];
+    out.t.push(String(r.date).slice(0, 10)); out.o.push(+r.open); out.h.push(+r.max); out.l.push(+r.min); out.c.push(+r.close);
+    out.v.push(+r.Trading_Volume || 0); out.ma50.push(ma(50, i)); out.ma150.push(ma(150, i)); out.ma200.push(ma(200, i));
+  }
+  return out;
+}
+
+function pubMonthly(rows) {
+  const m = {};
+  rows.forEach(function (r) { if (r.revenue_year && r.revenue_month) m[r.revenue_year + '-' + ('0' + r.revenue_month).slice(-2)] = +r.revenue; });
+  const ks = Object.keys(m).sort();
+  return ks.slice(-24).map(function (k) {
+    const ly = (Number(k.slice(0, 4)) - 1) + k.slice(4);
+    const yoy = m[ly] > 0 ? Math.round((m[k] / m[ly] - 1) * 1000) / 10 : null;
+    return { m: k, rev: Math.round(m[k] / 1e6) / 100, yoy: yoy };
+  });
+}
+
+// 對應 GitHub 端 fundamentals.py 的 TYPES
+const PUB_TYPES = {
+  eps: [['EPS'], ['基本每股盈餘']], rev: [['Revenue', 'OperatingRevenue'], ['營業收入']], gp: [['GrossProfit'], ['營業毛利']],
+  op: [['OperatingIncome'], ['營業利益']], ni: [['IncomeAfterTaxes', 'NetIncome', 'ProfitLoss'], ['本期淨利', '本期稅後淨利']],
+};
+function pubQuarterly(rows) {
+  const by = {};
+  rows.forEach(function (r) {
+    const d = String(r.date).slice(0, 10), t = String(r.type || ''), n = String(r.origin_name || '');
+    Object.keys(PUB_TYPES).forEach(function (k) {
+      const ty = PUB_TYPES[k];
+      if (ty[0].indexOf(t) >= 0 || ty[1].some(function (x) { return n.indexOf(x) === 0 || n.indexOf(x) >= 0; })) {
+        const o = by[d] = by[d] || {};
+        if (o[k] === undefined) o[k] = +r.value;
+      }
+    });
+  });
+  const pct = function (a, b) { return a === undefined || !b ? null : Math.round(a / b * 1000) / 10; };
+  const yi = function (x) { return x === undefined ? null : Math.round(x / 1e6) / 100; };
+  return Object.keys(by).sort().slice(-16).map(function (d) {
+    const o = by[d];
+    return { q: d, eps: o.eps === undefined ? null : o.eps, gm: pct(o.gp, o.rev), om: pct(o.op, o.rev), nm: pct(o.ni, o.rev),
+      rev: yi(o.rev), gp: yi(o.gp), op: yi(o.op), ni: yi(o.ni) };
+  });
+}
+
+// ---------- op=cmd：網站按鈕 ----------
+function siteCmd(cmd, code) {
+  if (!code) return { ok: false, error: 'no code' };
+  CUR_UID = prop('ALLOWED_USER_ID') || '';
+  CUR_SRC = '選股網站按鈕';
+  if (cmd === 'report') {
+    const m = requestReport(code, CUR_UID, false, '');
+    try { push([m]); } catch (e) { console.warn(e); }
+    return { ok: true, msg: (m && m.text ? m.text : '已送出').slice(0, 300) };
+  }
+  if (cmd === 'watchAdd' || cmd === 'watchDel') {
+    const t = cmd === 'watchAdd' ? watchAdd(code) : watchRemove(code);
+    try { CacheService.getScriptCache().removeAll(['SITE_WATCH', 'SITE_S_' + code]); } catch (e) { /* 沒關係 */ }
+    return { ok: true, msg: t };
+  }
+  return { ok: false, error: 'unknown cmd' };
 }
