@@ -1003,7 +1003,8 @@ function jobProgressText() {
     const t = j.updated ? Utilities.formatDate(j.updated, TZ, 'MM/dd HH:mm') : '';
     let line = (icon[j.status] || '・') + ' ' + jobLabel(j) + '｜' + j.status + (j.status === '已抓取' ? '（等整合報告）' : '') + '｜' + t;
     if (j.status === '失敗' && j.note) line += '\n　原因：' + j.note;
-    if (j.status === '完成' && j.reportUrl) line += '\n　' + j.reportUrl;
+    if (j.dataUrl && (j.status === '已抓取' || j.status === '完成')) line += '\n　📖 小助理：' + j.dataUrl;   // v2.18 小助理抓好就能先看
+    if (j.status === '完成' && j.reportUrl) line += '\n　📑 報告：' + j.reportUrl;
     return line;
   });
   const lastPoll = Number(prop('LAST_POLL') || 0);
