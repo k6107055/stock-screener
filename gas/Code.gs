@@ -2073,20 +2073,57 @@ function downloadLineContent(messageId) {
 }
 
 function reply(replyToken, messages) {
+  messages = withMissed(messages);   // v2.18 先前推播失敗（例如額度用完）的通知，搭這次回覆一起給（回覆不算額度）
   const res = lineApi('https://api.line.me/v2/bot/message/reply', { replyToken: replyToken, messages: messages });
   if (res.getResponseCode() !== 200) push(messages, CUR_UID || undefined); // 回覆逾時就改用推播給同一個人
 }
 
-// 推播給管理者（或指定的人）
+// 推播給管理者（或指定的人）；v2.18 會檢查結果，失敗就記下來，下次你傳訊息時補給你
 function push(messages, to) {
   to = to || prop('ALLOWED_USER_ID');
-  if (to) lineApi('https://api.line.me/v2/bot/message/push', { to: to, messages: messages });
+  if (!to) return false;
+  const res = lineApi('https://api.line.me/v2/bot/message/push', { to: to, messages: messages });
+  return pushResult(res, [to], messages);
 }
 
 function pushTo(ids, messages) {
   const uniq = ids.filter(function (x, i) { return x && ids.indexOf(x) === i; });
   if (uniq.length === 1) return push(messages, uniq[0]);
-  if (uniq.length > 1) lineApi('https://api.line.me/v2/bot/message/multicast', { to: uniq, messages: messages });
+  if (uniq.length > 1) {
+    const res = lineApi('https://api.line.me/v2/bot/message/multicast', { to: uniq, messages: messages });
+    return pushResult(res, uniq, messages);
+  }
+  return false;
+}
+
+// ===== v2.18 推播失敗不再默默消失 =====
+function pushResult(res, ids, messages) {
+  const code = res.getResponseCode();
+  if (code === 200) return true;
+  const why = code === 429 ? 'LINE 本月推播額度已用完' : 'LINE 推播失敗 HTTP ' + code + '：' + String(res.getContentText()).slice(0, 150);
+  console.warn(why);
+  try {
+    prop('PUSH_LAST_ERROR', JSON.stringify({ t: Date.now(), why: why }));
+    const all = safeJson(prop('MISSED_PUSH')) || {};
+    const texts = (messages || []).filter(function (m) { return m && m.type === 'text'; }).map(function (m) { return String(m.text).slice(0, 1500); });
+    if (texts.length) ids.forEach(function (id) { all[id] = (all[id] || []).concat(texts).slice(-3); });
+    prop('MISSED_PUSH', JSON.stringify(all));
+  } catch (e) { console.warn('記錄未送達通知失敗：' + e); }
+  return false;
+}
+
+function withMissed(messages) {
+  try {
+    if (!CUR_UID) return messages;
+    const all = safeJson(prop('MISSED_PUSH')) || {};
+    const list = all[CUR_UID];
+    if (!list || !list.length || messages.length >= 5) return messages;
+    delete all[CUR_UID];
+    prop('MISSED_PUSH', JSON.stringify(all));
+    const err = safeJson(prop('PUSH_LAST_ERROR')) || {};
+    const head = '📬 先前沒送到你手上的通知（' + (err.why || '推播失敗') + '）：\n\n';
+    return [text(head + list.join('\n\n────────\n\n'))].concat(messages);
+  } catch (e) { return messages; }
 }
 
 // 報告完成 → 所有成員
@@ -3938,7 +3975,9 @@ function quotaText() {
     const u = JSON.parse(UrlFetchApp.fetch('https://api.line.me/v2/bot/message/quota/consumption', { headers: h, muteHttpExceptions: true }).getContentText());
     const limit = q.type === 'limited' ? q.value : '無上限';
     const used = u.totalUsage;
-    const warn = q.type === 'limited' && used >= q.value ? '\n⚠️ 本月額度已用完：每日摘要、選股推播、報告完成通知會收不到，直到下個月 1 號。' : '';
+    let warn = q.type === 'limited' && used >= q.value ? '\n⚠️ 本月額度已用完：每日摘要、選股推播、報告完成通知會收不到，直到下個月 1 號。' : '';
+    const pe = safeJson(prop('PUSH_LAST_ERROR')) || {};
+    if (pe.t) warn += '\n最近一次推播失敗：' + Utilities.formatDate(new Date(pe.t), TZ, 'MM/dd HH:mm') + '｜' + pe.why;
     return '📮 LINE 推播額度：本月已用 ' + used + ' ／ ' + limit + ' 則' + warn + '\n（你傳訊息後我「回覆」不算額度；推播＝我主動傳，例如摘要、報告完成）';
   } catch (e) {
     return '查不到額度：' + String(e.message || e).slice(0, 100);
