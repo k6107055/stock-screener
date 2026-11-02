@@ -1,5 +1,5 @@
 /**
- * LINE 股票檔案小幫手 v2.17（選股網站超額利潤階段；v2.16 選股網站：個股法人預估／小助理／我的關注；v2.15 報告加入供應鏈順序、上下修性質、EPS 時間軸；同步上修雷達；v2.14 主程式放 GitHub，由啟動程式載入；v2.13 一鍵更新：GitHub＋Apps Script＋竄改猴；v2.12 X 長文抓全文＋圖片文字、存檔後自我檢查完整度；v2.11 連結不再卡住沒回應、額度查詢；v2.10 自動報告標示來源＋可關閉；v2.9 股號一律附股名、筆記判斷修正與一鍵改；v2.8 清單裡沒有的股號即時查證交所；v2.7 指令可打股名；補齊上櫃股票清單；v2.6 提高連結判斷準確率＋分錯了一鍵改；v2.5 一則多檔股票的整理自動拆到各公司；v2.4 圖片／PDF 用文字辨識判斷股票；v2.3 文字筆記 memo 自動歸檔；v2.2 報告改為決策卡＋證據的精簡版；v2.1 報告加入超額利潤期判斷；v2.0 美股：歸檔＋整合報告；小助理更新重點：追蹤推播 08:30／21:00、雷達、歷史紀錄）
+ * LINE 股票檔案小幫手 v2.18（v2.18 省額度：選股自動報告與每日名單推播預設關閉、小助理抓好不再單獨推播（併入報告完成通知）；v2.17 選股網站超額利潤階段；v2.16 選股網站：個股法人預估／小助理／我的關注；v2.15 報告加入供應鏈順序、上下修性質、EPS 時間軸；同步上修雷達；v2.14 主程式放 GitHub，由啟動程式載入；v2.13 一鍵更新：GitHub＋Apps Script＋竄改猴；v2.12 X 長文抓全文＋圖片文字、存檔後自我檢查完整度；v2.11 連結不再卡住沒回應、額度查詢；v2.10 自動報告標示來源＋可關閉；v2.9 股號一律附股名、筆記判斷修正與一鍵改；v2.8 清單裡沒有的股號即時查證交所；v2.7 指令可打股名；補齊上櫃股票清單；v2.6 提高連結判斷準確率＋分錯了一鍵改；v2.5 一則多檔股票的整理自動拆到各公司；v2.4 圖片／PDF 用文字辨識判斷股票；v2.3 文字筆記 memo 自動歸檔；v2.2 報告改為決策卡＋證據的精簡版；v2.1 報告加入超額利潤期判斷；v2.0 美股：歸檔＋整合報告；小助理更新重點：追蹤推播 08:30／21:00、雷達、歷史紀錄）
  * ------------------------------------------------------------
  * v1.0 功能：把 PDF 轉傳給 LINE bot → 自動判斷股票／產業 → 重新命名
  *            → 存進 Google 雲端對應資料夾（沒有就自動建立）→ LINE 回報
@@ -299,14 +299,23 @@ function handleText(ev) {
   const stopCmd = t.match(/^停損\s*(\d{4,6}[A-Z]?)\s+([\d.]+)\s*$/);
   if (stopCmd) return reply(ev.replyToken, [text(setHoldingStop(stopCmd[1], +stopCmd[2]))]);
 
-  // v2.10 選股系統突破訊號的自動報告：開／關
+  // v2.18 選股系統自動報告：預設關閉（省 Claude 額度），傳「自動報告 開」才會做
   const ar = t.match(/^自動報告\s*(開|關|開啟|關閉|on|off)?$/i);
   if (ar) {
-    if (ar[1]) prop('AUTO_REPORT_OFF', /關|off/i.test(ar[1]) ? '1' : '0');
-    const off = prop('AUTO_REPORT_OFF') === '1';
-    return reply(ev.replyToken, [text('🤖 選股系統自動報告：' + (off ? '已關閉' : '開啟中') + '\n' +
-      '（開啟時：每天收盤後選股系統出現「突破買進訊號」的股票，最多 3 檔會自動做整合報告；優分析資料要等常開電腦的 Edge 有連線才會抓，所以有時隔天才出現）\n' +
-      '要' + (off ? '開啟' : '關閉') + '請傳「自動報告 ' + (off ? '開' : '關') + '」')]);
+    if (ar[1]) prop('AUTO_REPORT_ON', /關|off/i.test(ar[1]) ? '0' : '1');
+    const on = autoReportOn();
+    return reply(ev.replyToken, [text('🤖 選股系統自動報告：' + (on ? '開啟中' : '已關閉') + '\n' +
+      '（開啟時：每天收盤後選股系統出現「突破買進訊號」的股票，最多 3 檔會自動做整合報告，會用到 Claude 額度）\n' +
+      '要' + (on ? '關閉' : '開啟') + '請傳「自動報告 ' + (on ? '關' : '開') + '」')]);
+  }
+  // v2.18 每日選股名單 LINE 推播：預設關閉（省推播次數），傳「選股推播 開」才推；名單隨時可看選股網站
+  const sp = t.match(/^選股推播\s*(開|關|開啟|關閉|on|off)?$/i);
+  if (sp) {
+    if (sp[1]) prop('SCREENER_PUSH_ON', /關|off/i.test(sp[1]) ? '0' : '1');
+    const on = screenerPushOn();
+    return reply(ev.replyToken, [text('📈 每日選股名單推播：' + (on ? '開啟中' : '已關閉') + '\n' +
+      '（關閉時不推每日名單，但持股碰到停損／該賣時仍會立刻通知；名單隨時看：' + SCREENER_SITE + '）\n' +
+      '要' + (on ? '關閉' : '開啟') + '請傳「選股推播 ' + (on ? '關' : '開') + '」')]);
   }
   if (/^(額度|推播額度)$/.test(t)) return reply(ev.replyToken, [text(quotaText())]);
   if (/^成員$/.test(t)) return reply(ev.replyToken, [text(membersText())]);
@@ -967,7 +976,7 @@ function requestReport(input, uid, force, note) {
   const lines = ['📥 已排入：' + code + ' ' + name,
     '① Edge 抓優分析小助理（約 1～5 分鐘）',
     '② Claude 整合法人報告（常開電腦約 10 分鐘；電腦離線時雲端排程一小時內補上）',
-    '報告完成後會推播給所有成員。'];
+    '完成後只推一則訊息：整合報告＋小助理原文連結一起給你。'];
   const lastPoll = Number(prop('LAST_POLL') || 0);
   if (Date.now() - lastPoll > 3 * 60 * 1000) {
     lines.push('', '⚠️ Edge 上的抓取腳本最近 3 分鐘沒有回報。請確認常開的電腦上 Edge 開著優分析頁面、而且還在登入狀態。');
@@ -1067,8 +1076,7 @@ function scraperSubmit(p, body) {
     const miss = (body.failed || []).length;
     const auto = isAutoJob(job);
     setJob(sh, job.row, { status: '已抓取', dataUrl: file.getUrl(), note: (auto ? AUTO_NOTE + ' ' : '') + (miss ? '缺 ' + miss + ' 類：' + body.failed.join('、') : '') });
-    pushJob(job, [text((auto ? autoReason(job) + '\n' : '') + '📦 ' + job.code + ' ' + job.name + ' 優分析資料已抓好（' + (body.okCount || '?') + '/' + (body.total || UA_PROMPTS.length) + ' 類）' +
-      (miss ? '\n缺：' + body.failed.join('、') : '') + '\n\n📖 小助理原文（可先看）：\n' + file.getUrl() + '\n\n整合報告約 10 分鐘內產生（常開電腦的 Claude Code）；電腦離線時雲端排程會在一小時內補上。')]);
+    // v2.18 不再單獨推「小助理已抓好」：整合報告完成時，報告＋小助理原文合併成一則推播
     return { ok: true };
   } finally {
     lock.releaseLock();
@@ -2306,7 +2314,7 @@ function screenerPush(p, body) {
   const queued = [], reused = [];
   (body.auto_report || []).slice(0, 3).forEach(function (code) {
     try {
-      if (prop('AUTO_REPORT_OFF') === '1') return;   // v2.10 傳「自動報告 關」可關閉
+      if (!autoReportOn()) return;   // v2.18 預設關閉，傳「自動報告 開」才做
       const msg = requestReport(code, '', false, AUTO_NOTE);
       if (/^📥/.test(msg.text)) queued.push(code);
       else if (/^📑/.test(msg.text)) reused.push(code);
@@ -2353,7 +2361,8 @@ function screenerPush(p, body) {
   if (qr.length) msg.quickReply = { items: qr.map(function (s) {
     return { type: 'action', action: { type: 'message', label: ('📄 ' + s.id + ' ' + s.name).slice(0, 20), text: '報告 ' + s.id } };
   }) };
-  if (eveningPending()) prop('EVE_SCREENER', JSON.stringify({ day: today(), msg: msg }));   // v1.9 併進 21:00 晚間總整理
+  if (!screenerPushOn()) { /* v2.18 預設不推每日名單（省推播次數） */ }
+  else if (eveningPending()) prop('EVE_SCREENER', JSON.stringify({ day: today(), msg: msg }));   // v1.9 併進 21:00 晚間總整理
   else pushAll([msg]);
   try { applyHoldingChecks(body.holdings || [], body.date); } catch (e) { console.warn('持股檢查失敗：' + e); }
   return { ok: true, queued: queued, reused: reused };
@@ -3890,6 +3899,9 @@ function memoMoveTo(target) {
 
 // ===== v2.10 自動報告標示 =====
 const AUTO_NOTE = '選股訊號自動';
+// v2.18 兩個開關預設都是「關」：只有明確傳「開」才會啟用
+function autoReportOn() { return prop('AUTO_REPORT_ON') === '1'; }
+function screenerPushOn() { return prop('SCREENER_PUSH_ON') === '1'; }
 function isAutoJob(j) { return String(j.note || '').indexOf(AUTO_NOTE) >= 0; }
 function autoReason(j) {
   const when = j.created ? fmtShort(j.created) : '';
@@ -3986,7 +3998,7 @@ function fetchXPostFull(url) {
 
 
 // v2.14 一鍵更新改由「啟動程式」（Apps Script 裡的 Code.gs）負責；這份主程式放在 GitHub 的 gas/Code.gs
-const APP_VERSION = 'v2.17';
+const APP_VERSION = 'v2.18';
 
 // ===== v2.13 清理暫存屬性（指令碼屬性超過 50 個時，畫面會變唯讀）=====
 function cleanupProps() {
