@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         優分析小助理抓取器（股票檔案小幫手）
 // @namespace    stock-file-helper
-// @version      1.5
+// @version      1.6
 // @description  ① LINE 傳「報告 3167」時抓小助理 20 個分類 ② 每 10 分鐘收集「小助理更新重點」交給 Apps Script（追蹤推播、雷達、歷史紀錄）
 // @match        https://pro.uanalyze.com.tw/*
 // @match        https://*.uanalyze.com.tw/*
@@ -214,24 +214,36 @@
     const failed = [];
     let authError = false;
 
-    for (let i = 0; i < prompts.length; i++) {
-      const p = prompts[i];
-      status(job.code + ' ' + (i + 1) + '/' + prompts.length + ' ' + p, '#1f6feb');
-      let text = null;
-      for (let attempt = 1; attempt <= 2 && text === null; attempt++) {
-        try {
-          text = await fetchPrompt(p, job.code, job.productId || '907');
-        } catch (e) {
-          if (e.message === 'AUTH') { authError = true; break; }
-          if (e.message === 'EMPTY') break;       // 這一類本來就沒資料，不重試
-          if (attempt < 2) await sleep(3000);
+    // v1.6 同時抓 4 類（原本一類一類排隊約 30 分鐘 → 約 8 分鐘）；結果仍照原本順序排列
+    const PARALLEL = 4;
+    const results = new Array(prompts.length).fill(null);
+    let next = 0, done = 0;
+    async function worker(w) {
+      await sleep(w * 400);   // 錯開起跑，不要同一瞬間打 4 個
+      while (!authError && next < prompts.length) {
+        const i = next++;
+        const p = prompts[i];
+        let text = null;
+        for (let attempt = 1; attempt <= 3 && text === null && !authError; attempt++) {
+          try {
+            text = await fetchPrompt(p, job.code, job.productId || '907');
+          } catch (e) {
+            if (e.message === 'AUTH') { authError = true; break; }
+            if (e.message === 'EMPTY') break;       // 這一類本來就沒資料，不重試
+            if (attempt < 3) await sleep(3000 * attempt);
+          }
         }
+        results[i] = text;
+        done++;
+        status(job.code + ' 已完成 ' + done + '/' + prompts.length, '#1f6feb');
+        await sleep(GAP_MS);
       }
-      if (authError) break;
-      if (text === null) failed.push(p.replace('❤️', ''));
-      else sections.push('## ' + (i + 1) + '. ' + p.replace('❤️', '') + '\n\n' + convertMarks(text.trim()));
-      await sleep(GAP_MS);
     }
+    await Promise.all(Array.from({ length: PARALLEL }, (_, w) => worker(w)));
+    prompts.forEach((p, i) => {
+      if (results[i] === null) failed.push(p.replace('❤️', ''));
+      else sections.push('## ' + (i + 1) + '. ' + p.replace('❤️', '') + '\n\n' + convertMarks(results[i].trim()));
+    });
 
     if (authError) return { jobId: job.id, error: 'AUTH' };
     if (!sections.length) return { jobId: job.id, error: '20 個分類都沒有抓到內容' };

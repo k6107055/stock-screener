@@ -1,5 +1,5 @@
 /**
- * LINE 股票檔案小幫手 v2.18（v2.18 省額度：選股自動報告與每日名單推播預設關閉、小助理抓好不再單獨推播（併入報告完成通知）；v2.17 選股網站超額利潤階段；v2.16 選股網站：個股法人預估／小助理／我的關注；v2.15 報告加入供應鏈順序、上下修性質、EPS 時間軸；同步上修雷達；v2.14 主程式放 GitHub，由啟動程式載入；v2.13 一鍵更新：GitHub＋Apps Script＋竄改猴；v2.12 X 長文抓全文＋圖片文字、存檔後自我檢查完整度；v2.11 連結不再卡住沒回應、額度查詢；v2.10 自動報告標示來源＋可關閉；v2.9 股號一律附股名、筆記判斷修正與一鍵改；v2.8 清單裡沒有的股號即時查證交所；v2.7 指令可打股名；補齊上櫃股票清單；v2.6 提高連結判斷準確率＋分錯了一鍵改；v2.5 一則多檔股票的整理自動拆到各公司；v2.4 圖片／PDF 用文字辨識判斷股票；v2.3 文字筆記 memo 自動歸檔；v2.2 報告改為決策卡＋證據的精簡版；v2.1 報告加入超額利潤期判斷；v2.0 美股：歸檔＋整合報告；小助理更新重點：追蹤推播 08:30／21:00、雷達、歷史紀錄）
+ * LINE 股票檔案小幫手 v2.19（v2.19 報告提速：小助理抓好（或美股／產業工作建立）就用 API 立刻叫雲端寫報告，不再等整點排程；v2.18 省額度：選股自動報告與每日名單推播預設關閉、小助理抓好不再單獨推播（併入報告完成通知）；v2.17 選股網站超額利潤階段；v2.16 選股網站：個股法人預估／小助理／我的關注；v2.15 報告加入供應鏈順序、上下修性質、EPS 時間軸；同步上修雷達；v2.14 主程式放 GitHub，由啟動程式載入；v2.13 一鍵更新：GitHub＋Apps Script＋竄改猴；v2.12 X 長文抓全文＋圖片文字、存檔後自我檢查完整度；v2.11 連結不再卡住沒回應、額度查詢；v2.10 自動報告標示來源＋可關閉；v2.9 股號一律附股名、筆記判斷修正與一鍵改；v2.8 清單裡沒有的股號即時查證交所；v2.7 指令可打股名；補齊上櫃股票清單；v2.6 提高連結判斷準確率＋分錯了一鍵改；v2.5 一則多檔股票的整理自動拆到各公司；v2.4 圖片／PDF 用文字辨識判斷股票；v2.3 文字筆記 memo 自動歸檔；v2.2 報告改為決策卡＋證據的精簡版；v2.1 報告加入超額利潤期判斷；v2.0 美股：歸檔＋整合報告；小助理更新重點：追蹤推播 08:30／21:00、雷達、歷史紀錄）
  * ------------------------------------------------------------
  * v1.0 功能：把 PDF 轉傳給 LINE bot → 自動判斷股票／產業 → 重新命名
  *            → 存進 Google 雲端對應資料夾（沒有就自動建立）→ LINE 回報
@@ -175,6 +175,14 @@ function handleImageMsg(ev) {
 // ===== 文字指令 =====
 function handleText(ev) {
   const t = (ev.message.text || '').trim();
+
+  // v2.19 設定「立刻寫報告」金鑰：報告金鑰 sk-ant-oat01-...
+  const keyCmd = t.match(/^報告金鑰\s+(sk-ant-\S+)$/);
+  if (keyCmd) {
+    prop('ROUTINE_TOKEN', keyCmd[1]);
+    const r = fireRoutine('連線測試');
+    return reply(ev.replyToken, [text(r.ok ? '✅ 金鑰已設定，連線測試成功。\n之後小助理一抓好就會立刻開始寫整合報告（不用再等整點）。\n這則訊息含金鑰，建議長按刪除。' : '❌ 金鑰已存，但連線測試失敗：' + r.error + '\n請確認貼的是「API 觸發」產生的整串 token。')]);
+  }
 
   // v1.5：訊息裡有連結 → 抓下來當資料（前面可加股號，例如「3443 https://...」）
   if (/https?:\/\/\S+/i.test(t)) return handleLinks(ev, t);
@@ -972,6 +980,7 @@ function requestReport(input, uid, force, note) {
     lock.releaseLock();
   }
 
+  if (isUS(code)) { try { kickReport(); } catch (e) {} }   // v2.19 美股直接是已抓取 → 立刻叫雲端寫
   if (isUS(code)) return text('📥 已排入美股整合報告：' + code + ' ' + name + '\n美股沒有優分析小助理，會用「美股/' + code + '」資料夾裡的法人報告、新聞、截圖來寫。\n常開電腦約 10～20 分鐘；完成後推播給所有成員。');
   const lines = ['📥 已排入：' + code + ' ' + name,
     '① Edge 抓優分析小助理（約 1～5 分鐘）',
@@ -1078,6 +1087,7 @@ function scraperSubmit(p, body) {
     const auto = isAutoJob(job);
     setJob(sh, job.row, { status: '已抓取', dataUrl: file.getUrl(), note: (auto ? AUTO_NOTE + ' ' : '') + (miss ? '缺 ' + miss + ' 類：' + body.failed.join('、') : '') });
     // v2.18 不再單獨推「小助理已抓好」：整合報告完成時，報告＋小助理原文合併成一則推播
+    try { kickReport(); } catch (e) { console.warn('立即寫報告失敗：' + e); }   // v2.19
     return { ok: true };
   } finally {
     lock.releaseLock();
@@ -1148,6 +1158,47 @@ function checkReports() {
   } finally {
     lock.releaseLock();
   }
+  try { kickReport(); } catch (e) { console.warn('立即寫報告失敗：' + e); }   // v2.19 補叫：上一次叫的時候還在冷卻中的工作
+}
+
+// ===== v2.19 立刻叫雲端寫報告（Claude 排程任務的 API 觸發） =====
+const ROUTINE_ID = 'trig_011gfyM5fPfQsLxqfUge8fzM';
+const KICK_GAP_MIN = 8;   // 一次雲端執行約 7 分鐘、會把所有等待中的工作一起寫；8 分鐘內不重複叫，省額度
+
+function fireRoutine(textMsg) {
+  const token = prop('ROUTINE_TOKEN');
+  if (!token) return { ok: false, error: '尚未設定金鑰' };
+  try {
+    const r = UrlFetchApp.fetch('https://api.anthropic.com/v1/claude_code/routines/' + ROUTINE_ID + '/fire', {
+      method: 'post', contentType: 'application/json', muteHttpExceptions: true,
+      headers: { Authorization: 'Bearer ' + token, 'anthropic-version': '2023-06-01', 'anthropic-beta': 'experimental-cc-routine-2026-04-01' },
+      payload: JSON.stringify({ text: textMsg }),
+    });
+    const code = r.getResponseCode();
+    if (code >= 200 && code < 300) return { ok: true };
+    const err = 'HTTP ' + code + ' ' + r.getContentText().slice(0, 150);
+    prop('ROUTINE_LAST_ERR', now().toString() + ' ' + err);
+    return { ok: false, error: err };
+  } catch (e) {
+    prop('ROUTINE_LAST_ERR', String(e));
+    return { ok: false, error: String(e) };
+  }
+}
+
+// 找「已抓取、使用者要求、還沒叫過」的工作 → 叫一次雲端；冷卻中就交給下一次定時檢查（10 分鐘內）補叫
+function kickReport() {
+  if (!prop('ROUTINE_TOKEN')) return false;
+  const kicked = (prop('ROUTINE_KICKED') || '').split(',').filter(String);
+  const jobs = jobRows(getJobSheet()).filter(function (j) {
+    return j.status === '已抓取' && !isAutoJob(j) && kicked.indexOf(j.id) < 0;
+  });
+  if (!jobs.length) return false;
+  if (Date.now() - Number(prop('ROUTINE_LAST_KICK') || 0) < KICK_GAP_MIN * 60000) return false;
+  const r = fireRoutine(jobs.map(function (j) { return j.id + '｜' + j.code + ' ' + j.name + '｜' + (j.note || ''); }).join('\n'));
+  if (!r.ok) return false;
+  prop('ROUTINE_LAST_KICK', String(Date.now()));
+  prop('ROUTINE_KICKED', kicked.concat(jobs.map(function (j) { return j.id; })).slice(-40).join(','));
+  return true;
 }
 
 // 在股票資料夾找「3167_整合報告_yyyyMMdd」且建立時間晚於工作建立時間的 Google 文件
@@ -2519,6 +2570,7 @@ function requestIndustryReport(rawName, uid, force) {
   } finally {
     lock.releaseLock();
   }
+  try { kickReport(); } catch (e) {}   // v2.19
   return text('📥 已排入產業整合報告：' + name + '（' + countFiles(folder) + ' 份資料）\n' +
     'Claude 會整理：最新進度、改變了什麼、未來發展方向、需要關注的指標。\n常開電腦約 10～20 分鐘；電腦離線時雲端排程一小時內補上。完成後推播給所有成員。');
 }
