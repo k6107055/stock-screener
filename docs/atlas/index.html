@@ -167,7 +167,7 @@ function readPair(str){
 (function(){ const c = readPair(location.href); if (c){ CFG = c; try{ localStorage.setItem('atlas_cfg', JSON.stringify(c)); }catch(e){} } })();
 const loading = (t) => `<div class="load"><div class="spin"></div>${esc(t || '載入中…')}</div>`;
 function toast(t, ms){ const el = document.createElement('div'); el.className = 'toast'; el.textContent = t; document.body.appendChild(el); setTimeout(() => el.remove(), ms || 2200); }
-async function call(op, args){
+async function rawCall(op, args){
   if (window.__testApi) return window.__testApi(op, args || {});
   if (!CFG) throw new Error('尚未配對');
   const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 30000);
@@ -179,6 +179,52 @@ async function call(op, args){
   if (!j.ok && j.error === 'AUTH'){ pairScreen('金鑰不對或已更換，請用新的配對連結'); throw new Error('需要重新配對'); }
   if (!j.ok) throw new Error(j.error);
   return j.data;
+}
+// ====================== 快取層：切換分頁先秀上次的資料，背景再更新（不用每次等 2～3 秒）======================
+const SWR = {estList: 1, indList: 1, repList: 1, enList: 1, txList: 1, assets: 1};
+const WRITE = /^(tx|en|ac)(Save|Del|Batch|Calibrate)$|^snapNow$|^init$|^saveSettings$|^list(Add|Del|Move|Create|Rename|Drop|Reorder)$/;
+const FRESH_MS = 60000, INFL = {}, RC = {};
+let MUT = 0, SEQ = 0, RR = null;
+function call(op, args){
+  args = args || {};
+  if (WRITE.test(op)){ MUT = Date.now(); return rawCall(op, args); }
+  if (!SWR[op] || args.offset) return rawCall(op, args);
+  return swr(op, args, true);
+}
+function ckey(op, args){ return op + JSON.stringify(args); }
+function fetchFresh(op, args){
+  const k = ckey(op, args);
+  if (INFL[k]) return INFL[k];
+  return (INFL[k] = rawCall(op, args).then(d => { const e = {d, t: Date.now()}; RC[k] = e; ls.set('rc_' + k, e); return d; }).finally(() => { delete INFL[k]; }));
+}
+function swr(op, args, live){
+  const k = ckey(op, args), hit = RC[k] || ls.get('rc_' + k, null);
+  const valid = hit && hit.t > MUT;
+  if (valid && Date.now() - hit.t < FRESH_MS) return Promise.resolve(hit.d);
+  const p = fetchFresh(op, args);
+  if (!valid) return p;   // 剛改過資料或沒有快取 → 等最新的
+  if (live){ const v0 = VIEW, s0 = SEQ, old = JSON.stringify(hit.d);
+    p.then(d => { if (VIEW === v0 && SEQ === s0 && JSON.stringify(d) !== old) rerender(); }).catch(() => {}); }
+  return Promise.resolve(hit.d);
+}
+function rerender(){
+  clearTimeout(RR);
+  RR = setTimeout(() => {
+    const ae = document.activeElement;
+    if ($('.mask') || (ae && /INPUT|TEXTAREA|SELECT/.test(ae.tagName))) return;
+    const y = window.scrollY; const f = Fab(); if (f) f.remove(); destroyCharts();
+    ({home: vHome, stock: vStock, info: vInfo, book: vBook, asset: vAsset})[VIEW](VIEW === 'stock' ? (SUB.code || undefined) : undefined);
+    requestAnimationFrame(() => window.scrollTo(0, y));
+  }, 60);
+}
+// 首頁載完後，背景把其他分頁的資料先抓好 → 點過去直接有畫面
+let PREF = 0;
+function prefetchAll(){
+  if (Date.now() - PREF < FRESH_MS) return; PREF = Date.now();
+  const jobs = [['estList', {days: SUB.estDays || 3, mineOnly: !!SUB.estMine}], ['repList', {limit: 60}], ['indList', {offset: 0, limit: 40, q: ''}],
+    ['enList', {month: SUB.month || today().slice(0, 7)}], ['txList', {}], ['assets', {}]];
+  jobs.forEach(([op, a], i) => setTimeout(() => { const hit = RC[ckey(op, a)] || ls.get('rc_' + ckey(op, a), null); if (!hit || Date.now() - hit.t > FRESH_MS) fetchFresh(op, a).catch(() => {}); }, 300 * i));
+  rawCall('lists').then(d => { LISTS = d; ls.set('lists', d); }).catch(() => {});
 }
 function pairScreen(msg){
   VIEW = 'pair'; clearInterval(TIMER); clearInterval(POLL);
@@ -211,7 +257,7 @@ const cn = (c, n) => `${esc(c)} ${esc(n || sname(c))}`;
 let VIEW = 'home', SUB = ls.get('sub', {}), TIMER = null, POLL = null;
 const TITLES = {home:'Atlas', stock:'自選', info:'資訊', book:'記帳', asset:'資產'};
 function go(v, arg){
-  VIEW = v; $$('#nav button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  VIEW = v; SEQ++; $$('#nav button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
   $('#ttl').textContent = TITLES[v] || 'Atlas';
   clearInterval(TIMER); TIMER = null; clearInterval(POLL); POLL = null; destroyCharts();
   const f = Fab(); if (f) f.remove();
@@ -282,7 +328,7 @@ function vHome(){
   const paint = (stale) => { if (VIEW !== 'home') return; M.innerHTML = homeHtml(HOMEF, HOMEI, stale); bindHome(); };
   if (HOMEF || HOMEI) paint(true); else M.innerHTML = loading('載入中…');
   let pending = 2;
-  const done = () => { if (--pending === 0) paint(false); };
+  const done = () => { if (--pending === 0){ paint(false); setTimeout(prefetchAll, 800); } };
   call('homeFast').then(d => { HOMEF = d; ls.set('homeF', d); paint(pending > 1); if (d.needSetup) welcome();
     if (d.open && !TIMER) TIMER = setInterval(() => { if (VIEW === 'home' && !document.hidden) call('homeFast').then(x => { HOMEF = x; ls.set('homeF', x); paint(false); }).catch(() => {}); }, 30000);
   }).catch(e => toast('持股載入失敗：' + e.message, 3500)).finally(done);
@@ -295,35 +341,37 @@ function homeHtml(F, I, stale){
   let h = '';
   if (stale) h += `<div class="sub" style="margin:-2px 2px 8px">⏳ 更新中…（先顯示上次的資料）</div>`;
   (F.errs || []).concat(I.errs || []).forEach(e => h += `<div class="err">⚠️ ${esc(e)}</div>`);
+  // ① 我的持股：打開最想知道的是「今天賺賠多少、哪檔在動」
   if (F.pf){
-    h += `<div class="card"><div class="sub" style="display:flex">淨資產<span class="privhint" style="margin-left:auto">點右上 🙈 顯示金額</span></div><div class="big">${mk(fmt(as.net))}</div>
-      ${as.snaps && as.snaps.length > 1 ? `<div class="m">${spark(as.snaps.concat([as.net]))}</div>` : ''}
-      <div class="grid3"><div class="kv"><span class="sub">股票市值</span><b>${mk(fmt(as.stock))}</b></div>
-      <div class="kv"><span class="sub">現金存款</span><b>${mk(fmt(as.cash))}</b></div>
-      <div class="kv"><span class="sub">負債</span><b>${mk(fmt(as.debt))}</b></div></div></div>`;
-    h += `<div class="card"><h3>📊 股票<span class="sub" style="font-weight:400">${F.open ? '盤中・30 秒更新' : '已收盤'}</span></h3>
+    h += `<div class="card"><h3>📊 我的持股<span class="sub" style="font-weight:400">${F.open ? '盤中・30 秒更新' : '已收盤'}</span></h3>
       <div class="grid2" style="margin-top:0"><div class="kv"><span class="sub">今日損益</span><b>${mk(money(pf.day))} <small>${pct(pf.dayPct)}</small></b></div>
-      <div class="kv"><span class="sub">未實現損益</span><b>${mk(money(pf.unreal))} <small>${pct(pf.ret)}</small></b></div>
-      <div class="kv"><span class="sub">已實現（累計）</span><b>${mk(money(pf.realized))}</b></div>
-      <div class="kv"><span class="sub">股利（累計）</span><b>${mk(money(pf.divs))}</b></div></div>
-      <div style="margin-top:6px">${pf.hold.length ? pf.hold.map(x => `<div class="row" data-code="${esc(x.code)}">
+      <div class="kv"><span class="sub">未實現損益</span><b>${mk(money(pf.unreal))} <small>${pct(pf.ret)}</small></b></div></div>
+      <div style="margin-top:6px">${pf.hold.length ? pf.hold.slice().sort((x, y) => Math.abs(y.chgPct || 0) - Math.abs(x.chgPct || 0)).map(x => `<div class="row" data-code="${esc(x.code)}">
         <div class="l"><div class="nm">${cn(x.code, x.name)}</div><div class="sub m">${shTxt(x.shares)}・均價 ${fp(x.avg)}・占 ${fp(x.weight)}%</div></div>
         <div class="r"><div><b>${fp(x.price)}</b> ${pct(x.chgPct)}</div><div class="sub">${mk(money(x.unreal))}（${pct(x.ret)}）</div></div></div>`).join('')
         : `<div class="empty">還沒有持股紀錄<br><button class="btn sm" style="margin-top:8px" id="goTx">記一筆交易／從小幫手匯入</button></div>`}</div>
       ${(pf.warn || []).map(w => `<div class="err">⚠️ ${esc(w)}</div>`).join('')}</div>`;
   } else h += `<div class="card">${loading('讀取持股…')}</div>`;
-  if (I.est || I.ind){
-    h += `<div class="card"><h3>🎯 法人預估 <span class="sub" style="font-weight:400">${est.d ? ymd8(est.d) : ''}${est.nUp != null ? `・上修 ${est.nUp}／下修 ${est.nDown}` : ''}</span><button class="more" data-go="est">全部 ›</button></h3>`;
-    if (est.mine && est.mine.length) h += `<div class="sub">我的持股／自選股有變動：</div>` + est.mine.map(estRow).join('');
-    else if (est.d) h += `<div class="sub">我的持股和自選股這天沒有變動</div>`;
-    const upOthers = (est.up || []).filter(x => !x.mine);
-    if (upOthers.length) h += `<div class="sub" style="margin-top:8px">其他上修幅度較大的：</div>` + upOthers.map(estRow).join('');
+  // ② 跟我有關的消息：只放我的持股／自選股，其他全市場的東西放「資訊」
+  if (I.est || I.ind || I.rep){
+    const my = {}; pf.hold.forEach(x => my[x.code] = 1); (LISTS ? LISTS.lists : []).forEach(l => l.codes.forEach(c => my[c] = my[c] || 2));
+    const myRep = rep.filter(r => my[r.code]).slice(0, 4);
+    const mine = est.mine || [];
+    h += `<div class="card"><h3>🔔 跟我有關</h3>`;
+    if (mine.length) h += `<div class="sub">法人預估有變動（${est.d ? ymd8(est.d) : ''}）：</div>` + mine.map(estRow).join('');
+    if (myRep.length) h += `<div class="sub" style="margin-top:8px">我的股票有新報告：</div>` + myRep.map(repRow).join('');
+    if (!mine.length && !myRep.length) h += `<div class="empty">今天你的持股和自選股沒有新消息 👍</div>`;
     h += `</div>`;
-    h += `<div class="card"><h3>🏭 產業研究包 <span class="sub" style="font-weight:400">${ind.d ? ymd8(ind.d) : ''}</span><button class="more" data-go="ind">全部 ›</button></h3>
-      ${(ind.items || []).map(a => artHtml(a)).join('') || '<div class="empty">沒有資料</div>'}</div>`;
-    h += `<div class="card"><h3>📑 最新整合報告<button class="more" data-go="rep">全部 ›</button></h3>
-      ${rep.map(repRow).join('') || '<div class="empty">還沒有報告</div>'}</div>`;
-  } else h += `<div class="card">${loading('讀取法人預估、產業研究包…')}</div>`;
+    h += `<div class="card row" id="goInfo" style="cursor:pointer;padding:14px"><div class="l"><div class="nm">📰 今天全市場</div><div class="sub">法人上修 ${est.nUp != null ? est.nUp : '—'}・下修 ${est.nDown != null ? est.nDown : '—'}・產業研究包 ${(ind.items || []).length} 篇・報告 ${rep.length} 份</div></div><div class="r" style="font-size:20px;color:var(--sub)">›</div></div>`;
+  } else h += `<div class="card">${loading('讀取跟我有關的消息…')}</div>`;
+  // ③ 淨資產（縮小，預設遮住）
+  if (F.as){
+    h += `<div class="card" id="goAsset" style="cursor:pointer"><div class="sub" style="display:flex">淨資產<span class="privhint" style="margin-left:auto">點右上 🙈 顯示金額</span></div><div class="mid">${mk(fmt(as.net))}</div>
+      ${as.snaps && as.snaps.length > 1 ? `<div class="m">${spark(as.snaps.concat([as.net]))}</div>` : ''}
+      <div class="grid3"><div class="kv"><span class="sub">股票</span><b>${mk(fmt(as.stock))}</b></div>
+      <div class="kv"><span class="sub">現金</span><b>${mk(fmt(as.cash))}</b></div>
+      <div class="kv"><span class="sub">負債</span><b>${mk(fmt(as.debt))}</b></div></div></div>`;
+  }
   h += `<div class="sub" style="text-align:center">更新：${esc(F.at || '')}・${esc(F.ver || '')}</div>`;
   return h;
 }
@@ -335,6 +383,8 @@ function bindHome(){
   bindCodes($('#main'));
   $$('[data-go]').forEach(b => b.onclick = () => { SUB.info = b.dataset.go; go('info'); });
   const g = $('#goTx'); if (g) g.onclick = () => { SUB.book = 'tx'; go('book'); };
+  const gi = $('#goInfo'); if (gi) gi.onclick = () => go('info');
+  const ga = $('#goAsset'); if (ga) ga.onclick = () => go('asset');
 }
 function bindCodes(root){ $$('[data-code]', root).forEach(el => el.onclick = e => { if (e.target.closest('a')) return; e.stopPropagation(); go('stock', el.dataset.code); }); }
 function welcome(){
@@ -940,6 +990,7 @@ async function openSettings(){
 applyPriv();
 (function boot(){
   if (!CFG && !window.__testApi) return pairScreen();
+  setTimeout(prefetchAll, 2500);
   const l = ls.get('last', null); try { if (l && TITLES[l.v]) return go(l.v, l.arg || undefined); } catch(e){} go('home'); })();
 // 離線也能秒開：把畫面檔存在手機（新版本會在下次打開時自動換上）
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
