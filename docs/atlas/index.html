@@ -66,7 +66,7 @@ nav button.on{color:var(--pri);font-weight:600}
 .btn.red{background:var(--up)}
 .btn.sm{padding:6px 10px;font-size:13px}
 .btns{display:flex;gap:8px;flex-wrap:wrap}
-input,select,textarea{width:100%;font:inherit;color:var(--tx);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;outline:none}
+input,select,textarea{width:100%;font:inherit;font-size:16px;color:var(--tx);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;outline:none}
 input:focus,select:focus,textarea:focus{border-color:var(--pri)}
 label{display:block;font-size:13px;color:var(--sub);margin:10px 0 4px}
 .fab{position:fixed;right:18px;bottom:calc(var(--nav) + 26px);z-index:25;width:56px;height:56px;border-radius:50%;border:0;background:var(--pri);color:#fff;font-size:30px;box-shadow:0 4px 14px rgba(37,99,235,.4)}
@@ -126,6 +126,21 @@ table.bk td i{position:absolute;top:3px;bottom:3px;opacity:.18;border-radius:3px
 table.bk td.bv i{right:0;background:var(--up)}table.bk td.av i{left:0;background:var(--down)}
 @keyframes fu{0%{background:var(--upbg)}100%{background:transparent}}@keyframes fd{0%{background:var(--downbg)}100%{background:transparent}}
 .fu{animation:fu 1.2s ease-out}.fd{animation:fd 1.2s ease-out}
+/* iOS 手感：不要長按選字／放大鏡、不要整頁橡皮筋、點擊有回饋 */
+html,body{overscroll-behavior-y:none}
+body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-text-size-adjust:100%;touch-action:manipulation}
+input,textarea,.selectable{-webkit-user-select:text;user-select:text}
+button,.row,.ht.rw,[data-code],.kv,.card[id^=go]{cursor:pointer}
+button:active,.ht.rw:active,.row[data-code]:active,.card[id^=go]:active{opacity:.6;transition:opacity .05s}
+#main{background:var(--bg);min-height:calc(100vh - 140px)}
+#main.slide{transition:transform .22s cubic-bezier(.2,.8,.2,1)}
+#swipeShade{position:fixed;inset:0;z-index:15;background:#000;opacity:0;pointer-events:none}
+#ptr{position:fixed;left:0;right:0;top:calc(env(safe-area-inset-top) + 56px);z-index:19;text-align:center;font-size:12.5px;color:var(--sub);height:0;overflow:hidden;transition:height .2s}
+#ptr i{display:inline-block;transition:transform .2s;font-style:normal;margin-right:4px}
+#btnBack{font-size:24px;line-height:1;padding-bottom:3px;margin-left:-6px;background:none;box-shadow:none;width:30px}
+.sheet h2{touch-action:none}
+.sheet::before{content:'';display:block;width:38px;height:5px;border-radius:3px;background:var(--line);margin:-8px auto 8px}
+.sheet{padding-bottom:max(28px,env(safe-area-inset-bottom))}
 /* 庫存（籌碼K 風格）*/
 .idx{display:flex;gap:8px;margin-bottom:10px}
 .idx>div{flex:1;background:var(--card);border-radius:12px;padding:8px 10px;box-shadow:0 1px 2px rgba(0,0,0,.05)}
@@ -156,8 +171,8 @@ body:not(.priv) .privhint{display:none}
 </style>
 </head>
 <body>
-<header><h1 id="ttl">Atlas</h1><button class="ib" id="btnEye" title="顯示／隱藏金額">🙈</button><button class="ib" id="btnRef" title="重新整理">↻</button><button class="ib" id="btnSet" title="設定">⚙️</button></header>
-<main id="main"></main>
+<header><button class="ib" id="btnBack" hidden aria-label="上一頁">‹</button><h1 id="ttl">Atlas</h1><button class="ib" id="btnEye" title="顯示／隱藏金額">🙈</button><button class="ib" id="btnRef" title="重新整理">↻</button><button class="ib" id="btnSet" title="設定">⚙️</button></header>
+<div id="ptr"><i>↓</i><span>下拉重新整理</span></div><div id="swipeShade"></div><main id="main"></main>
 <nav id="nav">
   <button data-v="home" class="on"><i>💼</i>庫存</button>
   <button data-v="stock"><i>📈</i>自選</button>
@@ -294,23 +309,101 @@ const sname = c => (SMAP && SMAP.m && SMAP.m[c]) || '';
 const cn = (c, n) => `${esc(c)} ${esc(n || sname(c))}`;
 
 // ====================== 導覽（記住上次離開的頁面）======================
-let VIEW = 'home', SUB = ls.get('sub', {}), TIMER = null, POLL = null, BACKTO = null;
+let VIEW = 'home', SUB = ls.get('sub', {}), TIMER = null, POLL = null;
+let NAV = [], CUR = {v: 'home', arg: null};   // 上一頁堆疊（像 iPhone 一樣往左滑回去）
+const SCR = {};                               // 每個分頁記住捲到哪
 const TITLES = {home:'Atlas', stock:'自選', pick:'籌碼選股', info:'資訊', book:'記帳', asset:'資產'};
-function go(v, arg){
-  if (v === 'stock' && arg && VIEW !== 'stock') BACKTO = VIEW; else if (v !== 'stock') BACKTO = null;
+// opt.tab＝從下方分頁列切換（清空上一頁）；opt.back＝返回；opt.same＝同一頁重新整理
+function go(v, arg, opt){
+  opt = opt || {};
+  const key = CUR.v + '|' + (CUR.arg || '');
+  SCR[key] = window.scrollY;
+  if (opt.tab) NAV = [];
+  else if (!opt.back && !opt.same && (CUR.v !== v || (CUR.arg || null) !== (arg || null))) { NAV.push({v: CUR.v, arg: CUR.arg, y: window.scrollY}); if (NAV.length > 30) NAV.shift(); }
+  CUR = {v, arg: arg || null};
   VIEW = v; SEQ++; $$('#nav button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
   $('#ttl').textContent = TITLES[v] || 'Atlas';
   clearInterval(TIMER); TIMER = null; clearInterval(POLL); POLL = null; destroyCharts();
   const f = Fab(); if (f) f.remove();
-  window.scrollTo(0, 0);
   if (v !== 'stock') SUB.code = null;
   ls.set('last', {v, arg: arg || null}); ls.set('sub', SUB);
   ({home: vHome, stock: vStock, pick: vPick, info: vInfo, book: vBook, asset: vAsset})[v](arg);
+  const y = opt.same ? window.scrollY : (opt.back ? opt.y : (opt.tab ? (SCR[v + '|'] || 0) : 0)) || 0;
+  window.scrollTo(0, y); requestAnimationFrame(() => window.scrollTo(0, y)); setTimeout(() => { if (window.scrollY < y) window.scrollTo(0, y); }, 400);
+  $('#btnBack').hidden = !canBack();
+}
+const canBack = () => NAV.length > 0 || (VIEW === 'stock' && !!SUB.code);
+function back(){
+  if ($('.mask')){ $$('.mask').pop().remove(); return; }
+  const p = NAV.pop();
+  if (p) return go(p.v, p.arg || undefined, {back: true, y: p.y});
+  if (VIEW === 'stock' && SUB.code) return go('stock', undefined, {back: true, y: SCR['stock|'] || 0});
 }
 const saveSub = () => ls.set('sub', SUB);
 const Fab = () => $('.fab');
-$$('#nav button').forEach(b => b.onclick = () => go(b.dataset.v));
-$('#btnRef').onclick = () => { ls.set('home', null); go(VIEW, VIEW === 'stock' ? SUB.code : undefined); };
+// 點下方分頁：切過去（記住各分頁的位置）；已經在這一頁再點一次＝捲回最上面／回到清單
+$$('#nav button').forEach(b => b.onclick = () => {
+  const v = b.dataset.v;
+  if (v === VIEW && !(v === 'stock' && SUB.code)){ window.scrollTo({top: 0, behavior: 'smooth'}); return; }
+  if (v === VIEW && v === 'stock' && SUB.code){ go('stock', undefined, {tab: true}); return; }
+  go(v, undefined, {tab: true});
+});
+function refreshView(){ ls.set('home', null); go(VIEW, VIEW === 'stock' ? SUB.code : undefined, {same: true}); }
+$('#btnRef').onclick = refreshView;
+$('#btnBack').onclick = back;
+$('#ttl').onclick = () => window.scrollTo({top: 0, behavior: 'smooth'});
+// ====================== iPhone 手勢 ======================
+// ① 從螢幕左邊緣往右滑＝上一頁（畫面跟著手指走）
+(function(){
+  const M = () => $('#main'), shade = $('#swipeShade');
+  let s = null;
+  document.addEventListener('touchstart', e => {
+    if (e.touches.length !== 1 || $('.mask') || !canBack()) return;
+    const t = e.touches[0];
+    if (t.clientX > 28) return;
+    s = {x: t.clientX, y: t.clientY, dx: 0, on: false, t: Date.now()};
+  }, {passive: true});
+  document.addEventListener('touchmove', e => {
+    if (!s) return;
+    const t = e.touches[0], dx = t.clientX - s.x, dy = t.clientY - s.y;
+    if (!s.on){ if (dx > 8 && Math.abs(dy) < dx) s.on = true; else if (Math.abs(dy) > 10 || dx < -5){ s = null; return; } }
+    if (s.on){ e.preventDefault(); s.dx = Math.max(0, dx); M().classList.remove('slide'); M().style.transform = `translateX(${s.dx}px)`; shade.style.opacity = String(0.15 * (1 - s.dx / innerWidth)); }
+  }, {passive: false});
+  document.addEventListener('touchend', () => {
+    if (!s) return;
+    const st = s; s = null; if (!st.on) return;
+    const fast = st.dx > 40 && st.dx / (Date.now() - st.t) > 0.5;
+    const m = M(); m.classList.add('slide');
+    if (st.dx > innerWidth * 0.33 || fast){
+      m.style.transform = `translateX(${innerWidth}px)`;
+      setTimeout(() => { m.classList.remove('slide'); m.style.transform = 'translateX(-24px)'; shade.style.opacity = '0'; back();
+        requestAnimationFrame(() => { m.classList.add('slide'); m.style.transform = ''; }); }, 200);
+    } else { m.style.transform = ''; shade.style.opacity = '0'; }
+  });
+  document.addEventListener('touchcancel', () => { if (s && s.on){ M().classList.add('slide'); M().style.transform = ''; shade.style.opacity = '0'; } s = null; });
+})();
+// ② 在最上面往下拉＝重新整理
+(function(){
+  const P = $('#ptr'); let s = null;
+  const skip = el => el.closest('.chart, .scrollx, .mask, input, textarea, .sugg, #nav');
+  document.addEventListener('touchstart', e => {
+    if (e.touches.length !== 1 || window.scrollY > 0 || $('.mask') || skip(e.target)) return;
+    const t = e.touches[0]; if (t.clientX <= 28) return;
+    s = {y: t.clientY, x: t.clientX, d: 0, on: false};
+  }, {passive: true});
+  document.addEventListener('touchmove', e => {
+    if (!s) return;
+    const t = e.touches[0], dy = t.clientY - s.y, dx = t.clientX - s.x;
+    if (!s.on){ if (dy > 8 && Math.abs(dx) < dy && window.scrollY <= 0) s.on = true; else if (Math.abs(dx) > 10 || dy < 0){ s = null; return; } }
+    if (s.on){ e.preventDefault(); s.d = Math.min(90, dy * 0.5); P.style.transition = 'none'; P.style.height = s.d + 'px'; P.style.lineHeight = s.d + 'px';
+      const go2 = s.d > 55; $('i', P).style.transform = go2 ? 'rotate(180deg)' : ''; $('span', P).textContent = go2 ? '放開重新整理' : '下拉重新整理'; }
+  }, {passive: false});
+  document.addEventListener('touchend', () => {
+    if (!s) return; const st = s; s = null; P.style.transition = '';
+    if (st.on && st.d > 55){ $('span', P).textContent = '更新中…'; $('i', P).style.transform = ''; P.style.height = '36px'; P.style.lineHeight = '36px'; refreshView(); setTimeout(() => { P.style.height = '0'; }, 900); }
+    else P.style.height = '0';
+  });
+})();
 $('#btnSet').onclick = () => openSettings();
 // 隱私：一打開金額都先遮住，按 👁 才顯示
 let PRIV = true;
@@ -327,6 +420,10 @@ function modal(title, html, onMount){
   const close = () => m.remove();
   m.onclick = e => { if (e.target === m) close(); };
   $('.x', m).onclick = close;
+  const sh = $('.sheet', m); let s = null;
+  sh.addEventListener('touchstart', e => { if (sh.scrollTop > 0 || e.target.closest('input, textarea, select, .chart')) return; s = {y: e.touches[0].clientY, d: 0}; }, {passive: true});
+  sh.addEventListener('touchmove', e => { if (!s) return; const d = e.touches[0].clientY - s.y; if (d <= 0 && !s.d){ s = null; return; } s.d = Math.max(0, d); if (s.d > 4){ e.preventDefault(); sh.style.transition = 'none'; sh.style.transform = `translateY(${s.d}px)`; } }, {passive: false});
+  sh.addEventListener('touchend', () => { if (!s) return; const d = s.d; s = null; sh.style.transition = 'transform .2s'; if (d > 110){ sh.style.transform = 'translateY(100%)'; setTimeout(close, 180); } else sh.style.transform = ''; });
   if (onMount) onMount(m, close);
   return close;
 }
@@ -560,7 +657,7 @@ async function vStock(code){
   if (code){ SUB.code = code; saveSub(); return stockDetail(code); }
   SUB.code = null;
   const M = $('#main');
-  M.innerHTML = `<div class="search"><input id="q" placeholder="🔍 搜尋股號／股名，按 ＋ 加進目前清單" autocomplete="off"><div class="sugg" id="sugg" hidden></div></div>
+  M.innerHTML = `<div class="search"><input id="q" type="search" enterkeyhint="search" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="🔍 搜尋股號／股名，按 ＋ 加進目前清單" autocomplete="off"><div class="sugg" id="sugg" hidden></div></div>
     <div class="ltabs" id="ltabs"></div><div id="wl">${LISTS ? '' : loading()}</div>`;
   if (LISTS) paintLists();
   smap().then(map => bindSearch(map));
@@ -624,7 +721,7 @@ function bindSearch(map){
         refreshLists(); } catch(e){ b.textContent = '＋'; toast(e.message, 3500); }
     });
   };
-  inp.onkeydown = e => { if (e.key === 'Enter'){ const f = $('[data-c]', sg); if (f) go('stock', f.dataset.c); } };
+  inp.onkeydown = e => { if (e.key === 'Enter'){ inp.blur(); const f = $('[data-c]', sg); if (f) go('stock', f.dataset.c); } };
 }
 function promptBox(title, val, fn){
   modal(title, `<input id="pb" value="${esc(val)}"><div class="btns" style="margin-top:12px"><button class="btn" id="pok" style="flex:1">確定</button></div>`, (m, close) => {
@@ -642,8 +739,7 @@ async function stockDetail(code){
   const cached = ls.get('stk_' + code, null);
   $('#ttl').textContent = code + ' ' + ((cached && cached.name) || sname(code));
   smap().catch(() => {});   // 名稱表背景抓，不卡畫面
-  M.innerHTML = `<button class="btn g sm" id="back" style="margin-bottom:10px">‹ 返回</button><div id="sd">${cached ? '' : loading('抓報價、K 線、籌碼…')}</div>`;
-  $('#back').onclick = () => go(BACKTO || 'stock');
+  M.innerHTML = `<div id="sd">${cached ? '' : loading('抓報價、K 線、籌碼…')}</div>`;
   loadCharts().catch(() => {});
   if (cached) renderStock(code, cached, true);
   // GitHub 上每天算好的籌碼（不用 token、很快）
@@ -972,7 +1068,7 @@ async function vInfo(){
       bindCodes(B);
     } else if (s === 'ind'){
       let off = 0, q = '';
-      B.innerHTML = `<div class="search"><input id="iq" placeholder="🔍 搜尋標題／摘要，例如 CoWoS、液冷"></div><div class="card" id="il"></div><div style="text-align:center"><button class="btn g" id="im">載入更多</button></div>`;
+      B.innerHTML = `<div class="search"><input id="iq" type="search" enterkeyhint="search" autocorrect="off" autocapitalize="off" placeholder="🔍 搜尋標題／摘要，例如 CoWoS、液冷"></div><div class="card" id="il"></div><div style="text-align:center"><button class="btn g" id="im">載入更多</button></div>`;
       const load = async (reset) => {
         if (reset){ off = 0; $('#il').innerHTML = loading(); }
         const d = await call('indList', {offset: off, limit: 40, q});
@@ -1250,7 +1346,7 @@ applyPriv();
 (function boot(){
   if (!CFG && !window.__testApi) return pairScreen();
   setTimeout(prefetchAll, 2500);
-  const l = ls.get('last', null); try { if (l && TITLES[l.v]) return go(l.v, l.arg || undefined); } catch(e){} go('home'); })();
+  const l = ls.get('last', null); try { if (l && TITLES[l.v]) return go(l.v, l.arg || undefined, {tab: true}); } catch(e){} go('home', undefined, {tab: true}); })();
 // 離線也能秒開：把畫面檔存在手機（新版本會在下次打開時自動換上）
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
