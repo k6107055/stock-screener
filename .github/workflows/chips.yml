@@ -1,0 +1,55 @@
+name: 每日籌碼（Atlas）
+
+on:
+  schedule:
+    # 週一到週五 台灣時間 16:43、21:43（法人 15:00 後公布、融資券較晚）；GitHub 排程可能延遲
+    - cron: '43 8 * * 1-5'
+    - cron: '43 13 * * 1-5'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['chips/**', '.github/workflows/chips.yml']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: atlas-chips
+  cancel-in-progress: false
+
+jobs:
+  chips:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: 安裝套件
+        run: pip install requests
+
+      - name: 取回上次的資料（chips-data 分支）
+        run: |
+          mkdir -p chips-out
+          if git fetch --depth 1 origin chips-data; then
+            git archive FETCH_HEAD | tar -x -C chips-out
+          fi
+          ls chips-out | head
+
+      - name: 抓籌碼
+        run: python chips/chips.py chips-out
+
+      - name: 發佈到 chips-data 分支（只留最新一份，不累積歷史）
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd chips-out
+          git init -q -b chips-data
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "籌碼資料 $(TZ=Asia/Taipei date '+%F %H:%M')"
+          git push -f -q "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" chips-data
