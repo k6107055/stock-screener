@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>Atlas</title>
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Atlas">
+<meta name="theme-color" content="#f4f5f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1115" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="preconnect" href="https://script.google.com">
+<link rel="preconnect" href="https://script.googleusercontent.com">
+<link rel="preconnect" href="https://unpkg.com">
+<style>
+:root{
+  --bg:#f4f5f7;--card:#fff;--tx:#1d2129;--sub:#6b7280;--line:#e5e7eb;--pri:#2563eb;--pri2:#dbeafe;
+  --up:#e03131;--down:#16a34a;--upbg:#fff0f0;--downbg:#ecfdf3;--warn:#b45309;--warnbg:#fff7e6;
+  --r:14px;--nav:64px;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0f1115;--card:#1a1d24;--tx:#e8eaed;--sub:#9aa0aa;--line:#2a2e37;--pri:#60a5fa;--pri2:#1e3a5f;
+  --up:#ff6b6b;--down:#34d399;--upbg:#3a1d1f;--downbg:#123026;--warn:#fbbf24;--warnbg:#3a2e12;}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.45 -apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif}
+body{padding-bottom:calc(var(--nav) + 24px)}
+header{position:sticky;top:0;z-index:20;background:var(--bg);display:flex;align-items:center;gap:8px;padding:calc(env(safe-area-inset-top) + 12px) 16px 8px}
+header h1{font-size:20px;margin:0;flex:1}
+.ib{border:0;background:var(--card);color:var(--tx);width:38px;height:38px;border-radius:50%;font-size:17px;box-shadow:0 1px 2px rgba(0,0,0,.06)}
+main{padding:0 12px}
+.card{background:var(--card);border-radius:var(--r);padding:14px;margin-bottom:12px;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.card h3{margin:0 0 10px;font-size:15px;display:flex;align-items:center;gap:6px}
+.card h3 .more{margin-left:auto;font-size:13px;color:var(--pri);font-weight:400;background:none;border:0;padding:0}
+.sub{color:var(--sub);font-size:12.5px}
+.big{font-size:30px;font-weight:700;letter-spacing:.3px}
+.mid{font-size:19px;font-weight:700}
+.up{color:var(--up)}.down{color:var(--down)}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:10px}
+.kv{background:var(--bg);border-radius:10px;padding:8px 10px}
+.kv b{display:block;font-size:15px}
+.row{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+.row:first-child{border-top:0}
+.row .l{flex:1;min-width:0}
+.row .r{text-align:right}
+.nm{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tag{display:inline-block;font-size:11px;padding:1px 6px;border-radius:6px;background:var(--pri2);color:var(--pri);margin-left:4px;vertical-align:1px;font-weight:500}
+.tag.h{background:var(--upbg);color:var(--up)}
+.tag.w{background:var(--warnbg);color:var(--warn)}
+.pill{display:inline-block;padding:2px 8px;border-radius:8px;font-weight:600;font-size:13px}
+.pill.up{background:var(--upbg)}.pill.down{background:var(--downbg)}
+nav{position:fixed;left:0;right:0;bottom:0;z-index:30;display:flex;background:var(--card);border-top:1px solid var(--line);padding-bottom:max(env(safe-area-inset-bottom),10px)}
+nav button{flex:1;border:0;background:none;color:var(--sub);padding:8px 0 2px;font-size:11px;display:flex;flex-direction:column;align-items:center;gap:2px}
+nav button i{font-style:normal;font-size:21px;line-height:1.1}
+nav button.on{color:var(--pri);font-weight:600}
+.seg{display:flex;background:var(--card);border-radius:12px;padding:3px;margin-bottom:12px;gap:3px}
+.seg button{flex:1;border:0;background:none;color:var(--sub);padding:8px 4px;border-radius:9px;font-size:14px}
+.seg button.on{background:var(--pri);color:#fff;font-weight:600}
+.btn{border:0;border-radius:10px;padding:10px 14px;font-size:15px;background:var(--pri);color:#fff;font-weight:600}
+.btn.g{background:var(--bg);color:var(--tx)}
+.btn.red{background:var(--up)}
+.btn.sm{padding:6px 10px;font-size:13px}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+input,select,textarea{width:100%;font:inherit;color:var(--tx);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--pri)}
+label{display:block;font-size:13px;color:var(--sub);margin:10px 0 4px}
+.fab{position:fixed;right:18px;bottom:calc(var(--nav) + 26px);z-index:25;width:56px;height:56px;border-radius:50%;border:0;background:var(--pri);color:#fff;font-size:30px;box-shadow:0 4px 14px rgba(37,99,235,.4)}
+.mask{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--card);width:100%;max-width:560px;max-height:92vh;overflow:auto;border-radius:18px 18px 0 0;padding:16px 16px 28px;animation:up .18s ease-out}
+@keyframes up{from{transform:translateY(40px);opacity:.5}to{transform:none;opacity:1}}
+.sheet h2{margin:0 0 6px;font-size:18px;display:flex;align-items:center}
+.sheet h2 .x{margin-left:auto}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{border:1px solid var(--line);background:var(--bg);color:var(--tx);border-radius:16px;padding:6px 11px;font-size:13.5px}
+.chips button.on{background:var(--pri);border-color:var(--pri);color:#fff}
+.amt{font-size:28px;font-weight:700;text-align:right}
+.toast{position:fixed;left:50%;top:18px;transform:translateX(-50%);z-index:80;background:rgba(20,20,20,.88);color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;max-width:88vw;text-align:center}
+.load{display:flex;align-items:center;justify-content:center;gap:8px;color:var(--sub);padding:30px 0}
+.spin{width:18px;height:18px;border:2.5px solid var(--line);border-top-color:var(--pri);border-radius:50%;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.err{background:var(--warnbg);color:var(--warn);border-radius:10px;padding:8px 10px;font-size:13px;margin-bottom:10px}
+.chart{height:300px;margin:0 -6px}
+.chart.s{height:170px}
+.bar{height:8px;background:var(--bg);border-radius:4px;overflow:hidden;margin-top:4px}
+.bar>div{height:100%;background:var(--pri);border-radius:4px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:6px 4px;border-top:1px solid var(--line);text-align:right;white-space:nowrap}
+th{color:var(--sub);font-weight:500;border-top:0}
+td:first-child,th:first-child{text-align:left}
+.scrollx{overflow-x:auto;margin:0 -4px}
+.art{padding:10px 0;border-top:1px solid var(--line)}
+.art:first-child{border-top:0}
+.art a{color:var(--tx);text-decoration:none;font-weight:600}
+.art p{margin:4px 0 0;color:var(--sub);font-size:13.5px}
+a{color:var(--pri)}
+.search{position:relative;margin-bottom:12px}
+.sugg{position:absolute;left:0;right:0;top:46px;z-index:15;background:var(--card);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.15);overflow:hidden}
+.sugg div{padding:11px 14px;border-top:1px solid var(--line)}
+.legend{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--sub);margin:4px 0}
+.legend span::before{content:"";display:inline-block;width:10px;height:3px;border-radius:2px;background:var(--c);margin-right:4px;vertical-align:3px}
+.empty{color:var(--sub);text-align:center;padding:18px 0;font-size:14px}
+.dayh{font-size:12.5px;color:var(--sub);padding:10px 0 2px;display:flex}
+.dayh span{margin-left:auto}
+.spark{width:100%;height:46px;display:block;margin-top:8px}
+.tabsm{display:flex;gap:6px;margin:6px 0}
+.tabsm button{border:0;background:var(--bg);color:var(--sub);border-radius:8px;padding:4px 10px;font-size:12.5px}
+.tabsm button.on{background:var(--pri2);color:var(--pri);font-weight:600}
+body.priv .m{color:transparent!important;background:var(--line);border-radius:6px;user-select:none;-webkit-user-select:none}
+body.priv .m *{color:transparent!important;background:transparent!important}
+body.priv .m svg,body.priv .mchart{visibility:hidden}
+.ltabs{display:flex;gap:6px;overflow-x:auto;margin:0 -12px 10px;padding:0 12px;scrollbar-width:none}
+.ltabs::-webkit-scrollbar{display:none}
+.ltabs button{flex:none;border:1px solid var(--line);background:var(--card);color:var(--sub);border-radius:18px;padding:7px 13px;font-size:14px}
+.ltabs button.on{background:var(--pri);border-color:var(--pri);color:#fff;font-weight:600}
+.ed{display:flex;gap:6px}.ed button{border:0;background:var(--bg);color:var(--tx);width:36px;height:34px;border-radius:9px;font-size:16px}.ed .rm{color:var(--up)}
+.sr{display:flex;align-items:center;gap:8px}.sr span{flex:1}.sr .add{border:0;background:var(--pri);color:#fff;width:34px;height:30px;border-radius:9px;font-size:18px;line-height:1}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:8px;font-size:14px}
+table.bk td,table.bk th{text-align:center;position:relative}
+table.bk td.bv,table.bk td.av{font-size:12.5px;color:var(--sub)}
+table.bk td i{position:absolute;top:3px;bottom:3px;opacity:.18;border-radius:3px}
+table.bk td.bv i{right:0;background:var(--up)}table.bk td.av i{left:0;background:var(--down)}
+@keyframes fu{0%{background:var(--upbg)}100%{background:transparent}}@keyframes fd{0%{background:var(--downbg)}100%{background:transparent}}
+.fu{animation:fu 1.2s ease-out}.fd{animation:fd 1.2s ease-out}
+label.ck{display:flex;gap:10px;align-items:center;color:var(--tx);font-size:16px;margin:12px 0}label.ck input{width:22px;height:22px}
+.sugg div.sr{padding:9px 10px 9px 14px}
+body:not(.priv) .privhint{display:none}
+</style>
+</head>
+<body>
+<header><h1 id="ttl">Atlas</h1><button class="ib" id="btnEye" title="顯示／隱藏金額">🙈</button><button class="ib" id="btnRef" title="重新整理">↻</button><button class="ib" id="btnSet" title="設定">⚙️</button></header>
+<main id="main"></main>
+<nav id="nav">
+  <button data-v="home" class="on"><i>🏠</i>首頁</button>
+  <button data-v="stock"><i>📈</i>自選</button>
+  <button data-v="info"><i>📰</i>資訊</button>
+  <button data-v="book"><i>📝</i>記帳</button>
+  <button data-v="asset"><i>💰</i>資產</button>
+</nav>
+<script>
+// ====================== 基本工具 ======================
+const $ = (s, el) => (el || document).querySelector(s);
+const $$ = (s, el) => Array.from((el || document).querySelectorAll(s));
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = (n, d) => n == null || isNaN(n) ? '—' : Number(n).toLocaleString('zh-TW', {minimumFractionDigits: d || 0, maximumFractionDigits: d == null ? 0 : d});
+const fp = n => n == null || isNaN(n) ? '—' : Number(n).toLocaleString('zh-TW', {maximumFractionDigits: 2});
+const sgn = n => n > 0 ? '+' : '';
+const cls = n => n > 0 ? 'up' : n < 0 ? 'down' : '';
+const money = n => `<span class="${cls(n)}">${sgn(n)}${fmt(n)}</span>`;
+const pct = n => n == null ? '<span class="sub">—</span>' : `<span class="${cls(n)}">${sgn(n)}${fp(n)}%</span>`;
+const ymd8 = d => { d = String(d); return d.length === 8 ? d.slice(4, 6) + '/' + d.slice(6) : d.slice(5).replace('-', '/'); };
+const today = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+const shTxt = sh => sh % 1000 === 0 ? fmt(sh / 1000) + ' 張' : (sh >= 1000 ? fmt(Math.floor(sh / 1000)) + ' 張 ' + fmt(sh % 1000) + ' 股' : fmt(sh) + ' 股');
+const ls = { get(k, d){ try{ const v = localStorage.getItem('ma_' + k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
+             set(k, v){ try{ localStorage.setItem('ma_' + k, JSON.stringify(v)); }catch(e){} } };
+// ====================== 配對（伺服器網址＋金鑰，只存在這支手機）======================
+let CFG = (() => { try { return JSON.parse(localStorage.getItem('atlas_cfg') || 'null'); } catch(e){ return null; } })();
+function readPair(str){
+  const i = String(str || '').indexOf('#'); if (i < 0) return null;
+  const h = new URLSearchParams(String(str).slice(i + 1)); const u = h.get('u'), k = h.get('k');
+  return u && k && /^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(u) && /^[0-9a-f]{32,}$/.test(k) ? {u, k} : null;
+}
+(function(){ const c = readPair(location.href); if (c){ CFG = c; try{ localStorage.setItem('atlas_cfg', JSON.stringify(c)); }catch(e){} } })();
+const loading = (t) => `<div class="load"><div class="spin"></div>${esc(t || '載入中…')}</div>`;
+function toast(t, ms){ const el = document.createElement('div'); el.className = 'toast'; el.textContent = t; document.body.appendChild(el); setTimeout(() => el.remove(), ms || 2200); }
+async function call(op, args){
+  if (window.__testApi) return window.__testApi(op, args || {});
+  if (!CFG) throw new Error('尚未配對');
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 30000);
+  let r;
+  try { r = await fetch(CFG.u, {method: 'POST', body: JSON.stringify({k: CFG.k, op, args: args || {}}), headers: {'Content-Type': 'text/plain;charset=utf-8'}, signal: ctl.signal, credentials: 'omit', cache: 'no-store'}); }
+  catch(e){ throw new Error(e.name === 'AbortError' ? '連線逾時，請再試一次' : '網路連不上，請檢查網路'); }
+  finally { clearTimeout(t); }
+  let j; try { j = await r.json(); } catch(e){ throw new Error('伺服器忙線（' + r.status + '），請再試一次'); }
+  if (!j.ok && j.error === 'AUTH'){ pairScreen('金鑰不對或已更換，請用新的配對連結'); throw new Error('需要重新配對'); }
+  if (!j.ok) throw new Error(j.error);
+  return j.data;
+}
+function pairScreen(msg){
+  VIEW = 'pair'; clearInterval(TIMER); clearInterval(POLL);
+  $('#ttl').textContent = 'Atlas';
+  $('#main').innerHTML = `<div class="card"><h3>🔐 第一次使用：配對這支手機</h3>
+    ${msg ? `<div class="err">${esc(msg)}</div>` : ''}
+    <p class="sub">把「配對連結」整串貼在下面（Claude 給你的那條 https://…/atlas/#u=…&k=…），按配對。配對資料只存在這支手機。</p>
+    <textarea id="pl" rows="4" style="width:100%;font-size:14px" placeholder="https://k6107055.github.io/stock-screener/atlas/#u=…&k=…"></textarea>
+    <button class="btn" id="pb" style="width:100%;margin-top:10px">配對</button></div>`;
+  $('#pb').onclick = async () => {
+    const c = readPair($('#pl').value.trim());
+    if (!c) return toast('連結格式不對，請整串貼上', 3000);
+    CFG = c; try{ localStorage.setItem('atlas_cfg', JSON.stringify(c)); }catch(e){}
+    $('#pb').textContent = '確認中…';
+    try { await call('ping'); toast('✅ 配對成功'); go('home'); } catch(e){ if (CFG) toast(e.message, 3500); $('#pb').textContent = '配對'; }
+  };
+}
+const C = () => { const s = getComputedStyle(document.documentElement); const g = k => s.getPropertyValue(k).trim(); return {up:g('--up'), down:g('--down'), tx:g('--tx'), sub:g('--sub'), line:g('--line'), card:g('--card'), pri:g('--pri')}; };
+
+// ====================== 股票清單（搜尋用）======================
+let SMAP = ls.get('smap', null);
+async function smap(){
+  if (SMAP && SMAP.t && Date.now() - SMAP.t < 3 * 86400000) return SMAP.m;
+  try { const m = await call('stockMap'); SMAP = {t: Date.now(), m}; ls.set('smap', SMAP); return m; } catch(e){ return (SMAP && SMAP.m) || {}; }
+}
+const sname = c => (SMAP && SMAP.m && SMAP.m[c]) || '';
+const cn = (c, n) => `${esc(c)} ${esc(n || sname(c))}`;
+
+// ====================== 導覽（記住上次離開的頁面）======================
+let VIEW = 'home', SUB = ls.get('sub', {}), TIMER = null, POLL = null;
+const TITLES = {home:'Atlas', stock:'自選', info:'資訊', book:'記帳', asset:'資產'};
+function go(v, arg){
+  VIEW = v; $$('#nav button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  $('#ttl').textContent = TITLES[v] || 'Atlas';
+  clearInterval(TIMER); TIMER = null; clearInterval(POLL); POLL = null; destroyCharts();
+  const f = Fab(); if (f) f.remove();
+  window.scrollTo(0, 0);
+  if (v !== 'stock') SUB.code = null;
+  ls.set('last', {v, arg: arg || null}); ls.set('sub', SUB);
+  ({home: vHome, stock: vStock, info: vInfo, book: vBook, asset: vAsset})[v](arg);
+}
+const saveSub = () => ls.set('sub', SUB);
+const Fab = () => $('.fab');
+$$('#nav button').forEach(b => b.onclick = () => go(b.dataset.v));
+$('#btnRef').onclick = () => { ls.set('home', null); go(VIEW, VIEW === 'stock' ? SUB.code : undefined); };
+$('#btnSet').onclick = () => openSettings();
+// 隱私：一打開金額都先遮住，按 👁 才顯示
+let PRIV = true;
+function applyPriv(){ document.body.classList.toggle('priv', PRIV); $('#btnEye').textContent = PRIV ? '🙈' : '👁'; }
+$('#btnEye').onclick = () => { PRIV = !PRIV; applyPriv(); };
+document.addEventListener('visibilitychange', () => { if (document.hidden){ PRIV = true; applyPriv(); } });
+function fab(fn){ const b = document.createElement('button'); b.className = 'fab'; b.textContent = '+'; b.onclick = fn; document.body.appendChild(b); }
+
+// ====================== 彈出視窗 ======================
+function modal(title, html, onMount){
+  const m = document.createElement('div'); m.className = 'mask';
+  m.innerHTML = `<div class="sheet"><h2>${esc(title)}<button class="ib x">✕</button></h2>${html}</div>`;
+  document.body.appendChild(m);
+  const close = () => m.remove();
+  m.onclick = e => { if (e.target === m) close(); };
+  $('.x', m).onclick = close;
+  if (onMount) onMount(m, close);
+  return close;
+}
+function confirmBox(text){ return new Promise(r => { modal('確認', `<p>${esc(text)}</p><div class="btns"><button class="btn red ok">確定</button><button class="btn g no">取消</button></div>`, (m, close) => { $('.ok', m).onclick = () => { close(); r(true); }; $('.no', m).onclick = () => { close(); r(false); }; }); }); }
+
+// ====================== 圖表（需要時才載入圖表程式，打開 App 比較快）======================
+let CHARTS = [], LWC = null;
+function loadCharts(){
+  if (window.LightweightCharts) return Promise.resolve();
+  if (LWC) return LWC;
+  LWC = new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js'; s.onload = res; s.onerror = () => { LWC = null; rej(new Error('圖表載入失敗')); }; document.head.appendChild(s); });
+  return LWC;
+}
+function destroyCharts(){ CHARTS.forEach(c => { try{ c.remove(); }catch(e){} }); CHARTS = []; }
+function mkChart(el, opt){
+  const c = C();
+  const ch = LightweightCharts.createChart(el, Object.assign({
+    autoSize: true, layout: {background: {color: 'transparent'}, textColor: c.sub, fontSize: 11},
+    grid: {vertLines: {visible: false}, horzLines: {color: c.line}},
+    rightPriceScale: {borderVisible: false}, timeScale: {borderVisible: false},
+    crosshair: {mode: 0}, localization: {locale: 'zh-TW', dateFormat: 'yyyy/MM/dd'},
+    handleScale: {axisPressedMouseMove: false},
+  }, opt || {}));
+  CHARTS.push(ch); return ch;
+}
+function sma(arr, n){ const o = []; let s = 0; for (let i = 0; i < arr.length; i++){ s += arr[i]; if (i >= n) s -= arr[i - n]; o.push(i >= n - 1 ? Math.round(s / n * 100) / 100 : null); } return o; }
+function spark(vals){
+  vals = vals.filter(v => v != null); if (vals.length < 2) return '';
+  const mn = Math.min(...vals), mx = Math.max(...vals), w = 300, h = 46, d = mx - mn || 1;
+  const pts = vals.map((v, i) => (i / (vals.length - 1) * w).toFixed(1) + ',' + (h - 3 - (v - mn) / d * (h - 6)).toFixed(1)).join(' ');
+  const col = vals[vals.length - 1] >= vals[0] ? 'var(--up)' : 'var(--down)';
+  return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><polyline fill="none" stroke="${col}" stroke-width="2" points="${pts}" vector-effect="non-scaling-stroke"/></svg>`;
+}
+
+// ====================== 首頁（兩支資料同時抓，先畫快的；舊資料先顯示）======================
+let HOMEF = null, HOMEI = null;
+function vHome(){
+  const M = $('#main');
+  HOMEF = ls.get('homeF', null); HOMEI = ls.get('homeI', null);
+  const paint = (stale) => { if (VIEW !== 'home') return; M.innerHTML = homeHtml(HOMEF, HOMEI, stale); bindHome(); };
+  if (HOMEF || HOMEI) paint(true); else M.innerHTML = loading('載入中…');
+  let pending = 2;
+  const done = () => { if (--pending === 0) paint(false); };
+  call('homeFast').then(d => { HOMEF = d; ls.set('homeF', d); paint(pending > 1); if (d.needSetup) welcome();
+    if (d.open && !TIMER) TIMER = setInterval(() => { if (VIEW === 'home' && !document.hidden) call('homeFast').then(x => { HOMEF = x; ls.set('homeF', x); paint(false); }).catch(() => {}); }, 30000);
+  }).catch(e => toast('持股載入失敗：' + e.message, 3500)).finally(done);
+  call('homeInfo').then(d => { HOMEI = d; ls.set('homeI', d); paint(pending > 1); }).catch(e => toast('資訊載入失敗：' + e.message, 3500)).finally(done);
+}
+const mk = (s) => `<span class="m">${s}</span>`;
+function homeHtml(F, I, stale){
+  F = F || {}; I = I || {};
+  const pf = F.pf || {hold: []}, as = F.as || {}, est = I.est || {}, ind = I.ind || {}, rep = I.rep || [];
+  let h = '';
+  if (stale) h += `<div class="sub" style="margin:-2px 2px 8px">⏳ 更新中…（先顯示上次的資料）</div>`;
+  (F.errs || []).concat(I.errs || []).forEach(e => h += `<div class="err">⚠️ ${esc(e)}</div>`);
+  if (F.pf){
+    h += `<div class="card"><div class="sub" style="display:flex">淨資產<span class="privhint" style="margin-left:auto">點右上 🙈 顯示金額</span></div><div class="big">${mk(fmt(as.net))}</div>
+      ${as.snaps && as.snaps.length > 1 ? `<div class="m">${spark(as.snaps.concat([as.net]))}</div>` : ''}
+      <div class="grid3"><div class="kv"><span class="sub">股票市值</span><b>${mk(fmt(as.stock))}</b></div>
+      <div class="kv"><span class="sub">現金存款</span><b>${mk(fmt(as.cash))}</b></div>
+      <div class="kv"><span class="sub">負債</span><b>${mk(fmt(as.debt))}</b></div></div></div>`;
+    h += `<div class="card"><h3>📊 股票<span class="sub" style="font-weight:400">${F.open ? '盤中・30 秒更新' : '已收盤'}</span></h3>
+      <div class="grid2" style="margin-top:0"><div class="kv"><span class="sub">今日損益</span><b>${mk(money(pf.day))} <small>${pct(pf.dayPct)}</small></b></div>
+      <div class="kv"><span class="sub">未實現損益</span><b>${mk(money(pf.unreal))} <small>${pct(pf.ret)}</small></b></div>
+      <div class="kv"><span class="sub">已實現（累計）</span><b>${mk(money(pf.realized))}</b></div>
+      <div class="kv"><span class="sub">股利（累計）</span><b>${mk(money(pf.divs))}</b></div></div>
+      <div style="margin-top:6px">${pf.hold.length ? pf.hold.map(x => `<div class="row" data-code="${esc(x.code)}">
+        <div class="l"><div class="nm">${cn(x.code, x.name)}</div><div class="sub m">${shTxt(x.shares)}・均價 ${fp(x.avg)}・占 ${fp(x.weight)}%</div></div>
+        <div class="r"><div><b>${fp(x.price)}</b> ${pct(x.chgPct)}</div><div class="sub">${mk(money(x.unreal))}（${pct(x.ret)}）</div></div></div>`).join('')
+        : `<div class="empty">還沒有持股紀錄<br><button class="btn sm" style="margin-top:8px" id="goTx">記一筆交易／從小幫手匯入</button></div>`}</div>
+      ${(pf.warn || []).map(w => `<div class="err">⚠️ ${esc(w)}</div>`).join('')}</div>`;
+  } else h += `<div class="card">${loading('讀取持股…')}</div>`;
+  if (I.est || I.ind){
+    h += `<div class="card"><h3>🎯 法人預估 <span class="sub" style="font-weight:400">${est.d ? ymd8(est.d) : ''}${est.nUp != null ? `・上修 ${est.nUp}／下修 ${est.nDown}` : ''}</span><button class="more" data-go="est">全部 ›</button></h3>`;
+    if (est.mine && est.mine.length) h += `<div class="sub">我的持股／自選股有變動：</div>` + est.mine.map(estRow).join('');
+    else if (est.d) h += `<div class="sub">我的持股和自選股這天沒有變動</div>`;
+    const upOthers = (est.up || []).filter(x => !x.mine);
+    if (upOthers.length) h += `<div class="sub" style="margin-top:8px">其他上修幅度較大的：</div>` + upOthers.map(estRow).join('');
+    h += `</div>`;
+    h += `<div class="card"><h3>🏭 產業研究包 <span class="sub" style="font-weight:400">${ind.d ? ymd8(ind.d) : ''}</span><button class="more" data-go="ind">全部 ›</button></h3>
+      ${(ind.items || []).map(a => artHtml(a)).join('') || '<div class="empty">沒有資料</div>'}</div>`;
+    h += `<div class="card"><h3>📑 最新整合報告<button class="more" data-go="rep">全部 ›</button></h3>
+      ${rep.map(repRow).join('') || '<div class="empty">還沒有報告</div>'}</div>`;
+  } else h += `<div class="card">${loading('讀取法人預估、產業研究包…')}</div>`;
+  h += `<div class="sub" style="text-align:center">更新：${esc(F.at || '')}・${esc(F.ver || '')}</div>`;
+  return h;
+}
+const estRow = x => `<div class="row" data-code="${esc(x.code)}"><div class="l"><div class="nm">${cn(x.code, x.name)}${x.mine === 'hold' || x.hold ? '<span class="tag h">持股</span>' : ''}${x.mine === 'watch' || (x.watch && !x.hold) ? '<span class="tag w">自選</span>' : ''}${x.init ? '<span class="tag">初評</span>' : ''}</div>
+  <div class="sub">${esc(x.y)} EPS ${fp(x.prev)} → <b style="color:var(--tx)">${fp(x.eps)}</b>${x.close ? '・收 ' + fp(x.close) : ''}</div></div><div class="r">${x.pct == null ? '' : `<span class="pill ${cls(x.pct)}">${sgn(x.pct)}${fp(x.pct)}%</span>`}</div></div>`;
+const artHtml = (a, wd) => `<div class="art">${wd ? '<span class="sub">' + ymd8(a.d) + '</span> ' : ''}<span class="tag">${esc(a.cat)}</span> <a href="${esc(a.url)}" target="_blank">${esc(a.title)}</a><p>${esc(a.sum)}</p></div>`;
+const repRow = r => `<div class="row"><div class="l"><a class="nm" href="${esc(r.url)}" target="_blank" style="text-decoration:none;color:var(--tx)">${cn(r.code, r.sname)}</a><div class="sub">${esc(r.name)}</div></div><div class="r sub">${esc(r.d)}<br><button class="btn sm g" data-code="${esc(r.code)}">個股頁</button></div></div>`;
+function bindHome(){
+  bindCodes($('#main'));
+  $$('[data-go]').forEach(b => b.onclick = () => { SUB.info = b.dataset.go; go('info'); });
+  const g = $('#goTx'); if (g) g.onclick = () => { SUB.book = 'tx'; go('book'); };
+}
+function bindCodes(root){ $$('[data-code]', root).forEach(el => el.onclick = e => { if (e.target.closest('a')) return; e.stopPropagation(); go('stock', el.dataset.code); }); }
+function welcome(){
+  modal('歡迎使用 👋', `<p>第一次使用要先做兩件事：</p><ol><li>建立你的記帳資料表（自動）</li><li>填 LINE 小幫手的網址和 KEY（才看得到整合報告、券商明細）</li></ol>
+    <button class="btn" id="wInit" style="width:100%">開始設定</button>`, (m, close) => {
+    $('#wInit', m).onclick = async () => { $('#wInit', m).textContent = '建立中…'; try{ await call('init'); close(); toast('✅ 已建立資料表'); openSettings(); }catch(e){ toast('失敗：' + e.message, 4000); } };
+  });
+}
+
+// ====================== 自選清單（多頁、可編輯）======================
+let LISTS = ls.get('lists', null), EDIT = false;
+async function vStock(code){
+  if (code){ SUB.code = code; saveSub(); return stockDetail(code); }
+  SUB.code = null;
+  const M = $('#main');
+  M.innerHTML = `<div class="search"><input id="q" placeholder="🔍 搜尋股號／股名，按 ＋ 加進目前清單" autocomplete="off"><div class="sugg" id="sugg" hidden></div></div>
+    <div class="ltabs" id="ltabs"></div><div id="wl">${LISTS ? '' : loading()}</div>`;
+  if (LISTS) paintLists();
+  smap().then(map => bindSearch(map));
+  refreshLists(true);
+  POLL = setInterval(() => { if (VIEW === 'stock' && !SUB.code && !document.hidden && LISTS && LISTS.open) pollLists(); }, 8000);
+}
+function curList(){ const names = ['__hold'].concat((LISTS ? LISTS.lists : []).map(l => l.name)); if (names.indexOf(SUB.list) < 0) SUB.list = names[1] || '__hold'; return SUB.list; }
+async function refreshLists(){
+  try { const d = await call('lists'); LISTS = d; ls.set('lists', d); if (VIEW === 'stock' && !SUB.code) paintLists(); }
+  catch(e){ if (!LISTS) $('#wl').innerHTML = `<div class="err">${esc(e.message)}</div>`; else toast(e.message); }
+}
+async function pollLists(){
+  const codes = Object.keys(LISTS.info);
+  try { const d = await call('quotes', {codes}); Object.keys(d.q).forEach(c => { const i = LISTS.info[c]; if (!i) return; const o = i.p; i.p = d.q[c].p; i.c = d.q[c].c;
+      const el = $(`#wl [data-code="${c}"] .px`); if (el){ el.innerHTML = `<b>${fp(i.p)}</b><div>${pct(i.c)}</div>`; if (o != null && o !== i.p){ el.classList.remove('fu', 'fd'); void el.offsetWidth; el.classList.add(i.p > o ? 'fu' : 'fd'); } } });
+    LISTS.open = d.open; const t = $('#wlAt'); if (t) t.textContent = '即時 ' + d.at;
+  } catch(e){}
+}
+function paintLists(){
+  const cur = curList();
+  const tabs = [{k: '__hold', t: '💼 持股'}].concat(LISTS.lists.map(l => ({k: l.name, t: (l.line ? '💬 ' : '') + l.name + ' ' + l.codes.length})));
+  $('#ltabs').innerHTML = tabs.map(x => `<button data-l="${esc(x.k)}" class="${x.k === cur ? 'on' : ''}">${esc(x.t)}</button>`).join('') + `<button data-new="1">＋ 新清單</button>`;
+  $$('#ltabs [data-l]').forEach(b => b.onclick = () => { SUB.list = b.dataset.l; EDIT = false; saveSub(); paintLists(); });
+  $('#ltabs [data-new]').onclick = () => promptBox('新清單名稱', '', async n => { try { await call('listCreate', {name: n}); SUB.list = n; saveSub(); await refreshLists(); toast('✅ 已建立「' + n + '」'); } catch(e){ toast(e.message, 3500); } });
+  const L = LISTS.lists.find(l => l.name === cur);
+  const codes = cur === '__hold' ? LISTS.hold : (L ? L.codes : []);
+  const editable = cur !== '__hold';
+  const row = (c, i) => { const x = LISTS.info[c] || {};
+    return `<div class="row" data-code="${esc(c)}"><div class="l"><div class="nm">${cn(c, x.n)}</div>${x.e ? `<div class="sub">法人預估 ${ymd8(x.e.d)} ${esc(x.e.y)} EPS ${fp(x.e.eps)} ${pct(x.e.pct)}</div>` : ''}</div>
+      ${EDIT && editable ? `<div class="ed">${i ? `<button data-mv="up" title="上移">↑</button>` : ''}${i < codes.length - 1 ? `<button data-mv="down" title="下移">↓</button>` : ''}<button data-rm="1" class="rm" title="移除">✕</button></div>`
+        : `<div class="r px"><b>${fp(x.p)}</b><div>${pct(x.c)}</div></div>`}</div>`; };
+  $('#wl').innerHTML = `<div class="card"><h3>${cur === '__hold' ? '💼 持股（從記帳自動帶入）' : esc(cur)}<span class="sub" id="wlAt" style="font-weight:400">${LISTS.open ? '即時 ' + esc(LISTS.at) : '已收盤'}</span>
+      ${editable ? `<button class="more" id="edit">${EDIT ? '完成' : '✏️ 編輯'}</button>` : ''}</h3>
+    ${codes.map(row).join('') || `<div class="empty">${cur === '__hold' ? '記帳 → 股票交易 記一筆買進後就會出現' : '用上面的搜尋框找股票，按 ＋ 加進來'}</div>`}
+    ${EDIT && editable && !(L && L.line) ? `<div class="btns" style="margin-top:12px"><button class="btn sm g" id="lrn">改清單名稱</button><button class="btn sm red" id="ldel">刪除這個清單</button></div>` : ''}
+    ${L && L.line ? '<div class="sub" style="margin-top:8px">這個清單和 LINE 股票檔案小幫手、選股網站共用</div>' : ''}</div>`;
+  if (!EDIT) bindCodes($('#wl'));
+  const e = $('#edit'); if (e) e.onclick = () => { EDIT = !EDIT; paintLists(); };
+  $$('#wl [data-mv]').forEach(b => b.onclick = async ev => { ev.stopPropagation(); const c = b.closest('[data-code]').dataset.code; const arr = L.codes, i = arr.indexOf(c), j = b.dataset.mv === 'up' ? i - 1 : i + 1; arr.splice(j, 0, arr.splice(i, 1)[0]); paintLists(); try { await call('listMove', {list: cur, code: c, dir: b.dataset.mv}); ls.set('lists', LISTS); } catch(x){ toast(x.message); refreshLists(); } });
+  $$('#wl [data-rm]').forEach(b => b.onclick = async ev => { ev.stopPropagation(); const c = b.closest('[data-code]').dataset.code; L.codes = L.codes.filter(x => x !== c); paintLists(); try { await call('listDel', {list: cur, code: c}); ls.set('lists', LISTS); } catch(x){ toast(x.message); refreshLists(); } });
+  const rn = $('#lrn'); if (rn) rn.onclick = () => promptBox('新名稱', cur, async n => { try { await call('listRename', {name: cur, to: n}); SUB.list = n; saveSub(); EDIT = false; await refreshLists(); } catch(x){ toast(x.message, 3500); } });
+  const dl = $('#ldel'); if (dl) dl.onclick = async () => { if (!(await confirmBox('刪除清單「' + cur + '」？裡面的股票會一起移除。'))) return; try { await call('listDrop', {name: cur}); SUB.list = null; EDIT = false; await refreshLists(); } catch(x){ toast(x.message, 3500); } };
+}
+function bindSearch(map){
+  const inp = $('#q'), sg = $('#sugg'); if (!inp) return;
+  inp.oninput = () => {
+    const q = inp.value.trim().toUpperCase();
+    if (!q){ sg.hidden = true; return; }
+    const out = [];
+    for (const c in map){ if (c.indexOf(q) === 0 || map[c].toUpperCase().indexOf(q) >= 0) out.push(c); if (out.length > 40) break; }
+    out.sort((a, b) => (a.indexOf(q) === 0 ? 0 : 1) - (b.indexOf(q) === 0 ? 0 : 1) || a.length - b.length || (a < b ? -1 : 1));
+    if (!out.length && /^\d{4,6}[A-Z]?$/.test(q)) out.push(q);
+    const cur = curList(), canAdd = cur !== '__hold';
+    sg.innerHTML = out.slice(0, 8).map(c => `<div class="sr" data-c="${esc(c)}"><span>${cn(c, map[c])}</span>${canAdd ? `<button class="add" data-add="${esc(c)}">＋</button>` : ''}</div>`).join('') || '<div class="sub">找不到</div>';
+    sg.hidden = false;
+    $$('[data-c]', sg).forEach(el => el.onclick = e => { if (e.target.closest('[data-add]')) return; go('stock', el.dataset.c); });
+    $$('[data-add]', sg).forEach(b => b.onclick = async () => {
+      const c = b.dataset.add; b.textContent = '…';
+      try { const t = await call('listAdd', {list: cur, code: c}); b.textContent = '✓'; toast(cn(c, map[c]) + ' ' + t);
+        const L = LISTS.lists.find(l => l.name === cur); if (L && L.codes.indexOf(c) < 0){ L.codes.push(c); LISTS.info[c] = LISTS.info[c] || {n: map[c]}; paintLists(); }
+        refreshLists(); } catch(e){ b.textContent = '＋'; toast(e.message, 3500); }
+    });
+  };
+  inp.onkeydown = e => { if (e.key === 'Enter'){ const f = $('[data-c]', sg); if (f) go('stock', f.dataset.c); } };
+}
+function promptBox(title, val, fn){
+  modal(title, `<input id="pb" value="${esc(val)}"><div class="btns" style="margin-top:12px"><button class="btn" id="pok" style="flex:1">確定</button></div>`, (m, close) => {
+    const i = $('#pb', m); setTimeout(() => i.focus(), 150);
+    const ok = () => { const v = i.value.trim(); if (!v) return; close(); fn(v); };
+    $('#pok', m).onclick = ok; i.onkeydown = e => { if (e.key === 'Enter') ok(); };
+  });
+}
+
+// ====================== 個股頁（看盤：即時報價、五檔、分時、日K、籌碼）======================
+let LIVE = null;
+async function stockDetail(code){
+  LIVE = null; STK = null;
+  const M = $('#main');
+  const cached = ls.get('stk_' + code, null);
+  $('#ttl').textContent = code + ' ' + ((cached && cached.name) || sname(code));
+  smap().catch(() => {});   // 名稱表背景抓，不卡畫面
+  M.innerHTML = `<button class="btn g sm" id="back" style="margin-bottom:10px">‹ 返回</button><div id="sd">${cached ? '' : loading('抓報價、K 線、籌碼…')}</div>`;
+  $('#back').onclick = () => go('stock');
+  loadCharts().catch(() => {});
+  if (cached) renderStock(code, cached, true);
+  // 報價先來（很快），K 線籌碼後到
+  call('live', {code}).then(l => { LIVE = l; if (SUB.code === code) paintLive(code, true); }).catch(() => {});
+  try {
+    const d = await call('stock', {code});
+    if (VIEW !== 'stock' || SUB.code !== code) return;
+    ls.set('stk_' + code, Object.assign({}, d, {myTx: null}));
+    renderStock(code, d, false);
+  } catch(e){ if (!cached) $('#sd').innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+  clearInterval(POLL);
+  POLL = setInterval(async () => {
+    if (VIEW !== 'stock' || SUB.code !== code || document.hidden) return;
+    if (LIVE && !LIVE.open) return;
+    try { const t = await call('tick', {code}); const old = LIVE && LIVE.q ? LIVE.q.price : null; LIVE = Object.assign(LIVE || {}, t); paintLive(code, false, old); } catch(e){}
+  }, 5000);
+}
+function renderStock(code, d, stale){
+  const b = d.bot || {}, docs = b.docs || {};
+  $('#ttl').textContent = code + ' ' + (d.name || sname(code));
+  let h = '';
+  (d.errs || []).forEach(e => h += `<div class="err">⚠️ ${esc(e)}</div>`);
+  h += `<div class="card" id="qcard">${quoteHtml(d.q, d)}</div>`;
+  h += `<div class="card"><div class="tabsm" id="kt"><button data-k="intr" class="${SUB.kt === 'intr' ? 'on' : ''}">分時</button><button data-k="k66" class="${SUB.kt === 'k66' ? 'on' : ''}">日K 3月</button><button data-k="k132" class="${!SUB.kt || SUB.kt === 'k132' ? 'on' : ''}">日K 6月</button><button data-k="k260" class="${SUB.kt === 'k260' ? 'on' : ''}">日K 1年</button></div>
+    <div class="legend" id="klg"></div><div class="chart" id="ck"></div></div>`;
+  h += `<div class="card" id="book"><h3>📒 五檔</h3><div class="sub">讀取中…</div></div>`;
+  if (d.my && d.my.shares){
+    h += `<div class="card"><h3>💼 我的持股</h3><div class="grid3" style="margin-top:0"><div class="kv"><span class="sub">股數</span><b class="m">${shTxt(d.my.shares)}</b></div>
+      <div class="kv"><span class="sub">均價</span><b class="m">${fp(d.my.avg)}</b></div><div class="kv"><span class="sub">損益(未扣費)</span><b class="m" id="mypl">—</b></div></div></div>`;
+  }
+  h += `<div class="card"><h3>🏦 籌碼（張）</h3>${d.chipErr ? `<div class="err">⚠️ ${esc(d.chipErr)}</div>` : ''}
+    <div class="tabsm" id="cw"><button data-k="all" class="on">三大法人</button><button data-k="f">外資</button><button data-k="it">投信</button><button data-k="dl">自營</button><button data-k="mg">融資券</button></div>
+    <div class="legend" id="clg"></div><div class="chart s" id="cc"></div><div id="csum"></div></div>`;
+  const yrs = (b.est && b.est.years) || {};
+  const ys = Object.keys(yrs).sort().reverse();
+  if (ys.length){
+    h += `<div class="card"><h3>🎯 法人預估 EPS</h3>${ys.map(y => { const a = yrs[y], l = a[a.length - 1];
+      return `<div class="dayh"><b style="color:var(--tx)">${esc(y)} 年</b><span>最新 <b style="color:var(--tx)">${fp(l[1])}</b>（${ymd8(l[0])}）</span></div>
+        <div class="scrollx"><table><tr><th>日期</th><th>EPS</th><th>調幅</th><th>收盤</th></tr>${a.slice(-8).reverse().map(r => `<tr><td>${ymd8(r[0])}${r[4] ? ' 初評' : ''}</td><td>${fp(r[1])}</td><td>${pct(r[2])}</td><td>${fp(r[3])}</td></tr>`).join('')}</table></div>`; }).join('')}</div>`;
+  }
+  if (b.brokers && b.brokers.length){
+    h += `<div class="card"><h3>🏢 券商報告</h3><div class="scrollx"><table><tr><th>日期</th><th>券商</th><th>評等</th><th>目標價</th><th>EPS</th></tr>
+      ${b.brokers.slice(0, 12).map(r => `<tr><td>${esc(String(r.date).slice(5))}</td><td>${esc(r.broker)}</td><td>${esc(r.rating)}</td><td>${fp(r.tp)}</td><td>${fp(r.eps1)}${r.eps2 != null ? '／' + fp(r.eps2) : ''}</td></tr>`).join('')}</table></div></div>`;
+  }
+  if (docs.report || docs.raw || docs.folder){
+    const card = (docs.report && docs.report.card) || null;
+    h += `<div class="card"><h3>📑 整合報告 ${docs.report ? `<span class="sub" style="font-weight:400">${esc(docs.report.date)}</span>` : ''}</h3>
+      ${card ? `<div class="scrollx"><table>${card.map((r, i) => `<tr>${r.map(c => i ? `<td style="white-space:normal;text-align:left;vertical-align:top">${esc(c)}</td>` : `<th style="text-align:left">${esc(c)}</th>`).join('')}</tr>`).join('')}</table></div>` : ''}
+      <div class="btns" style="margin-top:10px">${docs.report ? `<a class="btn sm" style="text-decoration:none" target="_blank" href="${esc(docs.report.url)}">開完整報告</a>` : ''}
+      ${docs.raw ? `<a class="btn sm g" style="text-decoration:none" target="_blank" href="${esc(docs.raw.url)}">小助理資料</a>` : ''}
+      ${docs.memo ? `<a class="btn sm g" style="text-decoration:none" target="_blank" href="${esc(docs.memo.url)}">我的筆記</a>` : ''}
+      ${docs.folder ? `<a class="btn sm g" style="text-decoration:none" target="_blank" href="${esc(docs.folder)}">雲端資料夾</a>` : ''}</div></div>`;
+  }
+  if (b.feed && b.feed.length){
+    const ic = {'偏多': '🔴', '偏空': '🟢', '中性': '⚪'};
+    h += `<div class="card"><h3>🤖 小助理更新</h3>${b.feed.slice(0, 6).map(f => `<div class="art"><span class="sub">${esc(String(f.d).slice(0, 10))}</span> ${ic[f.cls] || ''}<p style="color:var(--tx)">${esc(f.text)}</p></div>`).join('')}</div>`;
+  }
+  if ((d.m_hist && d.m_hist.length) || (d.q_hist && d.q_hist.length)){
+    const m = (d.m_hist || []).slice(-6).reverse(), qh = (d.q_hist || []).slice(-6).reverse();
+    h += `<div class="card"><h3>📦 營收與獲利</h3>
+      ${m.length ? `<div class="scrollx"><table><tr><th>月份</th><th>營收(億)</th><th>年增</th></tr>${m.map(r => `<tr><td>${esc(r.m)}</td><td>${fp(r.rev)}</td><td>${pct(r.yoy)}</td></tr>`).join('')}</table></div>` : ''}
+      ${qh.length ? `<div class="scrollx" style="margin-top:10px"><table><tr><th>季</th><th>EPS</th><th>毛利率</th><th>營益率</th><th>淨利率</th></tr>${qh.map(r => `<tr><td>${esc(String(r.q).slice(0, 7))}</td><td>${fp(r.eps)}</td><td>${fp(r.gm)}%</td><td>${fp(r.om)}%</td><td>${fp(r.nm)}%</td></tr>`).join('')}</table></div>` : ''}</div>`;
+  }
+  if (d.myTx && d.myTx.length) h += `<div class="card"><h3>🧾 我的交易</h3>${d.myTx.map(t => txRow(t)).join('')}</div>`;
+  (d.notes || []).forEach(n => h += `<div class="sub" style="padding:0 4px 10px">💡 ${esc(n)}</div>`);
+  $('#sd').innerHTML = h;
+  bindQuoteBtns(code, d);
+  $$('[data-tx]').forEach(el => el.onclick = () => txForm(d.myTx.find(t => t.id === el.dataset.tx), () => stockDetail(code)));
+  STK = d;
+  loadCharts().then(() => { if (SUB.code !== code) return; drawMain(code); drawChips(d.chip); }).catch(() => { $('#ck').innerHTML = '<div class="empty">圖表載入失敗，按 ↻ 重試</div>'; });
+  $$('#kt button').forEach(x => x.onclick = () => { SUB.kt = x.dataset.k; saveSub(); $$('#kt button').forEach(y => y.classList.toggle('on', y === x)); drawMain(code); });
+  if (LIVE && LIVE.q) paintLive(code, true);
+}
+let STK = null, KCH = null, KSER = null;
+function quoteHtml(q, d){
+  q = q || {};
+  const chg = q.price && q.prev ? q.price - q.prev : null;
+  const lim = q.up && q.price >= q.up ? '<span class="tag h">漲停</span>' : q.down && q.price <= q.down ? '<span class="tag" style="background:var(--downbg);color:var(--down)">跌停</span>' : '';
+  return `<div style="display:flex;align-items:flex-end;gap:10px"><div class="big ${cls(chg)}" id="qp">${fp(q.price)}</div>
+    <div class="${cls(chg)}" style="padding-bottom:5px" id="qc">${chg == null ? '' : sgn(chg) + fp(chg) + '（' + sgn(chg) + fp(chg / q.prev * 100) + '%）'}</div>${lim}
+    <div class="sub" style="margin-left:auto;padding-bottom:6px" id="qt">${q.t ? (LIVE && LIVE.open ? '🔴 即時 ' : '') + esc(q.t) : ''}</div></div>
+    <div class="grid4"><div><span class="sub">開</span> ${fp(q.o)}</div><div><span class="sub">高</span> <span class="up">${fp(q.h)}</span></div><div><span class="sub">低</span> <span class="down">${fp(q.l)}</span></div><div><span class="sub">量</span> ${fmt(q.v)}</div></div>
+    <div class="btns" style="margin-top:10px"><button class="btn sm g" id="bL">⭐ 加入清單${d && d.inLists && d.inLists.length ? '（' + d.inLists.length + '）' : ''}</button>
+    <button class="btn sm g" id="bT">＋記交易</button><button class="btn sm g" id="bR">📑 產生報告</button>
+    <a class="btn sm g" style="text-decoration:none" target="_blank" href="https://tw.tradingview.com/chart/?symbol=${q.ex === 'otc' ? 'TPEX' : 'TWSE'}:${esc(SUB.code || '')}">TradingView</a></div>`;
+}
+function bindQuoteBtns(code, d){
+  const q = (LIVE && LIVE.q) || d.q || {};
+  $('#bL').onclick = () => pickLists(code, d);
+  $('#bT').onclick = () => txForm({code, name: d.name, price: q.price}, () => stockDetail(code));
+  $('#bR').onclick = async () => { if (!(await confirmBox(`要請雲端幫 ${code} ${d.name} 寫整合報告嗎？（會用到 Claude 額度，完成後 LINE 通知）`))) return; try{ const r = await call('report', {code}); toast(r.msg || '已送出', 4000); }catch(e){ toast(e.message, 4000); } };
+}
+async function pickLists(code, d){
+  if (!LISTS) await refreshLists();
+  const names = LISTS.lists.map(l => l.name);
+  const inL = new Set(d.inLists || []);
+  modal('加入清單', names.map(n => `<label class="ck"><input type="checkbox" data-n="${esc(n)}" ${inL.has(n) ? 'checked' : ''}>${esc(n)}</label>`).join('') +
+    `<div class="btns" style="margin-top:12px"><button class="btn" id="lok" style="flex:1">完成</button></div>`, (m, close) => {
+    $('#lok', m).onclick = async () => {
+      close();
+      for (const c of $$('[data-n]', m)){ const n = c.dataset.n, want = c.checked;
+        if (want !== inL.has(n)){ try { await call(want ? 'listAdd' : 'listDel', {list: n, code}); } catch(e){ toast(e.message); } } }
+      d.inLists = $$('[data-n]', m).filter(c => c.checked).map(c => c.dataset.n);
+      $('#bL').textContent = '⭐ 加入清單' + (d.inLists.length ? '（' + d.inLists.length + '）' : '');
+      toast('✅ 已更新清單'); refreshLists();
+    };
+  });
+}
+function paintLive(code, first, old){
+  if (!LIVE || !LIVE.q || !$('#qcard')) return;
+  const q = LIVE.q;
+  $('#qcard').innerHTML = quoteHtml(q, STK || {}); bindQuoteBtns(code, STK || {name: sname(code)});
+  if (old != null && old !== q.price){ const el = $('#qp'); el.classList.add(q.price > old ? 'fu' : 'fd'); }
+  const bk = q.book;
+  if (bk && (bk.bid.length || bk.ask.length)){
+    const mx = Math.max(1, ...bk.bid.map(x => x[1]), ...bk.ask.map(x => x[1]));
+    const rows = [0, 1, 2, 3, 4].map(i => { const b = bk.bid[i] || [], a = bk.ask[i] || [];
+      return `<tr><td class="bv"><i style="width:${(b[1] || 0) / mx * 100}%"></i>${b[1] ? fmt(b[1]) : ''}</td><td class="up">${b[0] ? fp(b[0]) : ''}</td><td class="down">${a[0] ? fp(a[0]) : ''}</td><td class="av"><i style="width:${(a[1] || 0) / mx * 100}%"></i>${a[1] ? fmt(a[1]) : ''}</td></tr>`; }).join('');
+    $('#book').innerHTML = `<h3>📒 五檔<span class="sub" style="font-weight:400">${LIVE.open ? '每 5 秒更新' : '收盤'}</span></h3><table class="bk"><tr><th>買量</th><th>買價</th><th>賣價</th><th>賣量</th></tr>${rows}</table>`;
+  } else if ($('#book')) $('#book').innerHTML = `<h3>📒 五檔</h3><div class="sub">${LIVE.open ? '這檔目前沒有五檔資料' : '收盤後沒有五檔，開盤時間會即時更新'}</div>`;
+  if (STK && STK.my && STK.my.shares && $('#mypl')) $('#mypl').innerHTML = money(Math.round(q.price * STK.my.shares - STK.my.cost));
+  if (first) { if (SUB.kt === 'intr') drawMain(code); }
+  else if (SUB.kt === 'intr' && KSER && LIVE.q.traded){ try { KSER.update({time: Math.floor(Date.now() / 1000) + 8 * 3600, value: q.price}); } catch(e){} }
+}
+function drawMain(code){
+  if (!window.LightweightCharts || !$('#ck')) return;
+  if (KCH){ CHARTS = CHARTS.filter(x => x !== KCH); try { KCH.remove(); } catch(e){} KCH = null; KSER = null; }
+  $('#ck').innerHTML = '';
+  const kt = SUB.kt || 'k132';
+  if (kt === 'intr') return drawIntr();
+  drawK(STK && STK.k, (LIVE && LIVE.q) || (STK && STK.q), +kt.slice(1));
+}
+function drawIntr(){
+  const it = LIVE && LIVE.intr, c = C();
+  $('#klg').innerHTML = '<span style="--c:#868e96">昨收</span>';
+  if (!it || !it.t.length){ $('#ck').innerHTML = `<div class="empty">${LIVE ? '今天還沒有分時資料（開盤後才有）' : '讀取中…'}</div>`; return; }
+  const ch = mkChart($('#ck'), {timeScale: {borderVisible: false, timeVisible: true, secondsVisible: false}, localization: {locale: 'zh-TW'}});
+  KCH = ch;
+  const last = it.p[it.p.length - 1], prev = it.prev || it.p[0];
+  const col = last >= prev ? c.up : c.down;
+  KSER = ch.addAreaSeries({lineColor: col, topColor: col + '40', bottomColor: col + '05', lineWidth: 2, priceLineVisible: false});
+  KSER.setData(it.t.map((t, i) => ({time: t + 8 * 3600, value: it.p[i]})));
+  if (prev) KSER.createPriceLine({price: prev, color: '#868e96', lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: '昨收'});
+  const vs = ch.addHistogramSeries({priceFormat: {type: 'volume'}, priceScaleId: 'v', lastValueVisible: false, priceLineVisible: false});
+  ch.priceScale('v').applyOptions({scaleMargins: {top: 0.82, bottom: 0}});
+  KSER.priceScale().applyOptions({scaleMargins: {top: 0.08, bottom: 0.22}});
+  vs.setData(it.t.map((t, i) => ({time: t + 8 * 3600, value: it.v[i], color: '#868e9688'})));
+  ch.timeScale().fitContent();
+}
+function drawK(k, q, n){
+  const el = $('#ck'); if (!k){ el.innerHTML = '<div class="empty">K 線暫時抓不到，按 ↻ 重試</div>'; return; }
+  const c = C();
+  $('#klg').innerHTML = '<span style="--c:#f59f00">5日</span><span style="--c:#d6336c">20日</span><span style="--c:#4dabf7">60日</span><span style="--c:#868e96">量</span>';
+  const t = k.t.slice(), o = k.o.slice(), hi = k.h.slice(), lo = k.l.slice(), cl = k.c.slice(), v = k.v.slice();
+  if (q && q.d && q.price){ const td = q.d.slice(0, 4) + '-' + q.d.slice(4, 6) + '-' + q.d.slice(6);
+    if (td > t[t.length - 1]){ t.push(td); o.push(q.o || q.price); hi.push(q.h || q.price); lo.push(q.l || q.price); cl.push(q.price); v.push(q.v || 0); }
+    else if (td === t[t.length - 1]){ const i = t.length - 1; cl[i] = q.price; if (q.h) hi[i] = Math.max(hi[i], q.h); if (q.l) lo[i] = Math.min(lo[i], q.l); if (q.v) v[i] = q.v; } }
+  const ch = mkChart(el); KCH = ch;
+  const cs = ch.addCandlestickSeries({upColor: c.up, downColor: c.down, borderUpColor: c.up, borderDownColor: c.down, wickUpColor: c.up, wickDownColor: c.down, priceLineVisible: false});
+  cs.setData(t.map((x, i) => ({time: x, open: o[i], high: hi[i], low: lo[i], close: cl[i]})));
+  [[5, '#f59f00'], [20, '#d6336c'], [60, '#4dabf7']].forEach(([m0, col]) => { const m = sma(cl, m0); const s = ch.addLineSeries({color: col, lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false}); s.setData(t.map((x, i) => m[i] == null ? {time: x} : {time: x, value: m[i]})); });
+  const vs = ch.addHistogramSeries({priceFormat: {type: 'volume'}, priceScaleId: 'v', lastValueVisible: false, priceLineVisible: false});
+  ch.priceScale('v').applyOptions({scaleMargins: {top: 0.82, bottom: 0}});
+  cs.priceScale().applyOptions({scaleMargins: {top: 0.05, bottom: 0.22}});
+  vs.setData(t.map((x, i) => ({time: x, value: v[i], color: cl[i] >= o[i] ? c.up + '66' : c.down + '66'})));
+  ch.timeScale().setVisibleLogicalRange({from: t.length - (n || 132), to: t.length + 1});
+}
+function drawChips(cp){
+  const el = $('#cc'); if (!el) return; if (!cp){ el.innerHTML = '<div class="empty">沒有籌碼資料</div>'; return; }
+  const c = C();
+  const sum = (a, n) => a.slice(-n).reduce((s, x) => s + (x || 0), 0);
+  const nm = {f: '外資', it: '投信', dl: '自營商'};
+  $('#csum').innerHTML = `<div class="scrollx" style="margin-top:8px"><table><tr><th>合計(張)</th><th>今日</th><th>5日</th><th>20日</th><th>60日</th></tr>
+    ${['f', 'it', 'dl'].map(k => `<tr><td>${nm[k]}</td>${[1, 5, 20, 60].map(n => `<td>${money(sum(cp[k], n))}</td>`).join('')}</tr>`).join('')}
+    ${cp.fr.some(x => x != null) ? `<tr><td>外資持股</td><td colspan="4">${fp(cp.fr.filter(x => x != null).slice(-1)[0])}%（60 日前 ${fp(cp.fr.filter(x => x != null).slice(-60)[0])}%）</td></tr>` : ''}
+    ${cp.mg.some(x => x != null) ? `<tr><td>融資餘額</td><td colspan="4">${fmt(cp.mg.filter(x => x != null).slice(-1)[0])} 張・融券 ${fmt(cp.ss.filter(x => x != null).slice(-1)[0])} 張</td></tr>` : ''}</table></div>`;
+  let ch = null;
+  const draw = k => {
+    if (ch){ CHARTS = CHARTS.filter(x => x !== ch); ch.remove(); }
+    ch = mkChart(el);
+    const lg = $('#clg');
+    if (k === 'mg'){
+      lg.innerHTML = '<span style="--c:#e8590c">融資餘額</span><span style="--c:#1c7ed6">融券餘額(右)</span>';
+      const a = ch.addLineSeries({color: '#e8590c', lineWidth: 2, priceLineVisible: false, priceScaleId: 'left'});
+      const b = ch.addLineSeries({color: '#1c7ed6', lineWidth: 2, priceLineVisible: false});
+      ch.applyOptions({leftPriceScale: {visible: true, borderVisible: false}});
+      a.setData(cp.t.map((x, i) => cp.mg[i] == null ? {time: x} : {time: x, value: cp.mg[i]}));
+      b.setData(cp.t.map((x, i) => cp.ss[i] == null ? {time: x} : {time: x, value: cp.ss[i]}));
+    } else {
+      const keys = k === 'all' ? ['f', 'it', 'dl'] : [k];
+      const val = cp.t.map((x, i) => keys.reduce((s, kk) => s + (cp[kk][i] || 0), 0));
+      lg.innerHTML = `<span style="--c:${c.up}">買超</span><span style="--c:${c.down}">賣超</span><span style="--c:#7048e8">累計(右)</span>`;
+      const hs = ch.addHistogramSeries({priceScaleId: 'left', priceLineVisible: false});
+      ch.applyOptions({leftPriceScale: {visible: true, borderVisible: false}});
+      hs.setData(cp.t.map((x, i) => ({time: x, value: val[i], color: val[i] >= 0 ? c.up : c.down})));
+      let acc = 0; const ls2 = ch.addLineSeries({color: '#7048e8', lineWidth: 2, priceLineVisible: false});
+      ls2.setData(cp.t.map((x, i) => ({time: x, value: (acc += val[i])})));
+    }
+    ch.timeScale().setVisibleLogicalRange({from: cp.t.length - 60, to: cp.t.length + 1});
+  };
+  draw('all');
+  $$('#cw button').forEach(b => b.onclick = () => { $$('#cw button').forEach(x => x.classList.toggle('on', x === b)); draw(b.dataset.k); });
+}
+
+// ====================== 資訊（法人預估／產業研究包／報告）======================
+async function vInfo(){
+  const s = SUB.info || 'est';
+  const M = $('#main');
+  M.innerHTML = `<div class="seg" id="seg"><button data-s="est">🎯 法人預估</button><button data-s="ind">🏭 產業研究包</button><button data-s="rep">📑 整合報告</button></div><div id="ib">${loading()}</div>`;
+  $$('#seg button').forEach(b => { b.classList.toggle('on', b.dataset.s === s); b.onclick = () => { SUB.info = b.dataset.s; vInfo(); }; });
+  const B = $('#ib');
+  try {
+    if (s === 'est'){
+      const days = SUB.estDays || 3, mine = !!SUB.estMine;
+      const d = await call('estList', {days, mineOnly: mine});
+      let h = `<div class="tabsm">${[1, 3, 5, 10].map(n => `<button data-d="${n}" class="${n === days ? 'on' : ''}">${n === 1 ? '最新一天' : '近 ' + n + ' 天'}</button>`).join('')}<button id="mo" class="${mine ? 'on' : ''}">只看我的</button></div>`;
+      const filt = SUB.estDir || 'up';
+      h += `<div class="tabsm">${[['up', '上修'], ['down', '下修'], ['init', '初評'], ['all', '全部']].map(([k, t]) => `<button data-f="${k}" class="${k === filt ? 'on' : ''}">${t}</button>`).join('')}</div>`;
+      const rows = d.rows.filter(x => filt === 'all' || (filt === 'up' ? x.pct > 0 : filt === 'down' ? x.pct < 0 : x.init));
+      if (filt === 'down') rows.sort((a, b) => a.d === b.d ? a.pct - b.pct : b.d - a.d);
+      const by = {}; rows.forEach(x => (by[x.d] = by[x.d] || []).push(x));
+      h += Object.keys(by).sort().reverse().map(dd => `<div class="card"><h3>${ymd8(dd)}<span class="sub" style="font-weight:400">${by[dd].length} 筆</span></h3>${by[dd].slice(0, 80).map(estRow).join('')}${by[dd].length > 80 ? `<div class="sub">…還有 ${by[dd].length - 80} 筆</div>` : ''}</div>`).join('') || '<div class="empty">沒有資料</div>';
+      B.innerHTML = h;
+      $$('[data-d]', B).forEach(b => b.onclick = () => { SUB.estDays = +b.dataset.d; vInfo(); });
+      $$('[data-f]', B).forEach(b => b.onclick = () => { SUB.estDir = b.dataset.f; vInfo(); });
+      $('#mo').onclick = () => { SUB.estMine = !mine; vInfo(); };
+      bindCodes(B);
+    } else if (s === 'ind'){
+      let off = 0, q = '';
+      B.innerHTML = `<div class="search"><input id="iq" placeholder="🔍 搜尋標題／摘要，例如 CoWoS、液冷"></div><div class="card" id="il"></div><div style="text-align:center"><button class="btn g" id="im">載入更多</button></div>`;
+      const load = async (reset) => {
+        if (reset){ off = 0; $('#il').innerHTML = loading(); }
+        const d = await call('indList', {offset: off, limit: 40, q});
+        const html = d.items.map(a => artHtml(a, true)).join('');
+        if (reset) $('#il').innerHTML = html || '<div class="empty">找不到</div>'; else $('#il').insertAdjacentHTML('beforeend', html);
+        off += d.items.length; $('#im').hidden = off >= d.total;
+      };
+      let tm; $('#iq').oninput = e => { clearTimeout(tm); tm = setTimeout(() => { q = e.target.value.trim(); load(true); }, 400); };
+      $('#im').onclick = () => load(false);
+      await load(true);
+    } else {
+      const d = await call('repList', {limit: 60});
+      B.innerHTML = `<div class="card">${d.map(repRow).join('') || '<div class="empty">還沒有報告</div>'}</div>`;
+      bindCodes(B);
+    }
+  } catch(e){ B.innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+}
+
+// ====================== 記帳 ======================
+let EN = null;
+async function vBook(){
+  const s = SUB.book || 'life';
+  const M = $('#main');
+  M.innerHTML = `<div class="seg" id="seg"><button data-s="life">🧾 生活收支</button><button data-s="tx">📈 股票交易</button></div><div id="bb">${loading()}</div>`;
+  $$('#seg button').forEach(b => { b.classList.toggle('on', b.dataset.s === s); b.onclick = () => { SUB.book = b.dataset.s; go('book'); }; });
+  if (s === 'life'){ fab(() => enForm(null)); return lifeView(); }
+  fab(() => txForm(null, () => go('book')));
+  return txView();
+}
+async function lifeView(){
+  const B = $('#bb');
+  const month = SUB.month || today().slice(0, 7);
+  try { EN = await call('enList', {month}); } catch(e){ B.innerHTML = `<div class="err">${esc(e.message)}</div>`; return; }
+  if (VIEW !== 'book') return;
+  const rows = EN.rows;
+  const inc = rows.filter(r => r.type === '收入').reduce((s, r) => s + r.amt, 0);
+  const exp = rows.filter(r => r.type === '支出').reduce((s, r) => s + r.amt, 0);
+  const byCat = {}; rows.filter(r => r.type === '支出').forEach(r => byCat[r.cat] = (byCat[r.cat] || 0) + r.amt);
+  const cats = Object.keys(byCat).sort((a, b) => byCat[b] - byCat[a]);
+  const mx = Math.max(1, ...EN.trend.map(t => Math.max(t.inc, t.exp)));
+  let h = `<div class="card"><div style="display:flex;align-items:center"><button class="ib" id="pm">‹</button><div class="mid" style="flex:1;text-align:center">${month.replace('-', ' 年 ')} 月</div><button class="ib" id="nm">›</button></div>
+    <div class="grid3"><div class="kv"><span class="sub">收入</span><b class="up">${fmt(inc)}</b></div><div class="kv"><span class="sub">支出</span><b class="down">${fmt(exp)}</b></div><div class="kv"><span class="sub">結餘</span><b>${money(inc - exp)}</b></div></div></div>`;
+  if (cats.length) h += `<div class="card"><h3>支出分類</h3>${cats.map(c => `<div style="margin-bottom:8px"><div style="display:flex"><span>${esc(c)}</span><span style="margin-left:auto">${fmt(byCat[c])} <span class="sub">${fp(byCat[c] / exp * 100)}%</span></span></div><div class="bar"><div style="width:${byCat[c] / byCat[cats[0]] * 100}%"></div></div></div>`).join('')}</div>`;
+  h += `<div class="card"><h3>近 6 個月</h3><div style="display:flex;align-items:flex-end;gap:6px;height:110px">${EN.trend.map(t => `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;height:100%;justify-content:flex-end">
+     <div style="display:flex;gap:2px;align-items:flex-end;height:86px"><div style="width:9px;background:var(--up);border-radius:3px 3px 0 0;height:${t.inc / mx * 86}px"></div><div style="width:9px;background:var(--down);border-radius:3px 3px 0 0;height:${t.exp / mx * 86}px"></div></div>
+     <span class="sub" style="font-size:11px">${+t.m.slice(5)}月</span></div>`).join('')}</div><div class="legend"><span style="--c:var(--up)">收入</span><span style="--c:var(--down)">支出</span></div></div>`;
+  const byDay = {}; rows.forEach(r => (byDay[r.d] = byDay[r.d] || []).push(r));
+  h += `<div class="card"><h3>明細</h3>${Object.keys(byDay).sort().reverse().map(d => {
+    const dexp = byDay[d].filter(r => r.type === '支出').reduce((s, r) => s + r.amt, 0);
+    return `<div class="dayh">${d.slice(5).replace('-', '/')}（${'日一二三四五六'[new Date(d).getDay()]}）<span>${dexp ? '支出 ' + fmt(dexp) : ''}</span></div>` + byDay[d].map(r => `<div class="row" data-en="${esc(r.id)}"><div class="l"><div class="nm">${esc(r.type === '轉帳' ? '🔁 ' + r.ac + ' → ' + r.to : r.cat)}</div><div class="sub">${esc(r.note || '')}${r.ac && r.type !== '轉帳' ? '・' + esc(r.ac) : ''}</div></div><div class="r"><b class="${r.type === '收入' ? 'up' : r.type === '支出' ? 'down' : ''}">${r.type === '收入' ? '+' : r.type === '支出' ? '-' : ''}${fmt(r.amt)}</b></div></div>`).join('');
+  }).join('') || '<div class="empty">這個月還沒有紀錄，按右下 ＋ 新增</div>'}</div>`;
+  B.innerHTML = h;
+  const shift = n => { const [y, m] = month.split('-').map(Number); const d = new Date(y, m - 1 + n, 1); SUB.month = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); lifeView(); };
+  $('#pm').onclick = () => shift(-1); $('#nm').onclick = () => shift(1);
+  $$('[data-en]').forEach(el => el.onclick = () => enForm(rows.find(r => r.id === el.dataset.en)));
+}
+async function enForm(e){
+  if (!EN){ try{ EN = await call('enList', {}); }catch(x){ return toast(x.message); } }
+  const st = Object.assign({type: '支出', cat: '', amt: '', ac: ls.get('lastAc', (EN.accounts[0] || {}).name || ''), to: '', d: today(), note: ''}, e || {});
+  const acOpts = sel => EN.accounts.map(a => `<option ${a.name === sel ? 'selected' : ''}>${esc(a.name)}</option>`).join('');
+  modal(e ? '編輯紀錄' : '記一筆', `
+    <div class="seg" id="et">${['支出', '收入', '轉帳'].map(t => `<button data-t="${t}">${t}</button>`).join('')}</div>
+    <input class="amt" id="ea" inputmode="decimal" placeholder="0" value="${esc(st.amt)}">
+    <div id="ecw"><label>分類</label><div class="chips" id="ec"></div></div>
+    <label id="eal">帳戶</label><select id="eac"><option value="">（不指定）</option>${acOpts(st.ac)}</select>
+    <div id="etw" hidden><label>轉入帳戶</label><select id="eto">${acOpts(st.to)}</select></div>
+    <div class="grid2" style="margin-top:0"><div><label>日期</label><input type="date" id="ed" value="${esc(st.d)}"></div><div><label>備註</label><input id="en" value="${esc(st.note)}" placeholder="選填"></div></div>
+    <div class="btns" style="margin-top:16px"><button class="btn" id="es" style="flex:1">儲存</button>${e ? '<button class="btn red" id="edl">刪除</button>' : ''}</div>`, (m, close) => {
+    const paint = () => {
+      $$('#et button', m).forEach(b => b.classList.toggle('on', b.dataset.t === st.type));
+      const cats = st.type === '收入' ? EN.incCats : EN.expCats;
+      if (cats.indexOf(st.cat) < 0) st.cat = cats[0];
+      $('#ec', m).innerHTML = cats.map(c => `<button class="${c === st.cat ? 'on' : ''}">${esc(c)}</button>`).join('');
+      $$('#ec button', m).forEach(b => b.onclick = () => { st.cat = b.textContent; paint(); });
+      $('#ecw', m).hidden = st.type === '轉帳'; $('#etw', m).hidden = st.type !== '轉帳';
+      $('#eal', m).textContent = st.type === '轉帳' ? '轉出帳戶' : '帳戶';
+    };
+    $$('#et button', m).forEach(b => b.onclick = () => { st.type = b.dataset.t; paint(); });
+    paint(); if (!e) setTimeout(() => $('#ea', m).focus(), 200);
+    $('#es', m).onclick = async () => {
+      const a = {id: e && e.id, type: st.type, cat: st.cat, amt: $('#ea', m).value, ac: $('#eac', m).value, to: $('#eto', m).value, d: $('#ed', m).value, note: $('#en', m).value};
+      $('#es', m).disabled = true;
+      try { await call('enSave', a); ls.set('lastAc', a.ac); close(); toast('✅ 已儲存'); SUB.month = a.d.slice(0, 7); if (VIEW === 'book') lifeView(); }
+      catch(x){ toast(x.message, 3500); $('#es', m).disabled = false; }
+    };
+    if (e) $('#edl', m).onclick = async () => { if (!(await confirmBox('刪除這筆紀錄？'))) return; try{ await call('enDel', {id: e.id}); close(); toast('已刪除'); lifeView(); }catch(x){ toast(x.message); } };
+  });
+}
+const txRow = t => `<div class="row" data-tx="${esc(t.id)}"><div class="l"><div class="nm">${esc(t.d.slice(5).replace('-', '/'))} ${esc(t.type)} ${cn(t.code, t.name)}</div>
+  <div class="sub">${t.type === '現金股利' ? '' : shTxt(t.sh)}${t.price ? ' @ ' + fp(t.price) : ''}${t.fee ? '・費 ' + fmt(t.fee) : ''}${t.tax ? '・稅 ' + fmt(t.tax) : ''}${t.note ? '・' + esc(t.note) : ''}</div></div><div class="r m">${money(t.net)}</div></div>`;
+async function txView(){
+  const B = $('#bb');
+  let d; try { d = await call('txList'); } catch(e){ B.innerHTML = `<div class="err">${esc(e.message)}</div>`; return; }
+  if (VIEW !== 'book') return;
+  const pf = d.pf;
+  const yrs = Object.keys(Object.assign({}, pf.realizedYear, pf.divYear)).sort().reverse();
+  let h = `<div class="card"><h3>損益</h3><div class="grid2" style="margin-top:0"><div class="kv"><span class="sub">未實現</span><b>${mk(money(pf.unreal))}</b></div><div class="kv"><span class="sub">已實現＋股利</span><b>${mk(money(pf.realized + pf.divs))}</b></div></div>
+    ${yrs.length ? `<div class="scrollx" style="margin-top:8px"><table><tr><th>年度</th><th>已實現</th><th>股利</th><th>合計</th></tr>${yrs.map(y => { const a = pf.realizedYear[y] || 0, b = pf.divYear[y] || 0; return `<tr><td>${y}</td><td>${money(Math.round(a))}</td><td>${money(Math.round(b))}</td><td>${money(Math.round(a + b))}</td></tr>`; }).join('')}</table></div>` : ''}
+    <div class="btns" style="margin-top:10px"><button class="btn sm g" id="imp">從 LINE 小幫手匯入持股</button></div></div>`;
+  if (pf.closed && pf.closed.length) h += `<div class="card"><h3>已出清</h3>${pf.closed.map(x => `<div class="row" data-code="${esc(x.code)}"><div class="l nm">${cn(x.code, x.name)}</div><div class="r">${money(x.realized + x.div)}</div></div>`).join('')}</div>`;
+  const rows = d.rows.sort((a, b) => a.d === b.d ? (a.at < b.at ? 1 : -1) : (a.d < b.d ? 1 : -1));
+  h += `<div class="card"><h3>交易紀錄 <span class="sub" style="font-weight:400">${rows.length} 筆</span></h3>${rows.map(txRow).join('') || '<div class="empty">按右下 ＋ 記第一筆買進</div>'}</div>`;
+  B.innerHTML = h;
+  bindCodes(B);
+  $$('[data-tx]', B).forEach(el => el.onclick = () => txForm(rows.find(t => t.id === el.dataset.tx), () => go('book')));
+  $('#imp').onclick = importHolds;
+}
+async function importHolds(){
+  let list; try { list = await call('botHolds'); } catch(e){ return toast(e.message, 4000); }
+  if (!list.length) return toast('小幫手的持股表是空的');
+  modal('從小幫手匯入', `<div class="sub">勾選要匯入的持股（會記成一筆「買進」，手續費自動估算）。已經在 App 記過的不要重複勾。</div>
+    ${list.map((x, i) => `<label style="display:flex;gap:10px;align-items:center;color:var(--tx);font-size:15px;margin:12px 0"><input type="checkbox" data-i="${i}" checked style="width:20px;height:20px">${cn(x.code, x.name)}・${fmt(x.lots)} 張 @ ${fp(x.price)}${x.user ? ' <span class="sub">' + esc(String(x.user).slice(0, 6)) + '</span>' : ''}</label>`).join('')}
+    <button class="btn" id="go" style="width:100%">匯入</button>`, (m, close) => {
+    $('#go', m).onclick = async () => {
+      const s = (ls.get('home', {}) || {});
+      const rows = $$('[data-i]', m).filter(c => c.checked).map(c => { const x = list[+c.dataset.i]; const sh = Math.round(x.lots * 1000); return {type: '買進', code: x.code, name: x.name, sh, price: x.price, fee: calcFee(sh * x.price), tax: 0, d: x.buyDate || today(), note: '從小幫手匯入'}; });
+      try { const n = await call('txBatch', {rows}); close(); toast('✅ 匯入 ' + n + ' 筆'); go('book'); } catch(e){ toast(e.message, 4000); }
+    };
+  });
+}
+let SET = ls.get('set', {feeDisc: '0.6', minFee: '20'});
+const calcFee = amt => amt > 0 ? Math.max(+SET.minFee || 0, Math.floor(amt * 0.001425 * (+SET.feeDisc || 1))) : 0;
+const calcTax = (code, amt) => Math.floor(amt * (/^00/.test(code) ? 0.001 : 0.003));
+async function txForm(t, after){
+  const map = await smap();
+  const edit = t && t.id;
+  const st = Object.assign({type: '買進', code: '', name: '', sh: '', price: '', fee: '', tax: '', d: today(), note: '', amount: ''}, t || {});
+  if (st.type === '現金股利' && edit) st.amount = st.net + st.fee;
+  let unit = st.sh && st.sh % 1000 === 0 ? 1000 : (edit ? 1 : 1000);
+  modal(edit ? '編輯交易' : '記一筆交易', `
+    <div class="seg" id="tt">${['買進', '賣出', '現金股利', '股票股利'].map(x => `<button data-t="${x}">${x}</button>`).join('')}</div>
+    <label>股票</label><div class="search" style="margin:0"><input id="tc" value="${st.code ? esc(st.code + ' ' + (st.name || map[st.code] || '')) : ''}" placeholder="股號或股名" autocomplete="off"><div class="sugg" id="ts" hidden></div></div>
+    <div id="qw"><label>數量</label><div style="display:flex;gap:8px"><input id="tq" inputmode="decimal" value="${st.sh ? st.sh / unit : ''}" style="flex:1"><div class="seg" style="margin:0;width:120px" id="tu"><button data-u="1000">張</button><button data-u="1">股</button></div></div></div>
+    <div id="pw"><label>成交價</label><input id="tp" inputmode="decimal" value="${esc(st.price || '')}"></div>
+    <div id="aw" hidden><label>入帳金額（現金股利）</label><input id="ta" inputmode="decimal" value="${esc(st.amount || '')}"></div>
+    <div class="grid2" style="margin-top:0" id="fw"><div><label>手續費（自動算，可改）</label><input id="tf" inputmode="decimal" value="${esc(st.fee)}"></div><div id="txw"><label>交易稅</label><input id="tx" inputmode="decimal" value="${esc(st.tax)}"></div></div>
+    <div class="grid2" style="margin-top:0"><div><label>日期</label><input type="date" id="td" value="${esc(st.d)}"></div><div><label>備註</label><input id="tn" value="${esc(st.note)}" placeholder="選填"></div></div>
+    <div class="kv" style="margin-top:12px"><span class="sub">淨收付</span><b id="tnet">—</b></div>
+    <div class="btns" style="margin-top:14px"><button class="btn" id="tsv" style="flex:1">儲存</button>${edit ? '<button class="btn red" id="tdl">刪除</button>' : ''}</div>`, (m, close) => {
+    let feeTouched = !!edit, taxTouched = !!edit;
+    const code = () => (($('#tc', m).value.trim().match(/^\d{4,6}[A-Z]?/i) || [''])[0]).toUpperCase();
+    const qty = () => Math.round((+$('#tq', m).value || 0) * unit);
+    const recalc = () => {
+      const sh = qty(), p = +$('#tp', m).value || 0, amt = Math.round(sh * p);
+      if (!feeTouched) $('#tf', m).value = st.type === '買進' || st.type === '賣出' ? calcFee(amt) : (st.type === '現金股利' ? 10 : 0);
+      if (!taxTouched) $('#tx', m).value = st.type === '賣出' ? calcTax(code(), amt) : 0;
+      const fee = +$('#tf', m).value || 0, tax = +$('#tx', m).value || 0;
+      const net = st.type === '買進' ? -(amt + fee) : st.type === '賣出' ? amt - fee - tax : st.type === '現金股利' ? (+$('#ta', m).value || 0) - fee : 0;
+      $('#tnet', m).innerHTML = money(net);
+    };
+    const paint = () => {
+      $$('#tt button', m).forEach(b => b.classList.toggle('on', b.dataset.t === st.type));
+      $$('#tu button', m).forEach(b => b.classList.toggle('on', +b.dataset.u === unit));
+      $('#qw', m).hidden = st.type === '現金股利'; $('#pw', m).hidden = st.type === '現金股利' || st.type === '股票股利';
+      $('#aw', m).hidden = st.type !== '現金股利'; $('#txw', m).hidden = st.type !== '賣出'; $('#fw', m).hidden = st.type === '股票股利';
+      recalc();
+    };
+    $$('#tt button', m).forEach(b => b.onclick = () => { st.type = b.dataset.t; feeTouched = taxTouched = false; paint(); });
+    $$('#tu button', m).forEach(b => b.onclick = () => { const sh = qty(); unit = +b.dataset.u; $('#tq', m).value = sh ? sh / unit : ''; paint(); });
+    ['#tq', '#tp', '#ta'].forEach(s => $(s, m).oninput = recalc);
+    $('#tf', m).oninput = () => { feeTouched = true; recalc(); }; $('#tx', m).oninput = () => { taxTouched = true; recalc(); };
+    const tc = $('#tc', m), ts = $('#ts', m);
+    tc.oninput = () => {
+      const q = tc.value.trim().toUpperCase(); if (!q){ ts.hidden = true; return; }
+      const out = []; for (const c in map){ if (c.indexOf(q) === 0 || map[c].toUpperCase().indexOf(q) >= 0) out.push(c); if (out.length > 20) break; }
+      ts.innerHTML = out.slice(0, 6).map(c => `<div data-c="${esc(c)}">${cn(c, map[c])}</div>`).join(''); ts.hidden = !out.length;
+      $$('[data-c]', ts).forEach(el => el.onclick = () => { tc.value = el.dataset.c + ' ' + map[el.dataset.c]; ts.hidden = true; recalc(); });
+    };
+    paint();
+    $('#tsv', m).onclick = async () => {
+      const c = code(); if (!c) return toast('請選股票');
+      const a = {id: edit ? t.id : '', type: st.type, code: c, name: map[c] || st.name || '', sh: qty(), price: +$('#tp', m).value || 0, fee: +$('#tf', m).value || 0,
+        tax: +$('#tx', m).value || 0, amount: +$('#ta', m).value || 0, d: $('#td', m).value, note: $('#tn', m).value};
+      if (st.type === '現金股利') a.sh = 0;
+      $('#tsv', m).disabled = true;
+      try { await call('txSave', a); close(); toast('✅ 已儲存'); ls.set('home', null); if (after) after(); }
+      catch(x){ toast(x.message, 3500); $('#tsv', m).disabled = false; }
+    };
+    if (edit) $('#tdl', m).onclick = async () => { if (!(await confirmBox('刪除這筆交易？'))) return; try{ await call('txDel', {id: t.id}); close(); toast('已刪除'); if (after) after(); }catch(x){ toast(x.message); } };
+  });
+}
+
+// ====================== 資產 ======================
+async function vAsset(){
+  const M = $('#main');
+  M.innerHTML = loading();
+  let d; try { d = await call('assets'); } catch(e){ M.innerHTML = `<div class="err">${esc(e.message)}</div>`; return; }
+  if (VIEW !== 'asset') return;
+  const asA = d.accounts.filter(a => a.kind !== '負債'), liA = d.accounts.filter(a => a.kind === '負債');
+  const acRow = a => `<div class="row" data-ac="${esc(a.id)}"><div class="l"><div class="nm">${esc(a.name)}${a.name === d.settle ? '<span class="tag">股票交割</span>' : ''}</div><div class="sub">${esc(a.cat || a.kind)}${a.note ? '・' + esc(a.note) : ''}</div></div><div class="r"><b class="m">${fmt(a.bal)}</b></div></div>`;
+  let h = `<div class="card"><div class="sub">淨資產＝現金存款＋股票市值－負債</div><div class="big">${mk(fmt(d.net))}</div>
+    <div class="grid3"><div class="kv"><span class="sub">現金存款</span><b>${mk(fmt(d.cash))}</b></div><div class="kv"><span class="sub">股票</span><b>${mk(fmt(d.stock))}</b></div><div class="kv"><span class="sub">負債</span><b>${mk(fmt(d.debt))}</b></div></div></div>`;
+  h += `<div class="card"><h3>📈 淨資產走勢<button class="more" id="snap">記錄今天</button></h3>${d.snaps.length > 1 ? '<div class="chart s mchart" id="nc"></div>' : '<div class="empty">每天下午 2:40 自動記一筆，累積幾天就會出現走勢圖</div>'}</div>`;
+  h += `<div class="card"><h3>🏦 資產帳戶</h3>${asA.map(acRow).join('') || '<div class="empty">沒有帳戶</div>'}<div class="row" id="gostk"><div class="l nm">📊 股票市值</div><div class="r"><b class="m">${fmt(d.stock)}</b></div></div></div>`;
+  h += `<div class="card"><h3>💳 負債</h3>${liA.map(acRow).join('') || '<div class="empty">沒有負債帳戶（信用卡、貸款可以加在這）</div>'}</div>`;
+  h += `<div class="sub" style="padding:0 4px 12px">💡 帳戶餘額＝你最後一次「校正」的金額＋之後新記的收支／轉帳（補記校正日以前的舊帳不會重複算）${d.settle ? '＋股票買賣（交割帳戶）' : ''}。跟銀行對不上時，點帳戶 → 校正成銀行 App 上的數字就好。</div>`;
+  M.innerHTML = h;
+  fab(() => acForm(null));
+  $$('[data-ac]').forEach(el => el.onclick = () => acForm(d.accounts.find(a => a.id === el.dataset.ac)));
+  $('#gostk').onclick = () => go('home');
+  $('#snap').onclick = async () => { try{ await call('snapNow'); toast('✅ 已記錄'); vAsset(); }catch(e){ toast(e.message); } };
+  if (d.snaps.length > 1) loadCharts().then(() => {
+    if (VIEW !== 'asset' || !$('#nc')) return;
+    const c = C(); const ch = mkChart($('#nc'));
+    ch.applyOptions({localization: {locale: 'zh-TW', dateFormat: 'yyyy/MM/dd', priceFormatter: v => (v / 10000).toFixed(v >= 1e6 ? 0 : 1) + '萬'}});
+    const s = ch.addAreaSeries({lineColor: c.pri, topColor: c.pri + '55', bottomColor: c.pri + '05', lineWidth: 2, priceLineVisible: false});
+    s.setData(d.snaps.map(x => ({time: x.d, value: x.net}))); ch.timeScale().fitContent();
+  }).catch(() => {});
+}
+function acForm(a){
+  const st = Object.assign({name: '', kind: '資產', cat: '銀行', note: '', bal: ''}, a || {});
+  const cats = {資產: ['現金', '銀行', '證券交割', '外幣', '電子支付', '定存', '保單', '其他'], 負債: ['信用卡', '房貸', '信貸', '車貸', '其他']};
+  modal(a ? '帳戶：' + a.name : '新增帳戶', `
+    ${a ? `<div class="kv"><span class="sub">目前餘額（App 算的）</span><b class="mid">${fmt(a.bal)}</b></div>
+      <label>校正餘額（輸入銀行／信用卡 App 上的實際金額${a.kind === '負債' ? '，欠款填正數' : ''}）</label><div style="display:flex;gap:8px"><input id="cb" inputmode="decimal" placeholder="${a.bal}"><button class="btn" id="cbs" style="white-space:nowrap">校正</button></div><hr style="border:0;border-top:1px solid var(--line);margin:16px 0 4px">` : ''}
+    <div class="seg" id="ak" style="margin-top:10px"><button data-k="資產">資產</button><button data-k="負債">負債</button></div>
+    <label>名稱</label><input id="an" value="${esc(st.name)}" placeholder="例如：玉山銀行、國泰信用卡">
+    <label>類別</label><div class="chips" id="acat"></div>
+    ${a ? '' : `<label>目前餘額${st.kind === '負債' ? '（欠款）' : ''}</label><input id="ab" inputmode="decimal" placeholder="0">`}
+    <label>備註</label><input id="ano" value="${esc(st.note)}" placeholder="選填">
+    <div class="btns" style="margin-top:16px"><button class="btn" id="as" style="flex:1">儲存</button>${a ? '<button class="btn red" id="adl">刪除</button>' : ''}</div>`, (m, close) => {
+    const paint = () => {
+      $$('#ak button', m).forEach(b => b.classList.toggle('on', b.dataset.k === st.kind));
+      if (cats[st.kind].indexOf(st.cat) < 0) st.cat = cats[st.kind][0];
+      $('#acat', m).innerHTML = cats[st.kind].map(c => `<button class="${c === st.cat ? 'on' : ''}">${c}</button>`).join('');
+      $$('#acat button', m).forEach(b => b.onclick = () => { st.cat = b.textContent; paint(); });
+    };
+    $$('#ak button', m).forEach(b => b.onclick = () => { st.kind = b.dataset.k; paint(); }); paint();
+    $('#as', m).onclick = async () => {
+      const x = {id: a && a.id, name: $('#an', m).value, kind: st.kind, cat: st.cat, note: $('#ano', m).value};
+      if (!a) x.base = +$('#ab', m).value || 0;
+      try { await call('acSave', x); close(); toast('✅ 已儲存'); vAsset(); } catch(e){ toast(e.message, 3500); }
+    };
+    if (a){
+      $('#cbs', m).onclick = async () => { const v = $('#cb', m).value; if (v === '') return toast('請輸入金額'); try{ await call('acCalibrate', {id: a.id, balance: +v}); close(); toast('✅ 已校正'); vAsset(); }catch(e){ toast(e.message); } };
+      $('#adl', m).onclick = async () => { if (!(await confirmBox('刪除帳戶「' + a.name + '」？（收支紀錄會保留）'))) return; try{ await call('acDel', {id: a.id}); close(); vAsset(); }catch(e){ toast(e.message); } };
+    }
+  });
+}
+
+// ====================== 設定 ======================
+async function openSettings(){
+  const close0 = modal('設定', loading());
+  let s; try { s = await call('settings'); } catch(e){ close0(); return toast(e.message, 4000); }
+  close0();
+  SET = s.set; ls.set('set', SET);
+  modal('設定', `
+    <h3 style="margin:8px 0 0">🔗 LINE 股票檔案小幫手</h3>
+    <div class="sub">有填才看得到整合報告、券商明細、小助理、可以按鈕產生報告。</div>
+    <label>小幫手網址（結尾 /exec）</label><input id="su" value="${esc(s.botUrl)}" placeholder="https://script.google.com/macros/s/…/exec">
+    <label>KEY（小幫手指令碼屬性的 SCRAPE_KEY）${s.hasBotKey ? ' ✅已填' : ''}</label><input id="sk" type="password" placeholder="${s.hasBotKey ? '已填，要換才輸入' : '貼上 KEY'}">
+    <label>FinMind token（選填，K 線／籌碼較不會被限流）${s.hasFinmind ? ' ✅已填' : ''}</label><input id="sf" type="password" placeholder="${s.hasFinmind ? '已填，要換才輸入' : '貼上 token'}">
+    <div class="btns" style="margin-top:8px"><button class="btn sm g" id="stb">測試小幫手連線</button></div>
+    <h3 style="margin:18px 0 0">📈 股票交易</h3>
+    <div class="grid2" style="margin-top:0"><div><label>手續費折數</label><input id="sd" inputmode="decimal" value="${esc(s.set.feeDisc)}"></div><div><label>最低手續費</label><input id="sm" inputmode="decimal" value="${esc(s.set.minFee)}"></div></div>
+    <label>股票交割帳戶（買股票自動從這裡扣錢）</label><select id="sa"><option value="">（不連動）</option>${s.accounts.map(a => `<option ${a.name === s.set.settleAccount ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}</select>
+    <h3 style="margin:18px 0 0">🧾 記帳分類（用逗號分開）</h3>
+    <label>支出</label><textarea id="se" rows="3">${esc(s.set.expCats)}</textarea>
+    <label>收入</label><textarea id="si" rows="2">${esc(s.set.incCats)}</textarea>
+    <div class="btns" style="margin-top:16px"><button class="btn" id="ss" style="flex:1">儲存</button></div>
+    <div class="sub" style="margin-top:16px">${s.dataUrl ? `📄 <a href="${esc(s.dataUrl)}" target="_blank">打開記帳資料試算表</a>（可以直接在裡面改）<br>` : ''}
+    排程：${s.triggers.length ? esc(s.triggers.join('、')) : '<b>還沒建立</b> <button class="btn sm g" id="sinit">建立</button>'}<br>版本 ${esc(s.ver)}</div>`, (m, close) => {
+    $('#stb', m).onclick = async () => { await save(false); try{ const r = await call('testBot'); toast('✅ 連上小幫手 ' + (r.v || '')); }catch(e){ toast('❌ ' + e.message, 4500); } };
+    const save = async (doClose) => {
+      const a = {botUrl: $('#su', m).value.trim(), feeDisc: $('#sd', m).value, minFee: $('#sm', m).value, settleAccount: $('#sa', m).value, expCats: $('#se', m).value, incCats: $('#si', m).value};
+      if ($('#sk', m).value) a.botKey = $('#sk', m).value; if ($('#sf', m).value) a.finmind = $('#sf', m).value;
+      try { const r = await call('saveSettings', a); SET = r.set; ls.set('set', SET); if (doClose){ close(); toast('✅ 已儲存'); go(VIEW); } } catch(e){ toast(e.message, 4000); throw e; }
+    };
+    $('#ss', m).onclick = () => save(true).catch(() => {});
+    const si = $('#sinit', m); if (si) si.onclick = async () => { try{ await call('init'); toast('✅ 已建立'); close(); openSettings(); }catch(e){ toast(e.message); } };
+  });
+}
+
+applyPriv();
+(function boot(){
+  if (!CFG && !window.__testApi) return pairScreen();
+  const l = ls.get('last', null); try { if (l && TITLES[l.v]) return go(l.v, l.arg || undefined); } catch(e){} go('home'); })();
+// 離線也能秒開：把畫面檔存在手機（新版本會在下次打開時自動換上）
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>
