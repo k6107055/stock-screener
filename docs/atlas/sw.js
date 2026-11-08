@@ -1,5 +1,5 @@
 // Atlas：把畫面檔存在手機，打開秒出現；有新版會在背景下載，下次打開就換上
-const V = 'atlas-shell-v3';
+const V = 'atlas-shell-v4';
 const SHELL = ['./', './index.html', './icon-180.png', './icon-192.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(V).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => {
