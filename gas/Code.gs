@@ -1,5 +1,5 @@
 /**
- * LINE 股票檔案小幫手 v2.19（v2.19 報告提速：小助理抓好（或美股／產業工作建立）就用 API 立刻叫雲端寫報告，不再等整點排程；v2.18 省額度：選股自動報告與每日名單推播預設關閉、小助理抓好不再單獨推播（併入報告完成通知）；v2.17 選股網站超額利潤階段；v2.16 選股網站：個股法人預估／小助理／我的關注；v2.15 報告加入供應鏈順序、上下修性質、EPS 時間軸；同步上修雷達；v2.14 主程式放 GitHub，由啟動程式載入；v2.13 一鍵更新：GitHub＋Apps Script＋竄改猴；v2.12 X 長文抓全文＋圖片文字、存檔後自我檢查完整度；v2.11 連結不再卡住沒回應、額度查詢；v2.10 自動報告標示來源＋可關閉；v2.9 股號一律附股名、筆記判斷修正與一鍵改；v2.8 清單裡沒有的股號即時查證交所；v2.7 指令可打股名；補齊上櫃股票清單；v2.6 提高連結判斷準確率＋分錯了一鍵改；v2.5 一則多檔股票的整理自動拆到各公司；v2.4 圖片／PDF 用文字辨識判斷股票；v2.3 文字筆記 memo 自動歸檔；v2.2 報告改為決策卡＋證據的精簡版；v2.1 報告加入超額利潤期判斷；v2.0 美股：歸檔＋整合報告；小助理更新重點：追蹤推播 08:30／21:00、雷達、歷史紀錄）
+ * LINE 股票檔案小幫手 v2.20（v2.20 報告不再卡在待抓取：常開電腦沒開或優分析被登出時，自動改由雲端寫（沿用最近一份小助理＋網路最新資料）；v2.19 報告提速：小助理抓好（或美股／產業工作建立）就用 API 立刻叫雲端寫報告，不再等整點排程；v2.18 省額度：選股自動報告與每日名單推播預設關閉、小助理抓好不再單獨推播（併入報告完成通知）；v2.17 選股網站超額利潤階段；v2.16 選股網站：個股法人預估／小助理／我的關注；v2.15 報告加入供應鏈順序、上下修性質、EPS 時間軸；同步上修雷達；v2.14 主程式放 GitHub，由啟動程式載入；v2.13 一鍵更新：GitHub＋Apps Script＋竄改猴；v2.12 X 長文抓全文＋圖片文字、存檔後自我檢查完整度；v2.11 連結不再卡住沒回應、額度查詢；v2.10 自動報告標示來源＋可關閉；v2.9 股號一律附股名、筆記判斷修正與一鍵改；v2.8 清單裡沒有的股號即時查證交所；v2.7 指令可打股名；補齊上櫃股票清單；v2.6 提高連結判斷準確率＋分錯了一鍵改；v2.5 一則多檔股票的整理自動拆到各公司；v2.4 圖片／PDF 用文字辨識判斷股票；v2.3 文字筆記 memo 自動歸檔；v2.2 報告改為決策卡＋證據的精簡版；v2.1 報告加入超額利潤期判斷；v2.0 美股：歸檔＋整合報告；小助理更新重點：追蹤推播 08:30／21:00、雷達、歷史紀錄）
  * ------------------------------------------------------------
  * v1.0 功能：把 PDF 轉傳給 LINE bot → 自動判斷股票／產業 → 重新命名
  *            → 存進 Google 雲端對應資料夾（沒有就自動建立）→ LINE 回報
@@ -89,6 +89,7 @@ function doPost(e) {
 
 function doGet(e) {
   const p = (e && e.parameter) || {};
+  if (p.key && checkScrapeKey(p)) prop('LAST_SEEN', String(Date.now()));   // v2.20 常開電腦有沒有連線（不管有沒有登入優分析）
   if (p.action === 'nextJob') return json(scraperNextJob(p)); // 竄改猴取件
   if (p.action === 'nextReport') return json(runnerNextReport(p)); // Windows 小程式領報告工作
   if (p.action === 'pack') return json(runnerPack(p));             // 指定股票的資料包（Gemini 測試用）
@@ -988,8 +989,9 @@ function requestReport(input, uid, force, note) {
     '完成後只推一則訊息：整合報告＋小助理原文連結一起給你。'];
   const lastPoll = Number(prop('LAST_POLL') || 0);
   if (Date.now() - lastPoll > 3 * 60 * 1000) {
-    lines.push('', '⚠️ Edge 上的抓取腳本最近 3 分鐘沒有回報。請確認常開的電腦上 Edge 開著優分析頁面、而且還在登入狀態。');
+    lines.push('', 'ℹ️ 常開電腦目前抓不到小助理（' + scraperDownReason() + '）。不用處理：' + FALLBACK_MIN + ' 分鐘內會自動改由雲端寫，沿用最近一份小助理＋網路最新資料。');
   }
+  try { quickFallback(); } catch (e) {}   // v2.20 電腦早就離線 → 立刻改雲端，不用等
   return text(lines.join('\n'));
 }
 
@@ -1144,6 +1146,7 @@ function checkReports() {
   try {
     const sh = getJobSheet();
     const rows = jobRows(sh);
+    fallbackToCloud(sh, rows);   // v2.20
     rows.forEach(function (j) {
       if (j.status !== '已抓取') return;
       const report = findReportDoc(j);
@@ -1665,7 +1668,40 @@ function completeJob(sh, j, report) {
   setJob(sh, j.row, { status: '完成', reportUrl: report.getUrl(), summary: summary, note: auto ? AUTO_NOTE : '' });
   j.status = '完成';
   pushAll([text((auto ? '🤖 選股系統自動做的｜' : '') + '📊 ' + jobLabel(j) + ' 整合報告完成\n' + (summary ? summary + '\n' : '') +
-    '\n📑 整合報告：\n' + report.getUrl() + (j.dataUrl ? '\n\n📖 小助理原文：\n' + j.dataUrl : ''))]);
+    '\n📑 整合報告：\n' + report.getUrl() + (j.dataUrl ? '\n\n📖 小助理原文：\n' + j.dataUrl : '') +
+    (String(j.note).indexOf(OFFLINE_NOTE) >= 0 ? '\n\nℹ️ 這次常開電腦沒抓到新的小助理，報告沿用最近一份小助理＋網路最新資料。' : ''))]);
+}
+
+// ===== v2.20 常開電腦沒開／優分析被登出 → 不要卡在待抓取，自動改由雲端寫 =====
+const FALLBACK_MIN = 10;          // 待抓取超過 10 分鐘沒人領 → 改雲端
+const OFFLINE_NOTE = '電腦離線：未抓小助理';
+
+function quickFallback() {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) return;
+  try { const sh = getJobSheet(); fallbackToCloud(sh, jobRows(sh)); } finally { lock.releaseLock(); }
+  kickReport();
+}
+
+function scraperDownReason() {
+  const seen = Number(prop('LAST_SEEN') || 0);
+  if (Date.now() - seen > 5 * 60 * 1000) return '常開電腦沒開機、Edge 沒開，或沒開優分析頁面' + (seen ? '；最後連線 ' + Utilities.formatDate(new Date(seen), TZ, 'MM/dd HH:mm') : '');
+  return '電腦有開，但優分析被登出了';
+}
+
+function fallbackToCloud(sh, rows) {
+  const seen = Number(prop('LAST_SEEN') || 0), poll = Number(prop('LAST_POLL') || 0);
+  const scraperDown = Date.now() - Math.max(poll, 0) > 5 * 60 * 1000;   // 最近 5 分鐘沒有「已登入」的取件
+  const pcOffline = Date.now() - seen > FALLBACK_MIN * 60 * 1000;        // 電腦已經 10 分鐘完全沒連線 → 不用等
+  rows.forEach(function (j) {
+    const waitMin = j.created ? (Date.now() - j.created.getTime()) / 60000 : 999;
+    const stuck = (j.status === '待抓取' && scraperDown && (pcOffline || waitMin >= FALLBACK_MIN)) ||
+      (j.status === '抓取中' && j.updated && Date.now() - j.updated.getTime() > 30 * 60000);   // 抓到一半斷線
+    if (!stuck) return;
+    const note = OFFLINE_NOTE + '（' + scraperDownReason() + '）';
+    setJob(sh, j.row, { status: '已抓取', note: (j.note ? j.note + '；' : '') + note });
+    j.status = '已抓取'; j.note = (j.note ? j.note + '；' : '') + note;
+  });
 }
 
 // ===== v1.4 報告規則（Claude Code、Gemini 共用；改這裡就兩邊一起改） =====
@@ -4090,7 +4126,7 @@ function fetchXPostFull(url) {
 
 
 // v2.14 一鍵更新改由「啟動程式」（Apps Script 裡的 Code.gs）負責；這份主程式放在 GitHub 的 gas/Code.gs
-const APP_VERSION = 'v2.18';
+const APP_VERSION = 'v2.20';
 
 // ===== v2.13 清理暫存屬性（指令碼屬性超過 50 個時，畫面會變唯讀）=====
 function cleanupProps() {
