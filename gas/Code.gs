@@ -185,6 +185,17 @@ function handleText(ev) {
     return reply(ev.replyToken, [text(r.ok ? '✅ 金鑰已設定，連線測試成功。\n之後小助理一抓好就會立刻開始寫整合報告（不用再等整點）。\n這則訊息含金鑰，建議長按刪除。' : '❌ 金鑰已存，但連線測試失敗：' + r.error + '\n請確認貼的是「API 觸發」產生的整串 token。')]);
   }
 
+  // v2.23 一鍵連結 Atlas：回一條專屬連結，手機點開 Atlas 就自動記住小幫手網址＋KEY（只回給管理者本人）
+  if (/^連結\s*atlas$/i.test(t)) {
+    if (!isAdmin(CUR_UID)) return reply(ev.replyToken, [text('這個指令只有管理者能用。')]);
+    let u = prop('SELF_URL') || '';
+    if (!u) { try { u = String(ScriptApp.getService().getUrl() || ''); } catch (e) { u = ''; } }
+    const k = prop('SCRAPE_KEY');
+    if (!/^https:\/\/script\.google\.com\/.+\/exec$/.test(u) || !k) return reply(ev.replyToken, [text('❌ 找不到小幫手自己的網址或 SCRAPE_KEY（' + (u || '無網址') + '），請回報給 Claude。')]);
+    const link = 'https://k6107055.github.io/stock-screener/atlas/#bot=' + encodeURIComponent(u) + '&bk=' + encodeURIComponent(k);
+    return reply(ev.replyToken, [text('🔗 連結 Atlas（兩步）：\n① 長按下一則訊息 → 拷貝\n② 打開主畫面的 Atlas → 右上 ⚙️ → 按「📋 貼上小幫手連結」→ 儲存\n\n完成後 Atlas 就能一鍵做報告。這串含金鑰，用完建議長按刪除。'), text(link)]);
+  }
+
   // v1.5：訊息裡有連結 → 抓下來當資料（前面可加股號，例如「3443 https://...」）
   if (/https?:\/\/\S+/i.test(t)) return handleLinks(ev, t);
 
@@ -4137,7 +4148,7 @@ function fetchXPostFull(url) {
 
 
 // v2.14 一鍵更新改由「啟動程式」（Apps Script 裡的 Code.gs）負責；這份主程式放在 GitHub 的 gas/Code.gs
-const APP_VERSION = 'v2.22';
+const APP_VERSION = 'v2.23';
 
 // ===== v2.13 清理暫存屬性（指令碼屬性超過 50 個時，畫面會變唯讀）=====
 function cleanupProps() {

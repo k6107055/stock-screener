@@ -16,7 +16,6 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="preconnect" href="https://script.google.com">
 <link rel="preconnect" href="https://script.googleusercontent.com">
-<link rel="preconnect" href="https://unpkg.com">
 <style>
 :root{
   --bg:#f4f5f7;--card:#fff;--tx:#1d2129;--sub:#6b7280;--line:#e5e7eb;--pri:#2563eb;--pri2:#dbeafe;
@@ -126,6 +125,15 @@ table.bk td i{position:absolute;top:3px;bottom:3px;opacity:.18;border-radius:3px
 table.bk td.bv i{right:0;background:var(--up)}table.bk td.av i{left:0;background:var(--down)}
 @keyframes fu{0%{background:var(--upbg)}100%{background:transparent}}@keyframes fd{0%{background:var(--downbg)}100%{background:transparent}}
 .fu{animation:fu 1.2s ease-out}.fd{animation:fd 1.2s ease-out}
+#lv{font-size:11.5px;color:var(--sub);white-space:nowrap;font-variant-numeric:tabular-nums}
+#lv .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#22c55e;margin-right:4px;vertical-align:1px;animation:pl 1.6s ease-in-out infinite}
+#lv.bad .dot{background:#f59f00;animation:none}
+@keyframes pl{0%,100%{opacity:1}50%{opacity:.25}}
+.tl .yr{display:flex;align-items:center;gap:8px;padding:3px 0;font-size:14px}
+.tl .yr b{font-variant-numeric:tabular-nums}
+.tl .yr .pill{margin-left:auto}
+.pill.flat{background:var(--bg);color:var(--sub)}
+.verdict{font-size:14px;padding:8px 10px;border-radius:10px;background:var(--bg);margin-top:8px}
 /* iOS 手感：不要長按選字／放大鏡、不要整頁橡皮筋、點擊有回饋 */
 html,body{overscroll-behavior-y:none}
 body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-text-size-adjust:100%;touch-action:manipulation}
@@ -171,14 +179,14 @@ body:not(.priv) .privhint{display:none}
 </style>
 </head>
 <body>
-<header><button class="ib" id="btnBack" hidden aria-label="上一頁">‹</button><h1 id="ttl">Atlas</h1><button class="ib" id="btnEye" title="顯示／隱藏金額">🙈</button><button class="ib" id="btnRef" title="重新整理">↻</button><button class="ib" id="btnSet" title="設定">⚙️</button></header>
+<header><button class="ib" id="btnBack" hidden aria-label="上一頁">‹</button><h1 id="ttl">Atlas</h1><span id="lv"></span><button class="ib" id="btnEye" title="顯示／隱藏金額">🙈</button><button class="ib" id="btnRef" title="重新整理">↻</button><button class="ib" id="btnSet" title="設定">⚙️</button></header>
 <div id="ptr"><i>↓</i><span>下拉重新整理</span></div><div id="swipeShade"></div><main id="main"></main>
 <nav id="nav">
-  <button data-v="home" class="on"><i>💼</i>庫存</button>
-  <button data-v="stock"><i>📈</i>自選</button>
-  <button data-v="pick"><i>🧲</i>選股</button>
+  <button data-v="stock" class="on"><i>📈</i>自選</button>
+  <button data-v="home"><i>💼</i>庫存</button>
   <button data-v="info"><i>📰</i>資訊</button>
   <button data-v="book"><i>📝</i>記帳</button>
+  <button data-v="pick"><i>🧲</i>選股</button>
   <button data-v="asset"><i>💰</i>資產</button>
 </nav>
 <script>
@@ -253,7 +261,7 @@ function rerender(){
     const ae = document.activeElement;
     if ($('.mask') || (ae && /INPUT|TEXTAREA|SELECT/.test(ae.tagName))) return;
     const y = window.scrollY; const f = Fab(); if (f) f.remove(); destroyCharts();
-    ({home: vHome, stock: vStock, pick: vPick, info: vInfo, book: vBook, asset: vAsset})[VIEW](VIEW === 'stock' ? (SUB.code || undefined) : undefined);
+    VIEWS()[VIEW](VIEW === 'stock' ? (SUB.code || undefined) : VIEW === 'est' ? CUR.arg : undefined);
     requestAnimationFrame(() => window.scrollTo(0, y));
   }, 60);
 }
@@ -264,11 +272,25 @@ function prefetchAll(){
   const jobs = [['estList', {days: SUB.estDays || 3, mineOnly: !!SUB.estMine}], ['repList', {limit: 60}], ['indList', {offset: 0, limit: 40, q: ''}],
     ['enList', {month: SUB.month || today().slice(0, 7)}], ['txList', {}], ['assets', {}]];
   jobs.forEach(([op, a], i) => setTimeout(() => { const hit = RC[ckey(op, a)] || ls.get('rc_' + ckey(op, a), null); if (!hit || Date.now() - hit.t > FRESH_MS) fetchFresh(op, a).catch(() => {}); }, 300 * i));
-  rawCall('lists').then(d => { LISTS = d; ls.set('lists', d); }).catch(() => {});
+  rawCall('lists').then(d => { LISTS = d; ls.set('lists', d); prefetchStocks(); }).catch(() => {});
+  setTimeout(() => loadCharts().catch(() => {}), 1500);
   gh('rank.json', 1800000).catch(() => {});
 }
+// 持股和目前自選清單前幾檔：背景先把 K 線抓好存手機，點進去秒開（一天抓一次）
+async function prefetchStocks(){
+  const hold = (HOMEF && HOMEF.pf ? HOMEF.pf.hold.map(x => x.code) : (LISTS ? LISTS.hold : [])) || [];
+  const L = LISTS && LISTS.lists.find(l => l.name === SUB.list);
+  const codes = [...new Set(hold.concat(L ? L.codes : []))].slice(0, 12);
+  const td = today();
+  for (const c of codes){
+    const hit = ls.get('stk_' + c, null);
+    if (hit && hit.__d === td) continue;
+    try { const d = await rawCall('stock', {code: c}); d.__d = td; ls.set('stk_' + c, Object.assign(d, {myTx: null})); rememberStk(c); } catch(e){ break; }
+    await new Promise(r => setTimeout(r, 1200));
+  }
+}
 function pairScreen(msg){
-  VIEW = 'pair'; clearInterval(TIMER); clearInterval(POLL);
+  VIEW = 'pair'; stopLive();
   $('#ttl').textContent = 'Atlas';
   $('#main').innerHTML = `<div class="card"><h3>🔐 第一次使用：配對這支手機</h3>
     ${msg ? `<div class="err">${esc(msg)}</div>` : ''}
@@ -309,10 +331,38 @@ const sname = c => (SMAP && SMAP.m && SMAP.m[c]) || '';
 const cn = (c, n) => `${esc(c)} ${esc(n || sname(c))}`;
 
 // ====================== 導覽（記住上次離開的頁面）======================
-let VIEW = 'home', SUB = ls.get('sub', {}), TIMER = null, POLL = null;
+let VIEW = 'stock', SUB = ls.get('sub', {});
+// ====================== 即時報價引擎（v2.1）======================
+// 一次只跑一個：回來了才排下一次（不會塞車），間隔 2.5 秒；從背景切回來馬上更新；收盤後只抓一次
+const isMkt = () => { const t = new Date(Date.now() + 8 * 3600e3), wd = t.getUTCDay(), hm = t.getUTCHours() * 100 + t.getUTCMinutes(); return wd >= 1 && wd <= 5 && hm >= 830 && hm <= 1335; };
+const LIVE_GAP = 2500;
+let LJ = null;
+function setLive(fn){ stopLive(); LJ = {fn, timer: null, busy: false, ok: 0, err: 0}; runLive(); }
+function stopLive(){ if (LJ) clearTimeout(LJ.timer); LJ = null; liveBadge(); }
+async function runLive(){
+  const j = LJ; if (!j || j.busy || document.hidden) return;
+  clearTimeout(j.timer); j.busy = true;
+  let more = true;
+  try { more = await j.fn(); j.ok = Date.now(); j.err = 0; } catch(e){ j.err++; }
+  j.busy = false;
+  if (LJ !== j) return;
+  liveBadge();
+  if (more !== false && isMkt()) j.timer = setTimeout(runLive, j.err ? Math.min(15000, LIVE_GAP * (1 + j.err)) : LIVE_GAP);
+}
+function liveBadge(){
+  const el = $('#lv'); if (!el) return;
+  if (!LJ || !isMkt()){ el.innerHTML = LJ && LJ.ok && !isMkt() ? '已收盤' : ''; el.className = ''; return; }
+  const t = LJ.ok ? new Date(LJ.ok + 8 * 3600e3).toISOString().slice(11, 19) : '';
+  el.className = LJ.err ? 'bad' : '';
+  el.innerHTML = `<i class="dot"></i>${LJ.err ? '重新連線…' : '即時 ' + t}`;
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) runLive(); });
+window.addEventListener('pageshow', () => runLive());
+window.addEventListener('focus', () => runLive());
 let NAV = [], CUR = {v: 'home', arg: null};   // 上一頁堆疊（像 iPhone 一樣往左滑回去）
 const SCR = {};                               // 每個分頁記住捲到哪
-const TITLES = {home:'Atlas', stock:'自選', pick:'籌碼選股', info:'資訊', book:'記帳', asset:'資產'};
+const TITLES = {home:'庫存', stock:'自選', pick:'籌碼選股', info:'資訊', book:'記帳', asset:'資產', est:'法人預估紀錄'};
+const VIEWS = () => ({home: vHome, stock: vStock, pick: vPick, info: vInfo, book: vBook, asset: vAsset, est: vEst});
 // opt.tab＝從下方分頁列切換（清空上一頁）；opt.back＝返回；opt.same＝同一頁重新整理
 function go(v, arg, opt){
   opt = opt || {};
@@ -323,11 +373,11 @@ function go(v, arg, opt){
   CUR = {v, arg: arg || null};
   VIEW = v; SEQ++; $$('#nav button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
   $('#ttl').textContent = TITLES[v] || 'Atlas';
-  clearInterval(TIMER); TIMER = null; clearInterval(POLL); POLL = null; destroyCharts();
+  stopLive(); clearInterval(REPT); REPT = null; destroyCharts();
   const f = Fab(); if (f) f.remove();
   if (v !== 'stock') SUB.code = null;
   ls.set('last', {v, arg: arg || null}); ls.set('sub', SUB);
-  ({home: vHome, stock: vStock, pick: vPick, info: vInfo, book: vBook, asset: vAsset})[v](arg);
+  VIEWS()[v](arg);
   const y = opt.same ? window.scrollY : (opt.back ? opt.y : (opt.tab ? (SCR[v + '|'] || 0) : 0)) || 0;
   window.scrollTo(0, y); requestAnimationFrame(() => window.scrollTo(0, y)); setTimeout(() => { if (window.scrollY < y) window.scrollTo(0, y); }, 400);
   $('#btnBack').hidden = !canBack();
@@ -348,7 +398,7 @@ $$('#nav button').forEach(b => b.onclick = () => {
   if (v === VIEW && v === 'stock' && SUB.code){ go('stock', undefined, {tab: true}); return; }
   go(v, undefined, {tab: true});
 });
-function refreshView(){ ls.set('home', null); go(VIEW, VIEW === 'stock' ? SUB.code : undefined, {same: true}); }
+function refreshView(){ ls.set('home', null); go(VIEW, VIEW === 'stock' ? SUB.code : VIEW === 'est' ? CUR.arg : undefined, {same: true}); }
 $('#btnRef').onclick = refreshView;
 $('#btnBack').onclick = back;
 $('#ttl').onclick = () => window.scrollTo({top: 0, behavior: 'smooth'});
@@ -434,7 +484,7 @@ let CHARTS = [], LWC = null;
 function loadCharts(){
   if (window.LightweightCharts) return Promise.resolve();
   if (LWC) return LWC;
-  LWC = new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js'; s.onload = res; s.onerror = () => { LWC = null; rej(new Error('圖表載入失敗')); }; document.head.appendChild(s); });
+  LWC = new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'lwc-4.1.3.js'; s.onload = res; s.onerror = () => { LWC = null; rej(new Error('圖表載入失敗')); }; document.head.appendChild(s); });
   return LWC;
 }
 function destroyCharts(){ CHARTS.forEach(c => { try{ c.remove(); }catch(e){} }); CHARTS = []; }
@@ -468,19 +518,20 @@ function vHome(){
   if (HOMEF || HOMEI) paint(true); else M.innerHTML = loading('載入中…');
   let pending = 2;
   const done = () => { if (--pending === 0){ paint(false); setTimeout(prefetchAll, 800); } };
-  call('homeFast').then(d => { HOMEF = d; ls.set('homeF', d); paint(pending > 1); if (d.needSetup) welcome(); startRt(); loadPerf(); }).catch(e => toast('持股載入失敗：' + e.message, 3500)).finally(done);
+  if (HOMEF && HOMEF.pf) startRt();   // 先用上次的持股清單馬上開始跳價，不等伺服器算完
+  call('homeFast').then(d => { HOMEF = d; ls.set('homeF', d); ls.set('hasBot', !!d.hasBot); paint(pending > 1); if (d.needSetup) welcome(); if (!LJ) startRt(); loadPerf(); }).catch(e => toast('持股載入失敗：' + e.message, 3500)).finally(done);
   call('homeInfo').then(d => { HOMEI = d; ls.set('homeI', d); paint(pending > 1); }).catch(e => toast('資訊載入失敗：' + e.message, 3500)).finally(done);
   gh('market.json', 600000).then(m => { MKT = m; ls.set('mkt', m); if (VIEW === 'home') paintIdx(); }).catch(() => {});
 }
 // 盤中：每 5 秒抓持股報價＋指數，直接在手機上算損益（不用整頁重抓）
 function startRt(){
-  clearInterval(TIMER); TIMER = null;
-  const tick = async () => {
-    if (VIEW !== 'home' || document.hidden || !HOMEF || !HOMEF.pf) return;
-    try { const r = await call('rt', {codes: HOMEF.pf.hold.map(x => x.code)}); const old = RTQ; RTQ = r; if (VIEW === 'home'){ paintIdx(); paintHold(old); } if (!r.open){ clearInterval(TIMER); TIMER = null; } } catch(e){}
-  };
-  tick();
-  if (HOMEF && HOMEF.open) TIMER = setInterval(tick, 5000);
+  setLive(async () => {
+    if (VIEW !== 'home' || !HOMEF || !HOMEF.pf) return false;
+    const r = await call('rt', {codes: HOMEF.pf.hold.map(x => x.code)});
+    if (VIEW !== 'home') return false;
+    const old = RTQ; RTQ = r; paintIdx(); paintHold(old);
+    return r.open;
+  });
 }
 async function loadPerf(){
   if (!HOMEF || !HOMEF.pf || !HOMEF.pf.hold.length) return;
@@ -632,7 +683,7 @@ async function openPnl(){
       ch.timeScale().fitContent(); }).catch(() => {});
   });
 }
-const estRow = x => `<div class="row" data-code="${esc(x.code)}"><div class="l"><div class="nm">${cn(x.code, x.name)}${x.mine === 'hold' || x.hold ? '<span class="tag h">持股</span>' : ''}${x.mine === 'watch' || (x.watch && !x.hold) ? '<span class="tag w">自選</span>' : ''}${x.init ? '<span class="tag">初評</span>' : ''}</div>
+const estRow = x => `<div class="row" data-est="${esc(x.code)}"><div class="l"><div class="nm">${cn(x.code, x.name)}${x.mine === 'hold' || x.hold ? '<span class="tag h">持股</span>' : ''}${x.mine === 'watch' || (x.watch && !x.hold) ? '<span class="tag w">自選</span>' : ''}${x.init ? '<span class="tag">初評</span>' : ''}</div>
   <div class="sub">${esc(x.y)} EPS ${fp(x.prev)} → <b style="color:var(--tx)">${fp(x.eps)}</b>${x.close ? '・收 ' + fp(x.close) : ''}</div></div><div class="r">${x.pct == null ? '' : `<span class="pill ${cls(x.pct)}">${sgn(x.pct)}${fp(x.pct)}%</span>`}</div></div>`;
 const artHtml = (a, wd) => `<div class="art">${wd ? '<span class="sub">' + ymd8(a.d) + '</span> ' : ''}<span class="tag">${esc(a.cat)}</span> <a href="${esc(a.url)}" target="_blank">${esc(a.title)}</a><p>${esc(a.sum)}</p></div>`;
 const repRow = r => `<div class="row"><div class="l"><a class="nm" href="${esc(r.url)}" target="_blank" style="text-decoration:none;color:var(--tx)">${cn(r.code, r.sname)}</a><div class="sub">${esc(r.name)}</div></div><div class="r sub">${esc(r.d)}<br><button class="btn sm g" data-code="${esc(r.code)}">個股頁</button></div></div>`;
@@ -643,7 +694,9 @@ function bindHome(){
   const gi = $('#goInfo'); if (gi) gi.onclick = () => go('info');
   const ga = $('#goAsset'); if (ga) ga.onclick = () => go('asset');
 }
-function bindCodes(root){ $$('[data-code]', root).forEach(el => el.onclick = e => { if (e.target.closest('a')) return; e.stopPropagation(); go('stock', el.dataset.code); }); }
+function bindCodes(root){ $$('[data-code]', root).forEach(el => el.onclick = e => { if (e.target.closest('a')) return; e.stopPropagation(); go('stock', el.dataset.code); }); bindEst(root); }
+// 法人預估的股票 → 打開「這檔的法人上下修紀錄」
+function bindEst(root){ $$('[data-est]', root || document).forEach(el => el.onclick = e => { if (e.target.closest('a')) return; e.stopPropagation(); go('est', el.dataset.est); }); }
 function welcome(){
   modal('歡迎使用 👋', `<p>第一次使用要先做兩件事：</p><ol><li>建立你的記帳資料表（自動）</li><li>填 LINE 小幫手的網址和 KEY（才看得到整合報告、券商明細）</li></ol>
     <button class="btn" id="wInit" style="width:100%">開始設定</button>`, (m, close) => {
@@ -661,8 +714,9 @@ async function vStock(code){
     <div class="ltabs" id="ltabs"></div><div id="wl">${LISTS ? '' : loading()}</div>`;
   if (LISTS) paintLists();
   smap().then(map => bindSearch(map));
-  refreshLists(true);
-  POLL = setInterval(() => { if (VIEW === 'stock' && !SUB.code && !document.hidden && LISTS && LISTS.open) pollLists(); }, 8000);
+  const startL = () => setLive(async () => { if (VIEW !== 'stock' || SUB.code || !LISTS) return false; await pollLists(); return LISTS.open; });
+  if (LISTS) startL();
+  refreshLists(true).then(() => { if (!LJ && VIEW === 'stock' && !SUB.code) startL(); });
 }
 function curList(){ const names = ['__hold'].concat((LISTS ? LISTS.lists : []).map(l => l.name)); if (names.indexOf(SUB.list) < 0) SUB.list = names[1] || '__hold'; return SUB.list; }
 async function refreshLists(){
@@ -671,10 +725,10 @@ async function refreshLists(){
 }
 async function pollLists(){
   const codes = Object.keys(LISTS.info);
-  try { const d = await call('quotes', {codes}); Object.keys(d.q).forEach(c => { const i = LISTS.info[c]; if (!i) return; const o = i.p; i.p = d.q[c].p; i.c = d.q[c].c;
+  { const d = await call('quotes', {codes}); Object.keys(d.q).forEach(c => { const i = LISTS.info[c]; if (!i) return; const o = i.p; i.p = d.q[c].p; i.c = d.q[c].c;
       const el = $(`#wl [data-code="${c}"] .px`); if (el){ el.innerHTML = `<b>${fp(i.p)}</b><div>${pct(i.c)}</div>`; if (o != null && o !== i.p){ el.classList.remove('fu', 'fd'); void el.offsetWidth; el.classList.add(i.p > o ? 'fu' : 'fd'); } } });
-    LISTS.open = d.open; const t = $('#wlAt'); if (t) t.textContent = '即時 ' + d.at;
-  } catch(e){}
+    LISTS.open = d.open; const t = $('#wlAt'); if (t) t.textContent = (d.open ? '即時 ' : '收盤 ') + d.at; ls.set('lists', LISTS);
+  }
 }
 function paintLists(){
   const cur = curList();
@@ -732,35 +786,48 @@ function promptBox(title, val, fn){
 }
 
 // ====================== 個股頁（看盤：即時報價、五檔、分時、日K、籌碼）======================
-let LIVE = null;
+let LIVE = null, MORE = null;
+// 個股資料存在手機（最多 25 檔，最舊的先丟），再點進來秒開
+function rememberStk(code){
+  let ix = ls.get('stkIdx', []).filter(c => c !== code); ix.push(code);
+  while (ix.length > 25){ const c = ix.shift(); try { localStorage.removeItem('ma_stk_' + c); localStorage.removeItem('ma_stkm_' + c); localStorage.removeItem('ma_eh_' + c); } catch(e){} }
+  ls.set('stkIdx', ix);
+}
+const chipOf = code => GHCHIP[code] || (MORE && MORE.code === code && MORE.chip) || null;
 async function stockDetail(code){
-  LIVE = null; STK = null;
+  LIVE = null; STK = null; MORE = null;
   const M = $('#main');
-  const cached = ls.get('stk_' + code, null);
+  const cached = ls.get('stk_' + code, null), cm = ls.get('stkm_' + code, null);
   $('#ttl').textContent = code + ' ' + ((cached && cached.name) || sname(code));
   smap().catch(() => {});   // 名稱表背景抓，不卡畫面
-  M.innerHTML = `<div id="sd">${cached ? '' : loading('抓報價、K 線、籌碼…')}</div>`;
+  M.innerHTML = `<div id="sd">${cached ? '' : loading('抓報價、K 線…')}</div>`;
   loadCharts().catch(() => {});
-  if (cached) renderStock(code, cached, true);
-  // GitHub 上每天算好的籌碼（不用 token、很快）
+  if (cached){ if (cm && cm.code === code) MORE = cm; renderStock(code, cached, true); }
+  rememberStk(code);
+  // ① 報價：馬上開始，盤中每 2.5 秒跳一次（不等 K 線）
+  setLive(async () => {
+    if (VIEW !== 'stock' || SUB.code !== code) return false;
+    const first = !LIVE;
+    const t = await call(first ? 'live' : 'tick', {code});
+    if (VIEW !== 'stock' || SUB.code !== code) return false;
+    const old = LIVE && LIVE.q ? LIVE.q.price : null;
+    LIVE = Object.assign(LIVE || {}, t); paintLive(code, first, old);
+    return t.open;
+  });
+  // ② GitHub 上每天算好的籌碼（官方資料、很快）
   ghChips(code).then(cp => { GHCHIP[code] = cp; if (SUB.code !== code || !window.LightweightCharts || !$('#cc')) return; const e = $('#chiperr'); if (e) e.remove(); drawChips(cp); }).catch(() => {});
-  // 報價先來（很快），K 線籌碼後到
-  call('live', {code}).then(l => { LIVE = l; if (SUB.code === code) paintLive(code, true); }).catch(() => {});
+  // ③ 慢的（小幫手、營收、FinMind）另外跑，回來再補上
+  call('stockMore', {code}).then(m => { if (SUB.code !== code) return; MORE = m; ls.set('stkm_' + code, m); renderMore(code);
+    if (!GHCHIP[code] && m.chip && window.LightweightCharts && $('#cc')) drawChips(m.chip); }).catch(e => { if (SUB.code === code && $('#more') && !MORE) $('#more').innerHTML = `<div class="sub" style="padding:0 4px 10px">💡 小幫手資料暫時抓不到：${esc(e.message)}</div>`; });
+  // ④ K 線＋報價＋我的持股（約 1 秒）
   try {
     const d = await call('stock', {code});
     if (VIEW !== 'stock' || SUB.code !== code) return;
-    ls.set('stk_' + code, Object.assign({}, d, {myTx: null}));
+    ls.set('stk_' + code, Object.assign({}, d, {myTx: null, __d: today()}));
     renderStock(code, d, false);
-  } catch(e){ if (!cached) $('#sd').innerHTML = `<div class="err">${esc(e.message)}</div>`; }
-  clearInterval(POLL);
-  POLL = setInterval(async () => {
-    if (VIEW !== 'stock' || SUB.code !== code || document.hidden) return;
-    if (LIVE && !LIVE.open) return;
-    try { const t = await call('tick', {code}); const old = LIVE && LIVE.q ? LIVE.q.price : null; LIVE = Object.assign(LIVE || {}, t); paintLive(code, false, old); } catch(e){}
-  }, 5000);
+  } catch(e){ if (!cached) $('#sd').innerHTML = `<div class="err">${esc(e.message)}</div>`; else toast(e.message); }
 }
 function renderStock(code, d, stale){
-  const b = d.bot || {}, docs = b.docs || {};
   $('#ttl').textContent = code + ' ' + (d.name || sname(code));
   let h = '';
   (d.errs || []).forEach(e => h += `<div class="err">⚠️ ${esc(e)}</div>`);
@@ -769,29 +836,49 @@ function renderStock(code, d, stale){
     <div class="legend" id="klg"></div><div class="chart" id="ck"></div>
     <div id="chipbox"><div class="tabsm" id="cw" style="margin-top:8px"><button data-k="all" class="on">三大法人</button><button data-k="f">外資</button><button data-k="it">投信</button><button data-k="dl">自營</button><button data-k="mg">融資券</button></div>
     <div class="legend" id="clg"></div><div class="chart s" id="cc"></div><div class="sub" id="csrc"></div></div></div>`;
-  h += `<div class="card" id="chipcard"><h3>🏦 籌碼統計（張）</h3>${d.chipErr && !GHCHIP[code] ? `<div class="err" id="chiperr">⚠️ ${esc(d.chipErr)}</div>` : ''}<div id="csum"><div class="sub">讀取中…</div></div></div>`;
+  h += `<div class="card" id="repcard"></div>`;
+  h += `<div class="card" id="chipcard"><h3>🏦 籌碼統計（張）</h3><div id="csum"><div class="sub">讀取中…</div></div></div>`;
   h += `<div class="card" id="book"><h3>📒 五檔</h3><div class="sub">讀取中…</div></div>`;
   if (d.my && d.my.shares){
     h += `<div class="card"><h3>💼 我的持股</h3><div class="grid3" style="margin-top:0"><div class="kv"><span class="sub">股數</span><b class="m">${shTxt(d.my.shares)}</b></div>
       <div class="kv"><span class="sub">均價</span><b class="m">${fp(d.my.avg)}</b></div><div class="kv"><span class="sub">損益(未扣費)</span><b class="m" id="mypl">—</b></div></div></div>`;
   }
+  h += `<div id="more">${MORE ? '' : '<div class="card">' + loading('讀取法人預估、券商報告、小助理…') + '</div>'}</div>`;
+  if (d.myTx && d.myTx.length) h += `<div class="card"><h3>🧾 我的交易</h3>${d.myTx.map(t => txRow(t)).join('')}</div>`;
+  $('#sd').innerHTML = h;
+  bindQuoteBtns(code, d);
+  $$('[data-tx]').forEach(el => el.onclick = () => txForm(d.myTx.find(t => t.id === el.dataset.tx), () => stockDetail(code)));
+  STK = d;
+  if (MORE) renderMore(code);
+  paintRep(code);
+  loadCharts().then(() => { if (SUB.code !== code) return; drawMain(code); drawChips(chipOf(code)); }).catch(() => { $('#ck').innerHTML = '<div class="empty">圖表載入失敗，按 ↻ 重試</div>'; });
+  $$('#kt button').forEach(x => x.onclick = () => { SUB.kt = x.dataset.k; saveSub(); $$('#kt button').forEach(y => y.classList.toggle('on', y === x)); drawMain(code); drawChips(chipOf(code)); });
+  if (LIVE && LIVE.q) paintLive(code, true);
+}
+// 小幫手那邊的資料（法人預估、券商、報告內容、小助理、營收）
+function renderMore(code){
+  const el = $('#more'); if (!el || !MORE) return;
+  const d = MORE, b = d.bot || {}, docs = b.docs || {};
+  let h = '';
+  if (d.chipErr && !GHCHIP[code]) h += `<div class="err" id="chiperr">⚠️ ${esc(d.chipErr)}</div>`;
   const yrs = (b.est && b.est.years) || {};
   const ys = Object.keys(yrs).sort().reverse();
+  h += `<div class="card"><h3>🎯 法人預估 EPS<button class="more" data-est="${esc(code)}">完整上下修紀錄 ›</button></h3>`;
   if (ys.length){
-    h += `<div class="card"><h3>🎯 法人預估 EPS</h3>${ys.map(y => { const a = yrs[y], l = a[a.length - 1];
+    h += ys.map(y => { const a = yrs[y], l = a[a.length - 1];
       return `<div class="dayh"><b style="color:var(--tx)">${esc(y)} 年</b><span>最新 <b style="color:var(--tx)">${fp(l[1])}</b>（${ymd8(l[0])}）</span></div>
-        <div class="scrollx"><table><tr><th>日期</th><th>EPS</th><th>調幅</th><th>收盤</th></tr>${a.slice(-8).reverse().map(r => `<tr><td>${ymd8(r[0])}${r[4] ? ' 初評' : ''}</td><td>${fp(r[1])}</td><td>${pct(r[2])}</td><td>${fp(r[3])}</td></tr>`).join('')}</table></div>`; }).join('')}</div>`;
-  }
+        <div class="scrollx"><table><tr><th>日期</th><th>EPS</th><th>調幅</th><th>收盤</th></tr>${a.slice(-5).reverse().map(r => `<tr><td>${ymd8(r[0])}${r[4] ? ' 初評' : ''}</td><td>${fp(r[1])}</td><td>${pct(r[2])}</td><td>${fp(r[3])}</td></tr>`).join('')}</table></div>`; }).join('');
+  } else h += `<div class="sub">點右上「完整上下修紀錄」看這檔每一天的上修／下修</div>`;
+  h += `</div>`;
   if (b.brokers && b.brokers.length){
     h += `<div class="card"><h3>🏢 券商報告</h3><div class="scrollx"><table><tr><th>日期</th><th>券商</th><th>評等</th><th>目標價</th><th>EPS</th></tr>
       ${b.brokers.slice(0, 12).map(r => `<tr><td>${esc(String(r.date).slice(5))}</td><td>${esc(r.broker)}</td><td>${esc(r.rating)}</td><td>${fp(r.tp)}</td><td>${fp(r.eps1)}${r.eps2 != null ? '／' + fp(r.eps2) : ''}</td></tr>`).join('')}</table></div></div>`;
   }
-  if (docs.report || docs.raw || docs.folder){
-    const card = (docs.report && docs.report.card) || null;
-    h += `<div class="card"><h3>📑 整合報告 ${docs.report ? `<span class="sub" style="font-weight:400">${esc(docs.report.date)}</span>` : ''}</h3>
+  const card = (docs.report && docs.report.card) || null;
+  if (card || docs.raw || docs.memo || docs.folder){
+    h += `<div class="card"><h3>📑 報告重點 ${docs.report ? `<span class="sub" style="font-weight:400">${esc(docs.report.date)}</span>` : ''}</h3>
       ${card ? `<div class="scrollx"><table>${card.map((r, i) => `<tr>${r.map(c => i ? `<td style="white-space:normal;text-align:left;vertical-align:top">${esc(c)}</td>` : `<th style="text-align:left">${esc(c)}</th>`).join('')}</tr>`).join('')}</table></div>` : ''}
-      <div class="btns" style="margin-top:10px">${docs.report ? `<a class="btn sm" style="text-decoration:none" target="_blank" href="${esc(docs.report.url)}">開完整報告</a>` : ''}
-      ${docs.raw ? `<a class="btn sm g" style="text-decoration:none" target="_blank" href="${esc(docs.raw.url)}">小助理資料</a>` : ''}
+      <div class="btns" style="margin-top:10px">${docs.raw ? `<a class="btn sm g" style="text-decoration:none" target="_blank" href="${esc(docs.raw.url)}">小助理資料</a>` : ''}
       ${docs.memo ? `<a class="btn sm g" style="text-decoration:none" target="_blank" href="${esc(docs.memo.url)}">我的筆記</a>` : ''}
       ${docs.folder ? `<a class="btn sm g" style="text-decoration:none" target="_blank" href="${esc(docs.folder)}">雲端資料夾</a>` : ''}</div></div>`;
   }
@@ -805,17 +892,68 @@ function renderStock(code, d, stale){
       ${m.length ? `<div class="scrollx"><table><tr><th>月份</th><th>營收(億)</th><th>年增</th></tr>${m.map(r => `<tr><td>${esc(r.m)}</td><td>${fp(r.rev)}</td><td>${pct(r.yoy)}</td></tr>`).join('')}</table></div>` : ''}
       ${qh.length ? `<div class="scrollx" style="margin-top:10px"><table><tr><th>季</th><th>EPS</th><th>毛利率</th><th>營益率</th><th>淨利率</th></tr>${qh.map(r => `<tr><td>${esc(String(r.q).slice(0, 7))}</td><td>${fp(r.eps)}</td><td>${fp(r.gm)}%</td><td>${fp(r.om)}%</td><td>${fp(r.nm)}%</td></tr>`).join('')}</table></div>` : ''}</div>`;
   }
-  if (d.myTx && d.myTx.length) h += `<div class="card"><h3>🧾 我的交易</h3>${d.myTx.map(t => txRow(t)).join('')}</div>`;
   (d.notes || []).forEach(n => h += `<div class="sub" style="padding:0 4px 10px">💡 ${esc(n)}</div>`);
-  $('#sd').innerHTML = h;
-  bindQuoteBtns(code, d);
-  $$('[data-tx]').forEach(el => el.onclick = () => txForm(d.myTx.find(t => t.id === el.dataset.tx), () => stockDetail(code)));
-  STK = d;
-  loadCharts().then(() => { if (SUB.code !== code) return; drawMain(code); drawChips(GHCHIP[code] || d.chip); }).catch(() => { $('#ck').innerHTML = '<div class="empty">圖表載入失敗，按 ↻ 重試</div>'; });
-  $$('#kt button').forEach(x => x.onclick = () => { SUB.kt = x.dataset.k; saveSub(); $$('#kt button').forEach(y => y.classList.toggle('on', y === x)); drawMain(code); if (STK) drawChips(GHCHIP[code] || STK.chip); });
-  if (LIVE && LIVE.q) paintLive(code, true);
+  el.innerHTML = h;
+  bindEst(el);
+  if (docs.report && !REPOF[code]) { REPOF[code] = {url: docs.report.url, d: docs.report.date, t: 0}; paintRep(code); }
 }
-let STK = null, KCH = null, KSER = null, CCH = null;
+// ====================== 一鍵報告 ======================
+const REPOF = {};
+let REPT = null;
+const repPend = code => { const p = ls.get('repPend', {}); const t = p[code]; return t && Date.now() - t < 45 * 60000 ? t : 0; };
+function setPend(code, on){ const p = ls.get('repPend', {}); if (on) p[code] = Date.now(); else delete p[code]; Object.keys(p).forEach(k => { if (Date.now() - p[k] > 45 * 60000) delete p[k]; }); ls.set('repPend', p); }
+function paintRep(code){
+  const el = $('#repcard'); if (!el) return;
+  const r = REPOF[code], pend = repPend(code);
+  const done = r && pend && r.t > pend;
+  if (done) setPend(code, false);
+  const busy = pend && !done;
+  el.innerHTML = `<h3>📑 整合報告${r ? `<span class="sub" style="font-weight:400">最新 ${esc(r.d || '')}</span>` : ''}</h3>
+    ${busy ? `<div class="verdict">⏳ 報告製作中（${Math.max(1, Math.round((Date.now() - pend) / 60000))} 分鐘）…通常 5～15 分鐘，好了 LINE 會通知，這裡也會自動出現「開報告」</div>` : ''}
+    ${done ? `<div class="verdict">✅ 新報告好了！</div>` : ''}
+    <div class="btns" style="margin-top:8px">${r ? `<a class="btn sm" style="text-decoration:none" target="_blank" href="${esc(r.url)}">開報告</a>` : ''}
+    <button class="btn sm ${r ? 'g' : ''}" id="repGo" ${busy ? 'disabled style="opacity:.5"' : ''}>${busy ? '⏳ 製作中' : r ? '🔄 重新做一份' : '📑 一鍵做報告'}</button></div>`;
+  const b = $('#repGo', el); if (b && !busy) b.onclick = () => doReport(code);
+  clearInterval(REPT); REPT = null;
+  if (busy) REPT = setInterval(() => checkRep(code), 30000);
+}
+async function checkRep(code){
+  try { const r = await call('reportOf', {code}); if (r){ REPOF[code] = r; if ((VIEW === 'stock' && SUB.code === code) || (VIEW === 'est' && CUR.arg === code)) paintRep(code); } } catch(e){}
+}
+async function doReport(code){
+  const b = $('#repGo'); if (b){ b.disabled = true; b.textContent = '送出中…'; }
+  try {
+    const r = await call('report', {code});
+    setPend(code, true); toast('✅ 已送出：' + String(r.msg || '').split('\n')[0].slice(0, 60), 3500);
+  } catch(e){ toast('❌ ' + e.message, 4500); if (/小幫手|KEY|網址/.test(e.message)) linkGuide(); }
+  paintRep(code);
+}
+function linkGuide(){
+  modal('連結 LINE 小幫手（只要做一次）', `<ol style="padding-left:20px;line-height:1.8">
+    <li>到 LINE 傳「<b>連結Atlas</b>」給股票檔案小幫手</li>
+    <li>長按它回的第二則訊息（一長串網址）→ 拷貝</li>
+    <li>回到這裡按下面的按鈕</li></ol>
+    <button class="btn" id="lgP" style="width:100%">📋 貼上小幫手連結</button>
+    <textarea id="lgT" rows="3" style="margin-top:10px" placeholder="或手動貼在這裡"></textarea>
+    <button class="btn g" id="lgS" style="width:100%;margin-top:8px">儲存</button>`, (m, close) => {
+    const save = async (txt) => { const c = parseBotLink(txt); if (!c) return toast('不是小幫手給的連結，請整串拷貝', 3500);
+      try { await saveBotLink(c); close(); } catch(e){ toast('❌ ' + e.message, 4500); } };
+    $('#lgP', m).onclick = async () => { try { const t = await navigator.clipboard.readText(); $('#lgT', m).value = t; save(t); } catch(e){ toast('讀不到剪貼簿，請長按下面的框貼上', 3500); } };
+    $('#lgS', m).onclick = () => save($('#lgT', m).value);
+  });
+}
+function parseBotLink(str){
+  const i = String(str || '').indexOf('#'); if (i < 0) return null;
+  const h = new URLSearchParams(String(str).trim().slice(i + 1)); const u = h.get('bot'), k = h.get('bk');
+  return u && k && /^https:\/\/script\.google\.com\/.+\/exec$/.test(u) ? {u, k} : null;
+}
+async function saveBotLink(c){
+  await call('saveSettings', {botUrl: c.u, botKey: c.k});
+  const r = await call('testBot');
+  ls.set('hasBot', true); if (HOMEF) HOMEF.hasBot = true; if (STK) STK.hasBot = true;
+  toast('✅ 已連結小幫手 ' + (r.v || '') + '，現在可以一鍵做報告', 3500);
+}
+let STK = null, KCH = null, KSER = null, CCH = null, KCS = null, KLAST = null;
 const GHCHIP = {};
 const ktNow = () => SUB.kt === 'intr' ? 'intr' : (['d', 'w', 'm'].indexOf(SUB.kt) >= 0 ? SUB.kt : 'd');
 // 把今天盤中的價格併進日K
@@ -861,14 +999,15 @@ function quoteHtml(q, d){
     <div class="sub" style="margin-left:auto;padding-bottom:6px" id="qt">${q.t ? (LIVE && LIVE.open ? '🔴 即時 ' : '') + esc(q.t) : ''}</div></div>
     <div class="grid4"><div><span class="sub">開</span> ${fp(q.o)}</div><div><span class="sub">高</span> <span class="up">${fp(q.h)}</span></div><div><span class="sub">低</span> <span class="down">${fp(q.l)}</span></div><div><span class="sub">量</span> ${fmt(q.v)}</div></div>
     <div class="btns" style="margin-top:10px"><button class="btn sm g" id="bL">⭐ 加入清單${d && d.inLists && d.inLists.length ? '（' + d.inLists.length + '）' : ''}</button>
-    <button class="btn sm g" id="bT">＋記交易</button><button class="btn sm g" id="bR">📑 產生報告</button>
+    <button class="btn sm g" id="bT">＋記交易</button><button class="btn sm g" id="bR">📑 一鍵報告</button><button class="btn sm g" data-est="${esc(SUB.code || '')}">🎯 法人上下修</button>
     <a class="btn sm g" style="text-decoration:none" target="_blank" href="https://tw.tradingview.com/chart/?symbol=${q.ex === 'otc' ? 'TPEX' : 'TWSE'}:${esc(SUB.code || '')}">TradingView</a></div>`;
 }
 function bindQuoteBtns(code, d){
   const q = (LIVE && LIVE.q) || d.q || {};
   $('#bL').onclick = () => pickLists(code, d);
   $('#bT').onclick = () => txForm({code, name: d.name, price: q.price}, () => stockDetail(code));
-  $('#bR').onclick = async () => { if (!(await confirmBox(`要請雲端幫 ${code} ${d.name} 寫整合報告嗎？（會用到 Claude 額度，完成後 LINE 通知）`))) return; try{ const r = await call('report', {code}); toast(r.msg || '已送出', 4000); }catch(e){ toast(e.message, 4000); } };
+  $('#bR').onclick = () => { const rc = $('#repcard'); if (rc) rc.scrollIntoView({behavior: 'smooth', block: 'center'}); if (!repPend(code)) doReport(code); };
+  bindEst($('#qcard'));
 }
 async function pickLists(code, d){
   if (!LISTS) await refreshLists();
@@ -896,15 +1035,21 @@ function paintLive(code, first, old){
     const mx = Math.max(1, ...bk.bid.map(x => x[1]), ...bk.ask.map(x => x[1]));
     const rows = [0, 1, 2, 3, 4].map(i => { const b = bk.bid[i] || [], a = bk.ask[i] || [];
       return `<tr><td class="bv"><i style="width:${(b[1] || 0) / mx * 100}%"></i>${b[1] ? fmt(b[1]) : ''}</td><td class="up">${b[0] ? fp(b[0]) : ''}</td><td class="down">${a[0] ? fp(a[0]) : ''}</td><td class="av"><i style="width:${(a[1] || 0) / mx * 100}%"></i>${a[1] ? fmt(a[1]) : ''}</td></tr>`; }).join('');
-    $('#book').innerHTML = `<h3>📒 五檔<span class="sub" style="font-weight:400">${LIVE.open ? '每 5 秒更新' : '收盤'}</span></h3><table class="bk"><tr><th>買量</th><th>買價</th><th>賣價</th><th>賣量</th></tr>${rows}</table>`;
+    $('#book').innerHTML = `<h3>📒 五檔<span class="sub" style="font-weight:400">${LIVE.open ? '即時 ' + esc(q.t || '') : '收盤'}</span></h3><table class="bk"><tr><th>買量</th><th>買價</th><th>賣價</th><th>賣量</th></tr>${rows}</table>`;
   } else if ($('#book')) $('#book').innerHTML = `<h3>📒 五檔</h3><div class="sub">${LIVE.open ? '這檔目前沒有五檔資料' : '收盤後沒有五檔，開盤時間會即時更新'}</div>`;
   if (STK && STK.my && STK.my.shares && $('#mypl')) $('#mypl').innerHTML = money(Math.round(q.price * STK.my.shares - STK.my.cost));
   if (first) { if (SUB.kt === 'intr') drawMain(code); }
   else if (SUB.kt === 'intr' && KSER && LIVE.q.traded){ try { KSER.update({time: Math.floor(Date.now() / 1000) + 8 * 3600, value: q.price}); } catch(e){} }
+  else if (ktNow() === 'd' && KCS && KLAST && q.d && q.price && q.traded){   // 日K 最後一根跟著跳
+    const td = q.d.slice(0, 4) + '-' + q.d.slice(4, 6) + '-' + q.d.slice(6);
+    if (td >= KLAST.time){ const b = td === KLAST.time ? KLAST : {time: td, open: q.o || q.price, high: q.price, low: q.price, close: q.price};
+      b.close = q.price; b.high = Math.max(b.high, q.h || q.price, q.price); b.low = Math.min(b.low, q.l || q.price, q.price); KLAST = b;
+      try { KCS.update(b); } catch(e){} } }
 }
 function drawMain(code){
   if (!window.LightweightCharts || !$('#ck')) return;
   if (KCH){ CHARTS = CHARTS.filter(x => x !== KCH); try { KCH.remove(); } catch(e){} KCH = null; KSER = null; }
+  KCS = null; KLAST = null;
   $('#ck').innerHTML = '';
   const kt = ktNow();
   $('#chipbox').hidden = kt === 'intr';
@@ -938,8 +1083,9 @@ function drawK(k, q, n){
     if (td > t[t.length - 1]){ t.push(td); o.push(q.o || q.price); hi.push(q.h || q.price); lo.push(q.l || q.price); cl.push(q.price); v.push(q.v || 0); }
     else if (td === t[t.length - 1]){ const i = t.length - 1; cl[i] = q.price; if (q.h) hi[i] = Math.max(hi[i], q.h); if (q.l) lo[i] = Math.min(lo[i], q.l); if (q.v) v[i] = q.v; } }
   const ch = mkChart(el); KCH = ch;
-  const cs = ch.addCandlestickSeries({upColor: c.up, downColor: c.down, borderUpColor: c.up, borderDownColor: c.down, wickUpColor: c.up, wickDownColor: c.down, priceLineVisible: false});
+  const cs = KCS = ch.addCandlestickSeries({upColor: c.up, downColor: c.down, borderUpColor: c.up, borderDownColor: c.down, wickUpColor: c.up, wickDownColor: c.down, priceLineVisible: false});
   cs.setData(t.map((x, i) => ({time: x, open: o[i], high: hi[i], low: lo[i], close: cl[i]})));
+  KLAST = {time: t[t.length - 1], open: o[o.length - 1], high: hi[hi.length - 1], low: lo[lo.length - 1], close: cl[cl.length - 1]};
   [[5, '#f59f00'], [20, '#d6336c'], [60, '#4dabf7']].forEach(([m0, col]) => { const m = sma(cl, m0); const s = ch.addLineSeries({color: col, lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false}); s.setData(t.map((x, i) => m[i] == null ? {time: x} : {time: x, value: m[i]})); });
   const vs = ch.addHistogramSeries({priceFormat: {type: 'volume'}, priceScaleId: 'v', lastValueVisible: false, priceLineVisible: false});
   ch.priceScale('v').applyOptions({scaleMargins: {top: 0.82, bottom: 0}});
@@ -1085,6 +1231,69 @@ async function vInfo(){
       bindCodes(B);
     }
   } catch(e){ B.innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+}
+
+// ====================== 法人預估紀錄（單一檔：每一天的上修／下修，最新在最上面）======================
+let EH = null, EHQ = null;
+async function vEst(code){
+  const M = $('#main');
+  if (!code) return go('info', undefined, {tab: true});
+  $('#ttl').textContent = code + ' ' + sname(code);
+  EH = ls.get('eh_' + code, null); EHQ = null;
+  const tag = SEQ;
+  if (EH) paintEst(code); else M.innerHTML = loading('讀取法人上下修紀錄…');
+  rememberStk(code);
+  call('estHist', {code}).then(d => { if (SEQ !== tag) return; EH = d; ls.set('eh_' + code, d); paintEst(code); })
+    .catch(e => { if (SEQ === tag && !EH) M.innerHTML = `<div class="err">${esc(e.message)}</div>`; });
+  // 現價（算「修正後到現在漲跌」），盤中也會跳
+  setLive(async () => { if (VIEW !== 'est' || CUR.arg !== code) return false; const d = await call('quotes', {codes: [code]}); EHQ = d.q[code] || null; if (EH && SEQ === tag) paintEstPx(code); return d.open; });
+  call('reportOf', {code}).then(r => { if (r){ REPOF[code] = r; if (SEQ === tag) paintRep(code); } }).catch(() => {});
+}
+const ESTF = 1;   // |調幅| 小於 1% 當作「微調」
+function estKind(r){ if (r.init) return ['初評', 'flat']; if (r.pct == null) return ['首次紀錄', 'flat']; if (Math.abs(r.pct) < ESTF) return ['微調', 'flat']; return r.pct > 0 ? ['上修', 'up'] : ['下修', 'down']; }
+function paintEstPx(code){
+  const q = EHQ; if (!q) return;
+  const e = $('#ehpx'); if (e) e.innerHTML = `<b class="big ${cls(q.c)}" style="font-size:24px">${fp(q.p)}</b> ${pct(q.c)} <span class="sub">${esc(q.t || '')}</span>`;
+  $$('[data-after]').forEach(el => { const c0 = +el.dataset.after; if (c0 && q.p) el.innerHTML = `之後 ${pct(Math.round((q.p / c0 - 1) * 1000) / 10)}`; });
+}
+function paintEst(code){
+  const d = EH, M = $('#main'); if (!d || VIEW !== 'est') return;
+  $('#ttl').textContent = code + ' ' + (d.name || sname(code));
+  const f = SUB.ehf || 'all';
+  const rows = d.rows.filter(r => f === 'all' || estKind(r)[1] !== 'flat');
+  const by = {}; rows.forEach(r => (by[r.d] = by[r.d] || []).push(r));
+  const days = Object.keys(by).sort().reverse();
+  // 一句話：近 30 天、全部期間的上修／下修次數
+  const cut = +new Date(Date.now() - 30 * 86400000 + 8 * 3600e3).toISOString().slice(0, 10).replace(/-/g, '');
+  const cnt = arr => { const o = {up: 0, down: 0}; arr.forEach(r => { const k = estKind(r)[1]; if (k !== 'flat') o[k]++; }); return o; };
+  const all = cnt(d.rows), m1 = cnt(d.rows.filter(r => r.d >= cut));
+  const vd = m1.up && !m1.down ? '🔺 近 30 天法人一路上修' : m1.down && !m1.up ? '🔻 近 30 天法人一路下修' : m1.up || m1.down ? (m1.up > m1.down ? '↗️ 近 30 天上修多於下修' : m1.up < m1.down ? '↘️ 近 30 天下修多於上修' : '↔️ 近 30 天上下互見') : '近 30 天沒有上下修';
+  let h = `<div class="card"><div style="display:flex;align-items:flex-end;gap:8px"><div id="ehpx" class="m0">${loading('')}</div></div>
+    <div class="verdict">${vd}（上修 ${m1.up}・下修 ${m1.down}）<br><span class="sub">有紀錄以來（${d.first ? ymd8(d.first) : '—'} 起）：上修 ${all.up} 次・下修 ${all.down} 次</span></div>
+    <div class="btns" style="margin-top:10px"><button class="btn sm" data-code="${esc(code)}">📈 K 線＋籌碼</button><button class="btn sm g" id="ehR">📑 一鍵報告</button></div></div>`;
+  h += `<div class="card" id="repcard"></div>`;
+  h += `<div class="tabsm"><button data-ef="all" class="${f === 'all' ? 'on' : ''}">全部紀錄</button><button data-ef="chg" class="${f === 'chg' ? 'on' : ''}">只看上修／下修</button></div>`;
+  h += days.map(dd => { const a = by[dd], c0 = a.find(r => r.close) || {};
+    return `<div class="card tl"><h3>${ymd8(dd)} <span class="sub" style="font-weight:400">${String(dd).slice(0, 4)}</span><span class="sub" style="margin-left:auto;font-weight:400">${c0.close ? '收 ' + fp(c0.close) + '・<span data-after="' + c0.close + '"></span>' : ''}</span></h3>
+      ${a.sort((x, y) => y.y.localeCompare(x.y)).map(r => { const [t, k] = estKind(r);
+        return `<div class="yr"><span class="sub">${esc(r.y)}</span><span>${r.prev != null ? fp(r.prev) + ' → ' : ''}<b>${fp(r.eps)}</b></span><span class="pill ${k}">${t}${r.pct != null && !r.init ? ' ' + sgn(r.pct) + fp(r.pct) + '%' : ''}</span></div>`; }).join('')}</div>`; }).join('') || `<div class="empty">${d.rows.length ? '這段期間只有微調' : '法人預估紀錄裡還沒有這檔（紀錄從自動抓取開始那天起）'}</div>`;
+  if (d.rows.length > 1) h += `<div class="card"><h3>📈 各年度 EPS 預估變化</h3><div class="legend" id="ehlg"></div><div class="chart s" id="ehc"></div></div>`;
+  M.innerHTML = h;
+  bindCodes(M);
+  $('#ehR').onclick = () => { if (!repPend(code)) doReport(code); };
+  $$('[data-ef]').forEach(b => b.onclick = () => { SUB.ehf = b.dataset.ef; saveSub(); paintEst(code); });
+  paintRep(code);
+  if (EHQ) paintEstPx(code); else { const e = $('#ehpx'); if (e) e.innerHTML = '<span class="sub">讀取現價…</span>'; }
+  if (d.rows.length > 1) loadCharts().then(() => {
+    const el = $('#ehc'); if (!el || VIEW !== 'est') return;
+    const ch = mkChart(el), cols = ['#e8590c', '#1c7ed6', '#2f9e44', '#7048e8'];
+    const ys = [...new Set(d.rows.map(r => r.y))].sort().reverse().slice(0, 4);
+    $('#ehlg').innerHTML = ys.map((y, i) => `<span style="--c:${cols[i]}">${esc(y)}</span>`).join('');
+    ys.forEach((y, i) => { const pts = d.rows.filter(r => r.y === y).slice().reverse(); const seen = {};
+      const data = pts.map(r => ({time: String(r.d).slice(0, 4) + '-' + String(r.d).slice(4, 6) + '-' + String(r.d).slice(6), value: r.eps})).filter(x => !seen[x.time] && (seen[x.time] = 1));
+      const sr = ch.addLineSeries({color: cols[i], lineWidth: 2, lineType: 1, priceLineVisible: false}); sr.setData(data); });
+    ch.timeScale().fitContent();
+  }).catch(() => {});
 }
 
 // ====================== 記帳 ======================
@@ -1316,8 +1525,10 @@ async function openSettings(){
   close0();
   SET = s.set; ls.set('set', SET);
   modal('設定', `
-    <h3 style="margin:8px 0 0">🔗 LINE 股票檔案小幫手</h3>
-    <div class="sub">有填才看得到整合報告、券商明細、小助理、可以按鈕產生報告。</div>
+    <h3 style="margin:8px 0 6px">✅ 還有什麼沒做</h3><div id="stChk">${loading('檢查中…')}</div>
+    <h3 style="margin:18px 0 0">🔗 LINE 股票檔案小幫手</h3>
+    <div class="sub">連結後才能一鍵做報告、看券商明細和小助理。最簡單：在 LINE 傳「連結Atlas」給小幫手 → 拷貝它回的連結 → 按下面按鈕。</div>
+    <button class="btn" id="spl" style="width:100%;margin-top:8px">📋 貼上小幫手連結</button>
     <label>小幫手網址（結尾 /exec）</label><input id="su" value="${esc(s.botUrl)}" placeholder="https://script.google.com/macros/s/…/exec">
     <label>KEY（小幫手指令碼屬性的 SCRAPE_KEY）${s.hasBotKey ? ' ✅已填' : ''}</label><input id="sk" type="password" placeholder="${s.hasBotKey ? '已填，要換才輸入' : '貼上 KEY'}">
     <label>FinMind token（選填，K 線／籌碼較不會被限流）${s.hasFinmind ? ' ✅已填' : ''}</label><input id="sf" type="password" placeholder="${s.hasFinmind ? '已填，要換才輸入' : '貼上 token'}">
@@ -1331,6 +1542,11 @@ async function openSettings(){
     <div class="btns" style="margin-top:16px"><button class="btn" id="ss" style="flex:1">儲存</button></div>
     <div class="sub" style="margin-top:16px">${s.dataUrl ? `📄 <a href="${esc(s.dataUrl)}" target="_blank">打開記帳資料試算表</a>（可以直接在裡面改）<br>` : ''}
     排程：${s.triggers.length ? esc(s.triggers.join('、')) : '<b>還沒建立</b> <button class="btn sm g" id="sinit">建立</button>'}<br>版本 ${esc(s.ver)}</div>`, (m, close) => {
+    $('#spl', m).onclick = async () => { let t = ''; try { t = await navigator.clipboard.readText(); } catch(e){ return linkGuide(); } const c = parseBotLink(t); if (!c) return linkGuide();
+      try { await saveBotLink(c); close(); openSettings(); } catch(e){ toast('❌ ' + e.message, 4500); } };
+    call('setupStatus').then(st => { const el = $('#stChk', m); if (!el) return;
+      el.innerHTML = st.items.map(x => `<div class="row"><div style="font-size:18px">${x.ok ? '✅' : x.opt ? '⚪' : '⚠️'}</div><div class="l"><div class="nm" style="white-space:normal">${esc(x.title)}</div><div class="sub">${esc(x.how)}</div></div></div>`).join('');
+      if (st.items[0] && st.items[0].ok) ls.set('hasBot', true); }).catch(e => { const el = $('#stChk', m); if (el) el.innerHTML = `<div class="err">${esc(e.message)}</div>`; });
     $('#stb', m).onclick = async () => { await save(false); try{ const r = await call('testBot'); toast('✅ 連上小幫手 ' + (r.v || '')); }catch(e){ toast('❌ ' + e.message, 4500); } };
     const save = async (doClose) => {
       const a = {botUrl: $('#su', m).value.trim(), feeDisc: $('#sd', m).value, minFee: $('#sm', m).value, settleAccount: $('#sa', m).value, expCats: $('#se', m).value, incCats: $('#si', m).value};
@@ -1345,8 +1561,10 @@ async function openSettings(){
 applyPriv();
 (function boot(){
   if (!CFG && !window.__testApi) return pairScreen();
+  const bl = parseBotLink(location.href);
+  if (bl){ try { history.replaceState(null, '', location.pathname); } catch(e){} saveBotLink(bl).catch(e => toast('❌ 連結小幫手失敗：' + e.message, 4500)); }
   setTimeout(prefetchAll, 2500);
-  const l = ls.get('last', null); try { if (l && TITLES[l.v]) return go(l.v, l.arg || undefined, {tab: true}); } catch(e){} go('home', undefined, {tab: true}); })();
+  const l = ls.get('last', null); try { if (l && TITLES[l.v]) return go(l.v, l.arg || undefined, {tab: true}); } catch(e){} go('stock', undefined, {tab: true}); })();
 // 離線也能秒開：把畫面檔存在手機（新版本會在下次打開時自動換上）
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
