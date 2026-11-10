@@ -1165,7 +1165,7 @@ function checkReports() {
 }
 
 // ===== v2.19 立刻叫雲端寫報告（Claude 排程任務的 API 觸發） =====
-const ROUTINE_ID = 'trig_011gfyM5fPfQsLxqfUge8fzM';
+const ROUTINE_ID = 'trig_01CtVA8Rg1ad4VNJC4kNe5HA';   // v2.21 改叫「API 立即版」任務
 const KICK_GAP_MIN = 8;   // 一次雲端執行約 7 分鐘、會把所有等待中的工作一起寫；8 分鐘內不重複叫，省額度
 
 function fireRoutine(textMsg) {
@@ -4126,7 +4126,7 @@ function fetchXPostFull(url) {
 
 
 // v2.14 一鍵更新改由「啟動程式」（Apps Script 裡的 Code.gs）負責；這份主程式放在 GitHub 的 gas/Code.gs
-const APP_VERSION = 'v2.20';
+const APP_VERSION = 'v2.21';
 
 // ===== v2.13 清理暫存屬性（指令碼屬性超過 50 個時，畫面會變唯讀）=====
 function cleanupProps() {
