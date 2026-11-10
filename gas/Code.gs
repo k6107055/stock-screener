@@ -1161,6 +1161,7 @@ function checkReports() {
   } finally {
     lock.releaseLock();
   }
+  try { autoRoutineTest(); } catch (e) { console.warn('立即寫報告自動測試失敗：' + e); }   // v2.22
   try { kickReport(); } catch (e) { console.warn('立即寫報告失敗：' + e); }   // v2.19 補叫：上一次叫的時候還在冷卻中的工作
 }
 
@@ -1186,6 +1187,16 @@ function fireRoutine(textMsg) {
     prop('ROUTINE_LAST_ERR', String(e));
     return { ok: false, error: String(e) };
   }
+}
+
+// v2.22 新版生效後自動做一次連線測試，結果用 LINE 回報一次（不用使用者再傳金鑰）
+function autoRoutineTest() {
+  if (!prop('ROUTINE_TOKEN') || prop('ROUTINE_TESTED') === ROUTINE_ID) return;
+  if (Date.now() - Number(prop('ROUTINE_TEST_AT') || 0) < 6 * 3600000) return;   // 失敗的話 6 小時後再試，不洗版
+  prop('ROUTINE_TEST_AT', String(Date.now()));
+  const r = fireRoutine('連線測試');
+  if (r.ok) { prop('ROUTINE_TESTED', ROUTINE_ID); push([text('✅ 「立即寫報告」已啟用：之後小助理一抓好，雲端就馬上開始寫整合報告，不用再等整點。')]); }
+  else push([text('⚠️ 「立即寫報告」自動測試失敗：' + r.error.slice(0, 120) + '\n報告仍會由每小時排程照常產生。')]);
 }
 
 // 找「已抓取、使用者要求、還沒叫過」的工作 → 叫一次雲端；冷卻中就交給下一次定時檢查（10 分鐘內）補叫
@@ -4126,7 +4137,7 @@ function fetchXPostFull(url) {
 
 
 // v2.14 一鍵更新改由「啟動程式」（Apps Script 裡的 Code.gs）負責；這份主程式放在 GitHub 的 gas/Code.gs
-const APP_VERSION = 'v2.21';
+const APP_VERSION = 'v2.22';
 
 // ===== v2.13 清理暫存屬性（指令碼屬性超過 50 個時，畫面會變唯讀）=====
 function cleanupProps() {
