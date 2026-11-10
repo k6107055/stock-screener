@@ -1140,6 +1140,7 @@ function checkReports() {
   try { pendingReminder(); } catch (e) { console.warn('待分類提醒失敗：' + e); }
   try { digestTick(); } catch (e) { console.warn('摘要推播失敗：' + e); }
   try { if (prop('CLEANUP_DAY') !== today()) { prop('CLEANUP_DAY', today()); cleanupProps(); } } catch (e) { console.warn('清理暫存失敗：' + e); }
+  try { autoRoutineTest(); } catch (e) { console.warn('立即寫報告自動測試失敗：' + e); }   // v2.22 新版生效後自動測一次
   if (prop('ACTIVE_JOBS') !== '1') return;
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(10000)) return;
@@ -1161,7 +1162,6 @@ function checkReports() {
   } finally {
     lock.releaseLock();
   }
-  try { autoRoutineTest(); } catch (e) { console.warn('立即寫報告自動測試失敗：' + e); }   // v2.22
   try { kickReport(); } catch (e) { console.warn('立即寫報告失敗：' + e); }   // v2.19 補叫：上一次叫的時候還在冷卻中的工作
 }
 
