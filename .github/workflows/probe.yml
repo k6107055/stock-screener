@@ -10,6 +10,8 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - run: pip install requests && mkdir -p out && python probe.py
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       - env:
           GH_TOKEN: ${{ github.token }}
         run: |

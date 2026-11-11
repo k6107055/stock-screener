@@ -1,19 +1,20 @@
-import requests, json
-UA={'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36'}
-out={}
-def t(n,method,u,**kw):
+import requests, json, os, time
+K=os.environ.get('GEMINI_API_KEY','')
+H={'Content-Type':'application/json','x-goog-api-key':K}
+out={'haskey':bool(K)}
+B='https://generativelanguage.googleapis.com/v1beta/'
+try:
+    r=requests.get(B+'models?pageSize=200',headers=H,timeout=30)
+    out['models']=[m['name'] for m in r.json().get('models',[]) if 'flash' in m['name']]
+except Exception as e: out['models']=str(e)
+def t(name,url,body,to=120):
+    t0=time.time()
     try:
-        r=requests.request(method,u,headers=dict(UA,**kw.pop('h',{})),timeout=30,**kw)
-        out[n]={'code':r.status_code,'len':len(r.text),'ct':r.headers.get('content-type'),'head':r.text[:1500]}
-    except Exception as e: out[n]={'err':str(e)}
-t('ov_ajax','POST','https://mopsov.twse.com.tw/mops/web/ajax_t05sr01_1',data={'encodeURIComponent':'1','step':'0','firstin':'true','off':'1','TYPEK':'all'})
-t('ov_page','GET','https://mopsov.twse.com.tw/mops/web/t05sr01_1')
-t('new_api','POST','https://mops.twse.com.tw/mops/api/t05sr01_1',json={'count':'0','marketKind':''},h={'Content-Type':'application/json','Referer':'https://mops.twse.com.tw/mops/#/web/t05sr01_1'})
-t('new_api2','POST','https://mops.twse.com.tw/mops/api/home_page/t05sr01_1',json={'count':'0','marketKind':''},h={'Content-Type':'application/json'})
-t('new_page','GET','https://mops.twse.com.tw/mops/#/web/t05sr01_1')
-t('rss','GET','https://mopsov.twse.com.tw/nas/rss/mopsrss201001.xml')
-t('rss2','GET','https://mops.twse.com.tw/nas/rss/mopsrss201001.xml')
-t('twse_news','GET','https://www.twse.com.tw/rwd/zh/announcement/announcement?response=json')
+        r=requests.post(url,json=body,headers=H,timeout=to); out[name]={'code':r.status_code,'sec':round(time.time()-t0,1),'head':r.text[:700]}
+    except Exception as e: out[name]={'err':str(e)[:200],'sec':round(time.time()-t0,1)}
+msg={'contents':[{'parts':[{'text':'用一句話說台積電是什麼公司，輸出 JSON {"a":"..."}'}]}]}
+for m in ['gemini-3.8-flash','gemini-flash-latest','gemini-3-flash']:
+    t(m+'_plain',B+f'models/{m}:generateContent',dict(msg,generationConfig={'responseMimeType':'application/json'}))
+    t(m+'_low',B+f'models/{m}:generateContent',dict(msg,generationConfig={'responseMimeType':'application/json','thinkingConfig':{'thinkingLevel':'low'}}))
+t('interactions',B+'interactions',{'model':'gemini-3.8-flash','input':'用一句話說台積電是什麼公司'})
 json.dump(out,open('out/probe.json','w'),ensure_ascii=False,indent=1)
-r=requests.get('https://mopsov.twse.com.tw/nas/rss/mopsrss201001.xml',headers=UA,timeout=30)
-open('out/rss.xml','wb').write(r.content)
