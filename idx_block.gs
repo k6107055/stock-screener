@@ -49,16 +49,18 @@ function idxIntr(s, sess) {
     out = taifex1m(f.sym + (sess === 'night' ? '-M' : '-F'), sess === 'night');
     if (out) { out.sym = f.sym; out.sess = sess; }
   } else {
-    try {
-      const y = yahooResult(fx(yahooReq(s === 'otc' ? '^TWOII' : '^TWII', '1d', '1m')));
+    try {   // Yahoo奇摩（台灣站）1 分線，加權、櫃買都有，昨收正確
+      const rq = ytwReq([]); rq.url = 'https://tw.stock.yahoo.com/_td-stock/api/resource/FinanceChartService.ApacLibraCharts;symbols=' + encodeURIComponent(JSON.stringify([s === 'otc' ? '^TWOII' : '^TWII'])) + ';type=tick';
+      const j = safeJson(fx(rq).getContentText());
+      const y = j && j[0] && j[0].chart;
       if (y && y.timestamp) {
-        const qd = y.indicators.quote[0];
-        out = { t: [], o: [], h: [], l: [], c: [], v: [], prev: +(y.meta.chartPreviousClose || 0) || null };
-        y.timestamp.forEach(function (ts, i) { if (qd.close[i] == null) return; out.t.push(ts); out.o.push(r2(qd.open[i] != null ? qd.open[i] : qd.close[i])); out.h.push(r2(qd.high[i] != null ? qd.high[i] : qd.close[i]));
-          out.l.push(r2(qd.low[i] != null ? qd.low[i] : qd.close[i])); out.c.push(r2(qd.close[i])); out.v.push(Math.round((qd.volume[i] || 0) / 1e6)); });
+        const qd = y.indicators.quote[0], vv = qd.volume || [];
+        out = { t: [], o: [], h: [], l: [], c: [], v: [], prev: +(y.meta.previousClose || y.meta.chartPreviousClose || 0) || null };
+        y.timestamp.forEach(function (ts, i) { const c = qd.close[i]; if (c == null) return; out.t.push(ts); out.o.push(r2(qd.open && qd.open[i] != null ? qd.open[i] : c));
+          out.h.push(r2(qd.high && qd.high[i] != null ? qd.high[i] : c)); out.l.push(r2(qd.low && qd.low[i] != null ? qd.low[i] : c)); out.c.push(r2(c)); out.v.push(Math.round(vv[i] || 0)); });
         if (!out.t.length) out = null;
       }
-    } catch (e) { console.warn('指數分時 Yahoo 失敗：' + e); }
+    } catch (e) { console.warn('指數分時 Yahoo奇摩 失敗：' + e); }
     if (!out && s === 'twse') { try { out = taifex1m('TXF-S', false); if (out) out.v = out.v.map(function () { return 0; }); } catch (e) { /* 沒關係 */ } }
   }
   if (out) cachePut(ck, out, (s === 'fut' || marketOpen()) ? 20 : 600);
@@ -89,11 +91,18 @@ function idxDaily(s) {
   if (s === 'fut') return futDaily();
   const ck = 'IXK_' + s;
   const hit = cacheGet(ck); if (hit) return hit;
-  const sym = s === 'otc' ? '^TWOII' : '^TWII';
-  const y = yahooResult(fx(yahooReq(sym, '2y', '1d')));
-  let k = y && y.timestamp ? yahooKline(y) : null;
-  if (k) { k.v = k.v.map(function (x) { return Math.round(x / 1000); }); cachePut(ck, k, marketOpen() ? 900 : 3600); }   // 量：百萬股
-  return { day: k };
+  let k = null;
+  try {   // 官方收盤資料（FinMind：TAIEX／TPEx），量＝成交金額（億元）
+    const start = Utilities.formatDate(new Date(Date.now() - 600 * 86400000), TZ, 'yyyy-MM-dd');
+    const rows = fmRows(fx(finmindReq('TaiwanStockPrice', s === 'otc' ? 'TPEx' : 'TAIEX', start)), '指數日K');
+    k = { t: [], o: [], h: [], l: [], c: [], v: [] };
+    rows.forEach(function (r) { if (!(+r.close > 0)) return; k.t.push(String(r.date).slice(0, 10)); k.o.push(+r.open || +r.close); k.h.push(+r.max || +r.close); k.l.push(+r.min || +r.close); k.c.push(+r.close); k.v.push(Math.round((+r.Trading_money || 0) / 1e8)); });
+    if (!k.t.length) k = null;
+  } catch (e) { console.warn('指數日K FinMind 失敗：' + e); }
+  if (!k && s === 'twse') { const y = yahooResult(fx(yahooReq('^TWII', '2y', '1d'))); k = y && y.timestamp ? yahooKline(y) : null; }
+  const out = { day: k };
+  if (k) cachePut(ck, out, marketOpen() ? 900 : 3600);
+  return out;
 }
 function opIdxChart(a) {
   const s = ['twse', 'otc', 'fut'].indexOf(a.s) >= 0 ? a.s : 'twse';
