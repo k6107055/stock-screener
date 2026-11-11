@@ -152,7 +152,8 @@ button:active,.ht.rw:active,.row[data-code]:active,.card[id^=go]:active{opacity:
 /* 庫存（籌碼K 風格）*/
 .idx{display:flex;gap:8px;margin-bottom:10px}
 .idx>div{flex:1;background:var(--card);border-radius:12px;padding:8px 10px;box-shadow:0 1px 2px rgba(0,0,0,.05)}
-.idx b{font-size:16px;display:block}
+.idx b{font-size:16px;display:block;font-variant-numeric:tabular-nums}
+.idx small{display:block;font-size:11.5px;white-space:nowrap}
 .brd{font-size:12px;color:var(--sub);margin:-4px 4px 10px}
 .sum3{display:grid;grid-template-columns:1.05fr 1.05fr 1fr;gap:0;border:1px solid var(--line);border-radius:12px;overflow:hidden}
 .sum3>div{padding:8px 9px;border-left:1px solid var(--line);min-width:0}.sum3>div:first-child{border-left:0}
@@ -347,7 +348,8 @@ async function runLive(){
   j.busy = false;
   if (LJ !== j) return;
   liveBadge();
-  if (more !== false && isMkt()) j.timer = setTimeout(runLive, j.err ? Math.min(15000, LIVE_GAP * (1 + j.err)) : LIVE_GAP);
+  if (more === 'slow') j.timer = setTimeout(runLive, 15000);
+  else if (more !== false && isMkt()) j.timer = setTimeout(runLive, j.err ? Math.min(15000, LIVE_GAP * (1 + j.err)) : LIVE_GAP);
 }
 function liveBadge(){
   const el = $('#lv'); if (!el) return;
@@ -521,7 +523,7 @@ function vHome(){
   if (HOMEF && HOMEF.pf) startRt();   // 先用上次的持股清單馬上開始跳價，不等伺服器算完
   call('homeFast').then(d => { HOMEF = d; ls.set('homeF', d); ls.set('hasBot', !!d.hasBot); paint(pending > 1); if (d.needSetup) welcome(); if (!LJ) startRt(); loadPerf(); }).catch(e => toast('持股載入失敗：' + e.message, 3500)).finally(done);
   call('homeInfo').then(d => { HOMEI = d; ls.set('homeI', d); paint(pending > 1); }).catch(e => toast('資訊載入失敗：' + e.message, 3500)).finally(done);
-  gh('market.json', 600000).then(m => { MKT = m; ls.set('mkt', m); if (VIEW === 'home') paintIdx(); }).catch(() => {});
+  gh('market.json', 600000).then(m => { MKT = m; ls.set('mkt', m); paintIdx(); }).catch(() => {});
 }
 // 盤中：每 5 秒抓持股報價＋指數，直接在手機上算損益（不用整頁重抓）
 function startRt(){
@@ -529,7 +531,7 @@ function startRt(){
     if (VIEW !== 'home' || !HOMEF || !HOMEF.pf) return false;
     const r = await call('rt', {codes: HOMEF.pf.hold.map(x => x.code)});
     if (VIEW !== 'home') return false;
-    const old = RTQ; RTQ = r; paintIdx(); paintHold(old);
+    const old = RTQ; RTQ = r; if (r.idx && r.idx.twse){ IDXQ = r.idx; ls.set('idx', r.idx); } paintHold(old);
     return r.open;
   });
 }
@@ -627,11 +629,14 @@ function bindHoldEvents(){
   const g = $('#goTx'); if (g) g.onclick = () => { SUB.book = 'tx'; go('book'); };
   const gp = $('#goPnl'); if (gp) gp.onclick = openPnl;
 }
+let IDXQ = null;
+const nightFut = () => { const t = new Date(Date.now() + 8 * 3600e3), wd = t.getUTCDay(), hm = t.getUTCHours() * 100 + t.getUTCMinutes(); return (wd >= 1 && wd <= 5 && hm >= 1500) || (wd >= 2 && wd <= 6 && hm < 500); };
 function idxHtml(){
-  const ix = (RTQ && RTQ.idx) || ls.get('idx', null) || {};
-  if (RTQ && RTQ.idx && RTQ.idx.twse) ls.set('idx', RTQ.idx);
-  const one = (n, x) => x ? `<div><span class="sub">${n}</span><b class="${cls(x.chg)}">${fmt(x.p, 2)}</b><small class="${cls(x.chg)}">${sgn(x.chg)}${fp(x.chg)}（${sgn(x.pct)}${fp(x.pct)}%）</small></div>` : `<div><span class="sub">${n}</span><b>—</b></div>`;
-  let h = `<div class="idx">${one('加權指數', ix.twse)}${one('櫃買指數', ix.otc)}</div>`;
+  const ix = IDXQ || (RTQ && RTQ.idx) || ls.get('idx', null) || {};
+  const one = (n, x, sub) => x ? `<div><span class="sub">${n}</span><b class="${cls(x.chg)}">${fmt(x.p, x.p > 10000 && n === '台指期' ? 0 : 2)}</b><small class="${cls(x.chg)}">${sgn(x.chg)}${fp(x.chg)}（${sgn(x.pct)}${fp(x.pct)}%）</small>${sub ? `<small class="sub">${sub}</small>` : ''}</div>` : `<div><span class="sub">${n}</span><b>—</b></div>`;
+  const f = ix.fut, basis = f && ix.twse ? Math.round(f.p - ix.twse.p) : null;
+  const fsub = (nightFut() ? '夜盤・' : '') + (basis != null ? (basis >= 0 ? '正價差 ' : '逆價差 ') + money(Math.abs(basis)) : '');
+  let h = `<div class="idx">${one('加權', ix.twse)}${one('櫃買', ix.otc)}${one('台指期', f, fsub)}</div>`;
   if (MKT){ const mo = MKT.money || {};
     h += `<div class="brd">${esc(ymd8(MKT.d.replace(/-/g, '')))} 收盤：上漲 <span class="up">${MKT.up}</span>・下跌 <span class="down">${MKT.down}</span>${mo.f != null ? `・外資 ${money(mo.f)} 億・投信 ${money(mo.t)} 億・自營 ${money(mo.dl)} 億` : ''}</div>`; }
   return h;
@@ -643,7 +648,7 @@ function homeHtml(F, I, stale){
   let h = '';
   if (stale) h += `<div class="sub" style="margin:-2px 2px 8px">⏳ 更新中…（先顯示上次的資料）</div>`;
   (F.errs || []).concat(I.errs || []).forEach(e => h += `<div class="err">⚠️ ${esc(e)}</div>`);
-  h += `<div id="hidx">${idxHtml()}</div><div id="hwrap">${holdHtml()}</div>`;
+  h += `<div id="hwrap">${holdHtml()}</div>`;
   if (I.est || I.ind || I.rep){
     const my = {}; pf.hold.forEach(x => my[x.code] = 1); (LISTS ? LISTS.lists : []).forEach(l => l.codes.forEach(c => my[c] = my[c] || 2));
     const myRep = rep.filter(r => my[r.code]).slice(0, 4), mine = est.mine || [];
@@ -710,11 +715,11 @@ async function vStock(code){
   if (code){ SUB.code = code; saveSub(); return stockDetail(code); }
   SUB.code = null;
   const M = $('#main');
-  M.innerHTML = `<div class="search"><input id="q" type="search" enterkeyhint="search" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="🔍 搜尋股號／股名，按 ＋ 加進目前清單" autocomplete="off"><div class="sugg" id="sugg" hidden></div></div>
+  M.innerHTML = `<div id="hidx">${idxHtml()}</div><div class="search"><input id="q" type="search" enterkeyhint="search" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="🔍 搜尋股號／股名，按 ＋ 加進目前清單" autocomplete="off"><div class="sugg" id="sugg" hidden></div></div>
     <div class="ltabs" id="ltabs"></div><div id="wl">${LISTS ? '' : loading()}</div>`;
   if (LISTS) paintLists();
   smap().then(map => bindSearch(map));
-  const startL = () => setLive(async () => { if (VIEW !== 'stock' || SUB.code || !LISTS) return false; await pollLists(); return LISTS.open; });
+  const startL = () => setLive(async () => { if (VIEW !== 'stock' || SUB.code || !LISTS) return false; await pollLists(); return LISTS.open ? true : nightFut() ? 'slow' : false; });
   if (LISTS) startL();
   refreshLists(true).then(() => { if (!LJ && VIEW === 'stock' && !SUB.code) startL(); });
 }
@@ -725,7 +730,7 @@ async function refreshLists(){
 }
 async function pollLists(){
   const codes = Object.keys(LISTS.info);
-  { const d = await call('quotes', {codes}); Object.keys(d.q).forEach(c => { const i = LISTS.info[c]; if (!i) return; const o = i.p; i.p = d.q[c].p; i.c = d.q[c].c;
+  { const d = await call('quotes', {codes, idx: 1}); if (d.idx && d.idx.twse){ IDXQ = d.idx; ls.set('idx', d.idx); paintIdx(); } Object.keys(d.q).forEach(c => { const i = LISTS.info[c]; if (!i) return; const o = i.p; i.p = d.q[c].p; i.c = d.q[c].c;
       const el = $(`#wl [data-code="${c}"] .px`); if (el){ el.innerHTML = `<b>${fp(i.p)}</b><div>${pct(i.c)}</div>`; if (o != null && o !== i.p){ el.classList.remove('fu', 'fd'); void el.offsetWidth; el.classList.add(i.p > o ? 'fu' : 'fd'); } } });
     LISTS.open = d.open; const t = $('#wlAt'); if (t) t.textContent = (d.open ? '即時 ' : '收盤 ') + d.at; ls.set('lists', LISTS);
   }
