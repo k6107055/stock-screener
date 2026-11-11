@@ -195,6 +195,9 @@ def main():
             old = {}
     cutoff = (datetime.now(timezone.utc) - timedelta(days=KEEP_DAYS)).isoformat()
     recs = {k: v for k, v in old.items() if v.get('publish_time', '') >= cutoff}
+    for v0 in recs.values():   # 舊紀錄也用最新規則重算股號、清掉沒數據的指標（不用再問 Gemini）
+        v0['codes'] = codes_of(v0.get('mentioned_stocks'))
+        v0['key_metrics'] = clean_metrics(v0.get('key_metrics'))
     new_ai = 0
     for ch in TRACKED_CHANNELS:
         for v in fetch_latest_videos_from_rss(ch['channel_id']):
