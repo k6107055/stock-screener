@@ -170,8 +170,18 @@ def gemini(video):
 
 
 def codes_of(stocks, text=''):
-    s = ' '.join(stocks or []) + ' ' + text
-    return sorted(set(re.findall(r'(?<!\d)(\d{4}[A-Z]?|00\d{3,4}[A-Z]?)(?!\d)', s)))
+    # 只從「代號 名稱」抓（標題裡的 2026 這種年份不算）
+    out = set()
+    for t in stocks or []:
+        m = re.match(r'\s*(\d{4}[A-Z]?|00\d{3,4}[A-Z]?)\s*[\u4e00-\u9fffA-Za-z]', str(t))
+        if m:
+            out.add(m.group(1))
+    return sorted(out)
+
+
+def clean_metrics(ms):
+    bad = re.compile(r'未提供|未提及|無具體|不明|無法判斷|N/?A', re.I)
+    return [m for m in (ms or []) if isinstance(m, dict) and m.get('val') and not bad.search(str(m.get('val')))]
 
 
 def main():
@@ -205,10 +215,10 @@ def main():
                 'video_title': v['title'], 'video_url': v['url'], 'publish_time': v['published_at'],
                 'summary': (p or {}).get('summary') or desc[:150],
                 'decision_card': (p or {}).get('decision_card') or {},
-                'key_metrics': (p or {}).get('key_metrics') or [],
+                'key_metrics': clean_metrics((p or {}).get('key_metrics')),
                 'mentioned_stocks': (p or {}).get('mentioned_stocks') or [],
                 'action_discipline': (p or {}).get('action_discipline') or '',
-                'codes': codes_of((p or {}).get('mentioned_stocks'), v['title']),
+                'codes': codes_of((p or {}).get('mentioned_stocks')),
                 'ai': bool(p),
             }
     out = sorted(recs.values(), key=lambda x: x['publish_time'], reverse=True)
