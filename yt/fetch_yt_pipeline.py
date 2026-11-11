@@ -15,25 +15,44 @@ GEMINI_MODEL = os.getenv('GEMINI_MODEL', '')   # 留空＝自動挑目前可用�
 GEMINI_ENDPOINT = ''
 
 
+MODELS = []   # 可用的 flash 模型，新的在前；忙線（503）就自動換下一個
+
+
 def pick_model():
     global GEMINI_MODEL, GEMINI_ENDPOINT
-    if not GEMINI_MODEL and GEMINI_API_KEY:
+    if GEMINI_API_KEY:
+        cand = []
         try:
             r = requests.get('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', headers={'x-goog-api-key': GEMINI_API_KEY}, timeout=30)
-            best = None
             for m in r.json().get('models', []):
                 n = m.get('name', '').split('/')[-1]
-                mm = re.fullmatch(r'gemini-(\d+(?:\.\d+)?)-flash', n)
+                mm = re.fullmatch(r'gemini-(\d+(?:\.\d+)?)-flash(-lite)?', n)
                 if mm and 'generateContent' in m.get('supportedGenerationMethods', []):
-                    v = float(mm.group(1))
-                    if not best or v > best[0]:
-                        best = (v, n)
-            GEMINI_MODEL = best[1] if best else 'gemini-flash-latest'
+                    cand.append((1 if mm.group(2) else 0, -float(mm.group(1)), n))
         except Exception as e:
             print('查模型清單失敗：', e)
-            GEMINI_MODEL = 'gemini-flash-latest'
-    GEMINI_ENDPOINT = f'https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent'
-    print('使用模型：', GEMINI_MODEL)
+        MODELS[:] = ([GEMINI_MODEL] if GEMINI_MODEL else []) + [c[2] for c in sorted(cand)] + ['gemini-flash-latest', 'gemini-flash-lite-latest']
+        MODELS[:] = list(dict.fromkeys(MODELS))
+        GEMINI_MODEL = MODELS[0]
+    set_model(GEMINI_MODEL)
+    print('模型順序：', MODELS[:8])
+
+
+def set_model(m):
+    global GEMINI_MODEL, GEMINI_ENDPOINT
+    GEMINI_MODEL = m
+    GEMINI_ENDPOINT = f'https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent'
+
+
+def next_model():
+    i = MODELS.index(GEMINI_MODEL) if GEMINI_MODEL in MODELS else -1
+    if i + 1 < len(MODELS):
+        set_model(MODELS[i + 1])
+        THINK[:] = [{'thinkingLevel': 'low'}, {'thinkingBudget': 0}, None]
+        return True
+    return False
+
+
 OUT_DIR = sys.argv[1] if len(sys.argv) > 1 else 'yt-out'
 OUT = os.path.join(OUT_DIR, 'latest_intel.json')
 KEEP_DAYS = 30
@@ -116,11 +135,14 @@ def gemini(video):
     if THINK[0]:
         gc['thinkingConfig'] = THINK[0]   # 新模型預設會「想很久」，摘要不需要，調低才不會逾時又省額度
     payload = {'contents': [{'parts': [{'text': ANALYSIS_PROMPT}, {'text': content}]}], 'generationConfig': gc}
-    for i in range(4):
+    for i in range(8):
         try:
             t0 = time.time()
-            r = requests.post(GEMINI_ENDPOINT, json=payload, headers={'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY}, timeout=240)
+            r = requests.post(GEMINI_ENDPOINT, json=payload, headers={'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY}, timeout=120)
             LAT.append(round(time.time() - t0, 1))
+            if r.status_code == 200:
+                txt = r.json()['candidates'][0]['content']['parts'][0]['text']
+                return json.loads(txt)
             if r.status_code == 400 and 'thinking' in r.text.lower() and THINK[0]:
                 THINK.pop(0)
                 if THINK[0]:
@@ -128,20 +150,22 @@ def gemini(video):
                 else:
                     payload['generationConfig'].pop('thinkingConfig', None)
                 continue
-            if r.status_code == 200:
-                txt = r.json()['candidates'][0]['content']['parts'][0]['text']
-                return json.loads(txt)
-            if r.status_code in (429, 500, 503):
-                ERRS.append(f'{r.status_code} {r.text[:200]}')
-                time.sleep(20 * (i + 1))
+            ERRS.append(f'{GEMINI_MODEL} {r.status_code} {r.text[:160]}')
+            if r.status_code in (503, 404, 500) or (r.status_code == 429 and i >= 1):
+                if not next_model():
+                    return None   # 每個模型都忙線
+                if THINK[0]:
+                    payload['generationConfig']['thinkingConfig'] = THINK[0]
                 continue
-            print(f'Gemini 錯誤 [{r.status_code}]: {r.text[:300]}')
-            ERRS.append(f'{r.status_code} {r.text[:300]}')
+            if r.status_code == 429:
+                time.sleep(30)
+                continue
             return None
         except Exception as e:
             print(f'呼叫 Gemini 失敗: {e}')
-            ERRS.append(str(e)[:200])
-            time.sleep(5)
+            ERRS.append(f'{GEMINI_MODEL} {str(e)[:120]}')
+            if not next_model():
+                return None
     return None
 
 
@@ -168,7 +192,7 @@ def main():
             prev = recs.get(vid)
             if prev and (prev.get('ai') or not GEMINI_API_KEY):
                 continue   # 分析過了，不再花 Gemini 額度
-            if len(ERRS) >= 6:
+            if len(ERRS) >= 25:
                 p = None   # Gemini 一直失敗就先停，不浪費時間
             else:
                 p = gemini(v)
@@ -190,7 +214,7 @@ def main():
     out = sorted(recs.values(), key=lambda x: x['publish_time'], reverse=True)
     json.dump(out, open(OUT, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
     json.dump({'updated': datetime.now(timezone(timedelta(hours=8))).strftime('%Y-%m-%d %H:%M'), 'n': len(out), 'new_ai': new_ai,
-               'model': GEMINI_MODEL if GEMINI_API_KEY else '', 'err': ERRS[:3], 'sec': LAT[:8], 'think': THINK[0]}, open(os.path.join(OUT_DIR, 'meta.json'), 'w', encoding='utf-8'), ensure_ascii=False)
+               'model': GEMINI_MODEL if GEMINI_API_KEY else '', 'err': ERRS[-4:], 'sec': LAT[:8], 'think': THINK[0]}, open(os.path.join(OUT_DIR, 'meta.json'), 'w', encoding='utf-8'), ensure_ascii=False)
     print(f'完成：共 {len(out)} 支影片，這次新分析 {new_ai} 支')
 
 
