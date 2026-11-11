@@ -173,7 +173,7 @@ def codes_of(stocks, text=''):
     # 只從「代號 名稱」抓（標題裡的 2026 這種年份不算）
     out = set()
     for t in stocks or []:
-        m = re.match(r'\s*(\d{4}[A-Z]?|00\d{3,4}[A-Z]?)\s*[\u4e00-\u9fffA-Za-z]', str(t))
+        m = re.match(r'\s*(00\d{3,4}[A-Z]?)(?![0-9A-Z])', str(t)) or re.match(r'\s*(\d{4}[A-Z]?)(?![0-9A-Z])\s*[\u4e00-\u9fffA-Za-z]', str(t))
         if m:
             out.add(m.group(1))
     return sorted(out)
