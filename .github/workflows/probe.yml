@@ -1,0 +1,17 @@
+name: probe
+on:
+  push:
+    branches: [probe]
+permissions:
+  contents: write
+jobs:
+  p:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: pip install requests && mkdir -p out && python probe.py
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd out && git init -q -b probe-out && git config user.name bot && git config user.email b@b
+          git add -A && git commit -qm out && git push -f -q "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" probe-out
