@@ -1,10 +1,11 @@
 // ==UserScript==
 // @name         優分析小助理抓取器（股票檔案小幫手）
 // @namespace    stock-file-helper
-// @version      1.7
+// @version      1.8
 // @description  ① LINE 傳「報告 3167」時抓小助理 20 個分類 ② 每 10 分鐘收集「小助理更新重點」交給 Apps Script（追蹤推播、雷達、歷史紀錄）
 // @match        https://pro.uanalyze.com.tw/*
 // @match        https://*.uanalyze.com.tw/*
+// @match        https://store.uanalyze.com.tw/*
 // @match        https://accounts.google.com/*
 // @match        https://access.line.me/*
 // @grant        GM_xmlhttpRequest
@@ -69,7 +70,7 @@
       return false;
     }
     const pw = document.querySelector('input[type=password]');
-    if (mode === '1' && pw) {
+    if (pw && GM_getValue('uaLoginPw', '') && (mode === '1' || mode === '3')) {   // v1.8 新登入頁沒有 LINE 登入 → 有帳密就用帳密
       const id = GM_getValue('uaLoginId', ''), pass = GM_getValue('uaLoginPw', '');
       if (!id || !pass) return false;
       const user = [...document.querySelectorAll('input')].filter(i => i !== pw && i.offsetParent !== null && /text|email|tel/.test(i.type || 'text'))[0];
@@ -89,9 +90,47 @@
       if (b) { b.click(); return true; }
     }
     // 還沒看到登入表單 → 找「登入」按鈕點進去
-    const entry = clickable().find(e => /^(登入|會員登入|登入／註冊|登入\/註冊|Login|Sign in)$/i.test(textOf(e)) && e.childElementCount === 0);
+    const entry = clickable().find(e => /^(登入|會員登入|登入\s*[／\/]\s*註冊|Login|Sign in)$/i.test(textOf(e).replace(/\s+/g, ' ')) && e.childElementCount <= 1);
     if (entry) { entry.click(); return true; }
     return false;
+  }
+
+  // v1.8 優分析改版：被登出時 pro 會被導到 store.uanalyze.com.tw（首頁或 /login）。
+  // 在 store 上也照規則判斷要不要自動登入，並直接打開登入頁，不再靠點「登入 / 註冊」按鈕。
+  const LOGIN_URL = 'https://store.uanalyze.com.tw/login?redirect_uri=' + encodeURIComponent('https://pro.uanalyze.com.tw/lab/dashboard');
+  if (location.hostname === 'store.uanalyze.com.tw') {
+    const goLogin = () => { if (!GM_getValue(RET_KEY, '')) GM_setValue(RET_KEY, 'https://pro.uanalyze.com.tw/lab/dashboard'); if (location.pathname !== '/login') location.href = LOGIN_URL; };
+    if (alRecent()) {
+      goLogin();
+      let n = 0; const iv = setInterval(() => { n++; if (loginStep() || n > 20) clearInterval(iv); }, 1500);
+      return;
+    }
+    const url = GM_getValue('cfgUrl', ''), key = GM_getValue('cfgKey', '');
+    const ask = (q) => new Promise(res => GM_xmlhttpRequest({ method: 'GET', url: url + '?' + q + '&key=' + encodeURIComponent(key), anonymous: true, timeout: 30000,
+      onload: r => { try { res(JSON.parse(r.responseText)); } catch (e) { res({}); } }, onerror: () => res({}), ontimeout: () => res({}) }));
+    async function storeTick() {
+      const mode = GM_getValue('uaLoginMode', '1');
+      if (!url || mode === '0' || !GM_getValue('uaLoginPw', '') && mode === '1') return;
+      const tries = JSON.parse(GM_getValue('uaLoginTries2', '[]')).filter(t => Date.now() - t < 3600 * 1000);
+      if (tries.length >= 3) return;                                   // 1 小時內最多試 3 次
+      const d = new Date(), m = d.getHours() * 60 + d.getMinutes();
+      let go = m >= 30 && m <= 450;                                     // 半夜 00:30～07:30 直接登入
+      if (!go) {
+        const r = await ask('action=hasJob');
+        if (!(r && r.jobs > 0)) return;
+        const warned = +GM_getValue('uaReloginWarn2', 0);
+        if (!warned || Date.now() - warned > 30 * 60 * 1000) { GM_setValue('uaReloginWarn2', Date.now()); ask('action=uaAlert&what=relogin'); return; }
+        go = Date.now() - warned > 3 * 60 * 1000;
+      }
+      if (!go) return;
+      tries.push(Date.now()); GM_setValue('uaLoginTries2', JSON.stringify(tries));
+      GM_setValue(AL_KEY, Date.now());
+      goLogin();
+      if (location.pathname === '/login') { let n = 0; const iv = setInterval(() => { n++; if (loginStep() || n > 20) clearInterval(iv); }, 1500); }
+    }
+    setTimeout(storeTick, 5000);
+    setInterval(storeTick, 60 * 1000);
+    return;
   }
 
   if (location.hostname !== 'pro.uanalyze.com.tw') {
@@ -449,7 +488,7 @@
     GM_setValue(AL_KEY, Date.now());
     GM_setValue(RET_KEY, location.href);
     status('自動登入中…', '#8250df');
-    if (!loginStep()) setTimeout(() => location.reload(), 3000);
+    if (!loginStep()) setTimeout(() => { location.href = LOGIN_URL; }, 1500);   // v1.8 直接開登入頁
   }
   // 登入後回到原本的頁面
   (function () {
