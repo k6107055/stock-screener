@@ -1,14 +1,17 @@
 import requests, json
-UA={'User-Agent':'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1','Referer':'https://tw.stock.yahoo.com/'}
+UA={'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36'}
 out={}
-yr='https://tw.stock.yahoo.com/_td-stock/api/resource/'
-def g(n,u,h=UA,k=1500):
+def t(n,method,u,**kw):
     try:
-        r=requests.get(u,headers=h,timeout=25); out[n]={'u':u,'code':r.status_code,'len':len(r.text),'head':r.text[:k]}
-    except Exception as e: out[n]={'u':u,'err':str(e)}
-for i,q in enumerate(['symbols=%5B%22%5ETWOII%22%5D;type=tick','period=1m;symbols=%5B%22%5ETWOII%22%5D','period=tick;symbols=%5B%22%5ETWOII%22%5D','period=5m;symbols=%5B%22%5ETWOII%22%5D','symbols=%5B%22%5ETWOII%22%5D','period=1d;symbols=%5B%222330.TW%22%5D;type=tick','symbols=%5B%222330.TW%22%5D;type=tick']):
-    g('v%d'%i, yr+'FinanceChartService.ApacLibraCharts;'+q, k=900)
-g('fm_tpex','https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockPrice&data_id=TPEx&start_date=2026-11-05',{'User-Agent':'x'},600)
+        r=requests.request(method,u,headers=dict(UA,**kw.pop('h',{})),timeout=30,**kw)
+        out[n]={'code':r.status_code,'len':len(r.text),'ct':r.headers.get('content-type'),'head':r.text[:1500]}
+    except Exception as e: out[n]={'err':str(e)}
+t('ov_ajax','POST','https://mopsov.twse.com.tw/mops/web/ajax_t05sr01_1',data={'encodeURIComponent':'1','step':'0','firstin':'true','off':'1','TYPEK':'all'})
+t('ov_page','GET','https://mopsov.twse.com.tw/mops/web/t05sr01_1')
+t('new_api','POST','https://mops.twse.com.tw/mops/api/t05sr01_1',json={'count':'0','marketKind':''},h={'Content-Type':'application/json','Referer':'https://mops.twse.com.tw/mops/#/web/t05sr01_1'})
+t('new_api2','POST','https://mops.twse.com.tw/mops/api/home_page/t05sr01_1',json={'count':'0','marketKind':''},h={'Content-Type':'application/json'})
+t('new_page','GET','https://mops.twse.com.tw/mops/#/web/t05sr01_1')
+t('rss','GET','https://mopsov.twse.com.tw/nas/rss/mopsrss201001.xml')
+t('rss2','GET','https://mops.twse.com.tw/nas/rss/mopsrss201001.xml')
+t('twse_news','GET','https://www.twse.com.tw/rwd/zh/announcement/announcement?response=json')
 json.dump(out,open('out/probe.json','w'),ensure_ascii=False,indent=1)
-r=requests.get(yr+'FinanceChartService.ApacLibraCharts;symbols=%5B%22%5ETWOII%22%5D;type=tick',headers=UA,timeout=25)
-json.dump(r.json(),open('out/full.json','w'),ensure_ascii=False)
