@@ -5,6 +5,7 @@ Atlas 公開資訊觀測站（官方 OpenAPI，免金鑰）
   index.json            哪幾天有資料、各類筆數、更新時間
   d/YYYY-MM-DD.json     當天所有項目（不含長內文）
   b/YYYY-MM-DD/NN.json  重大訊息的「說明」全文（依股號前兩碼分檔，點開才讀）
+  c/NN.json             依股號前兩碼分檔：每家公司近 60 天的所有項目（個股頁「📚 資料」用）
   state/*.json          上個月董監持股快照（算持股異動、設質解質用）
 類型 k：msg 重大訊息／ann 其他公告／xfer 內部人轉讓申報／hold 內部人持股異動／pledge 設質解質
 """
@@ -319,6 +320,21 @@ def finish(days, bodies, ok):
             grp.setdefault(k[:2], {})[k[2:]] = v
         for gk, gv in grp.items():
             json.dump(gv, open(f'{OUT}/b/{d}/{gk}.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
+    # 個股頁用：每家公司近 60 天（每類最多 30 則）
+    import shutil
+    shutil.rmtree(f'{OUT}/c', ignore_errors=True)
+    os.makedirs(f'{OUT}/c', exist_ok=True)
+    byc = {}
+    for d in sorted(days, reverse=True):
+        for x in sorted(days[d].values(), key=lambda x: x.get('t') or '', reverse=True):
+            lst = byc.setdefault(x['c'], [])
+            if sum(1 for y in lst if y['k'] == x['k']) < 30:
+                lst.append(x)
+    grp = {}
+    for c, lst in byc.items():
+        grp.setdefault(c[:2], {})[c] = lst
+    for gk, gv in grp.items():
+        json.dump(gv, open(f'{OUT}/c/{gk}.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
     hs = {m: json.load(open(f'{OUT}/state/hold_{m}.json', encoding='utf-8'))['ym'] for m in ('上市', '上櫃') if os.path.exists(f'{OUT}/state/hold_{m}.json')}
     idx['holdYm'] = hs
     print(json.dumps(ok, ensure_ascii=False), len(idx['days']), 'days')

@@ -202,6 +202,15 @@ body:not(.priv) .privhint{display:none}
 .yv .stk{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
 .yv .stk span{font-size:12.5px;background:var(--bg);border-radius:8px;padding:2px 8px}
 .yv .stk span[data-code]{background:var(--pri2);color:var(--pri)}
+.lib .li{display:flex;gap:10px;align-items:center;padding:9px 0;border-top:1px solid var(--line);text-decoration:none;color:var(--tx)}
+.lib .li:first-of-type{border-top:0}
+.lib .li .ic{font-size:20px;flex:none;width:26px;text-align:center}
+.lib .li .tx{flex:1;min-width:0}
+.lib .li .tx b{display:block;font-weight:500;font-size:14px;line-height:1.35;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.lib .imgs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.lib .imgs a{display:block;aspect-ratio:1;border-radius:10px;background:var(--bg);overflow:hidden;text-decoration:none;color:var(--sub);font-size:11px;position:relative}
+.lib .imgs img{width:100%;height:100%;object-fit:cover;display:block}
+.lib .imgs span{position:absolute;left:4px;right:4px;bottom:3px;text-shadow:0 0 3px var(--card)}
 .yv .act{margin-top:8px;font-size:13.5px;background:var(--warnbg);color:var(--warn);border-radius:10px;padding:7px 10px}
 /* ====== 電腦（寬螢幕）：左側導覽＋多欄儀表板；手機不受影響 ====== */
 @media (min-width:1000px){
@@ -1031,6 +1040,8 @@ async function stockDetail(code){
     if (!GHCHIP[code] && m.chip && window.LightweightCharts && $('#cc')) drawChips(m.chip); }).catch(e => { if (SUB.code === code && $('#more') && !MORE) $('#more').innerHTML = `<div class="sub" style="padding:0 4px 10px">💡 小幫手資料暫時抓不到：${esc(e.message)}</div>`; });
   // ④ 我的持股／交易／清單（要開試算表，比較慢，另外跑）
   call('stockMe', {code}).then(me => { if (VIEW !== 'stock' || SUB.code !== code) return; STK = Object.assign(STK || {}, me); paintMe(code); paintQ(code); }).catch(() => {});
+  // ⑥ 📚 資料：雲端檔案＋公告＋YouTube（各自跑，不卡畫面）
+  loadLib(code);
   // ⑤ K 線（不開試算表，最快）
   try {
     const d = await call('kline', {code, noq: !!LIVE});
@@ -1066,6 +1077,7 @@ function renderStock(code, d, stale){
   h += `<div class="card" id="chipcard"><h3>🏦 籌碼統計（張）</h3><div id="csum"><div class="sub">讀取中…</div></div></div>`;
   h += `<div class="card" id="book"><h3>📒 五檔</h3><div class="sub">讀取中…</div></div>`;
   h += `<div id="mycard"></div>`;
+  h += `<div class="card" id="lib"><h3>📚 資料</h3><div class="sub">讀取中…</div></div>`;
   h += `<div id="more">${MORE ? '' : '<div class="card">' + loading('讀取法人預估、券商報告、小助理…') + '</div>'}</div>`;
   h += `<div id="mytx"></div></div>`;
   $('#sd').innerHTML = h;
@@ -1120,6 +1132,63 @@ function renderMore(code){
   bindEst(el);
   if (docs.report && !REPOF[code]) { REPOF[code] = {url: docs.report.url, d: docs.report.date, t: 0}; paintRep(code); }
 }
+// ====================== v2.9 個股頁「📚 資料」：雲端檔案（整合報告、券商報告、圖片、筆記）＋觀測站公告＋YouTube ======================
+const LIBT = [['rep', '報告'], ['pdf', '券商／檔案'], ['img', '圖片'], ['memo', '筆記'], ['ann', '公告'], ['yt', 'YouTube']];
+let LIB = null, LIBX = false;
+async function loadLib(code){
+  LIB = {code, files: ls.get('lib_' + code, null), ann: null, yt: null};
+  LIBX = false; paintLib();
+  const done = () => { if (SUB.code === code && LIB && LIB.code === code) paintLib(); };
+  call('stockFiles', {code}).then(d => { if (!LIB || LIB.code !== code) return; LIB.files = d; ls.set('lib_' + code, d); done(); })
+    .catch(e => { if (LIB && LIB.code === code){ LIB.fileErr = e.message; done(); } });
+  Promise.all([ghx('info-data', 'c/' + code.slice(0, 2) + '.json', 300000).catch(() => ({})), call('mopsLive').catch(() => [])]).then(([g, live]) => {
+    if (!LIB || LIB.code !== code) return;
+    const a = (g && g[code]) || [], have = new Set(a.filter(x => x.k === 'msg').map(x => x.d + '|' + x.t));
+    (live || []).filter(x => x.c === code && !have.has(x.d + '|' + x.t)).forEach((x, i) => a.unshift(Object.assign({id: 'L' + i}, x)));
+    a.sort((x, y) => (y.d + (y.t || '')) > (x.d + (x.t || '')) ? 1 : -1);
+    LIB.ann = a; done(); });
+  ghx('yt-data', 'latest_intel.json', 600000).then(list => { if (!LIB || LIB.code !== code) return;
+    LIB.yt = list.filter(x => (x.codes || []).indexOf(code) >= 0 || (x.mentioned_stocks || []).some(t => new RegExp('(^|\\D)' + code + '(\\D|$)').test(t))); done(); }).catch(() => { if (LIB) { LIB.yt = []; done(); } });
+}
+function libGroups(){
+  const it = (LIB.files && LIB.files.items) || [];
+  return {rep: it.filter(x => x.k === 'rep' || x.k === 'raw' || x.k === 'doc'), pdf: it.filter(x => x.k === 'pdf' || x.k === 'other'), img: it.filter(x => x.k === 'img'),
+    memo: it.filter(x => x.k === 'memo'), ann: LIB.ann || [], yt: LIB.yt || []};
+}
+function paintLib(){
+  const el = $('#lib'); if (!el || !LIB) return;
+  const code = LIB.code, G = libGroups();
+  let t = LIB.pick || (SUB.lib && G[SUB.lib] ? SUB.lib : 'rep');
+  if (!LIB.pick && !G[t].length){ const f = LIBT.find(([k]) => G[k].length); if (f && (LIB.files || t === 'ann' || t === 'yt')) t = f[0]; }
+  const all = G[t], N = LIBX ? 60 : 5, rows = all.slice(0, N);
+  const nm = x => String(x.n || '').replace(new RegExp('^' + code + '[_\\s-]*'), '').replace(/\.(pdf|jpe?g|png|heic|webp)$/i, '');
+  const ic = {rep: '📑', raw: '🤖', doc: '📄', pdf: '📕', other: '📎', memo: '📝'};
+  const fileRow = x => `<a class="li" target="_blank" rel="noopener" href="${esc(x.u)}"><span class="ic">${ic[x.k] || '📄'}</span><span class="tx"><b>${esc(nm(x))}</b><span class="sub">${esc(x.d)}${x.s ? '・' + esc(x.s) : ''}${x.k === 'raw' ? '・小助理' : ''}</span></span></a>`;
+  const annRow = x => `<div class="ot" data-c="${esc(x.c)}" data-d="${esc(x.d)}" data-id="${esc(x.id)}" data-k="${esc(x.k)}" data-m="${esc(x.m)}"><div class="h"><span class="tag" style="margin-left:0">${esc(x.ty)}</span><span class="sub">${esc((MOPSK.find(m => m[0] === x.k) || [])[1] || '')}</span><span class="tm">${esc(x.d.slice(5).replace('-', '/'))}${x.t ? ' ' + esc(x.t) : ''}</span></div><div class="s">${esc(x.s)}</div>${x.r ? `<div class="r">${esc(x.r)}</div>` : ''}</div>`;
+  const ytRow = x => `<div class="li" style="display:block"><div class="sub">${esc(x.channel_name)}・${esc(String(x.publish_time).slice(5, 10).replace('-', '/'))}</div><a href="${esc(x.video_url)}" target="_blank" rel="noopener" style="color:var(--tx);font-weight:600;text-decoration:none">${esc(x.video_title)}</a><div style="font-size:13.5px;margin-top:3px">${esc(x.summary || '')}</div>${x.decision_card && x.decision_card.industry_stage ? `<div class="sub" style="margin-top:3px">產業階段：${esc(x.decision_card.industry_stage)}</div>` : ''}</div>`;
+  let body;
+  const loadingTxt = t === 'ann' ? !LIB.ann : t === 'yt' ? !LIB.yt : !LIB.files;
+  if (loadingTxt) body = loading();
+  else if (!all.length) body = `<div class="empty">${t === 'ann' ? '近 60 天沒有公告' : t === 'yt' ? '近 30 天的 YouTube 筆記沒有提到這檔' : LIB.fileErr ? esc(LIB.fileErr) : LIB.files && !LIB.files.folder ? '雲端還沒有這檔的資料夾（傳檔案給 LINE 小幫手就會自動建立）' : '沒有這類檔案'}</div>`;
+  else if (t === 'img') body = `<div class="imgs">${rows.map(x => `<a target="_blank" rel="noopener" href="${esc(x.u)}"><img loading="lazy" alt="" src="https://drive.google.com/thumbnail?id=${encodeURIComponent(x.id)}&sz=w400" onerror="this.remove()"><span>${esc(x.d.slice(5))}</span></a>`).join('')}</div>`;
+  else if (t === 'ann') body = rows.map(annRow).join('');
+  else if (t === 'yt') body = rows.map(ytRow).join('');
+  else body = rows.map(fileRow).join('');
+  el.className = 'card lib';
+  el.innerHTML = `<h3>📚 資料${LIB.files && LIB.files.folder ? `<a class="more" target="_blank" rel="noopener" href="${esc(LIB.files.folder)}">雲端資料夾 ›</a>` : ''}</h3>
+    <div class="tabsm" id="libt">${LIBT.map(([k, n]) => `<button data-k="${k}" class="${k === t ? 'on' : ''}">${n}${G[k].length ? ' ' + G[k].length : ''}</button>`).join('')}</div>
+    ${body}${all.length > 5 ? `<div style="text-align:center;margin-top:8px"><button class="btn g sm" id="libx">${LIBX ? '收起' : '顯示全部 ' + all.length + ' 筆'}</button></div>` : ''}`;
+  $$('#libt button', el).forEach(b => b.onclick = () => { SUB.lib = LIB.pick = b.dataset.k; LIBX = false; saveSub(); paintLib(); });
+  const x = $('#libx', el); if (x) x.onclick = () => { LIBX = !LIBX; paintLib(); };
+  $$('.ot', el).forEach(o => o.onclick = async () => {
+    const ex = $('.body', o); if (ex){ ex.remove(); return; }
+    if (/^L/.test(o.dataset.id) || $('.r', o) && $('.r', o).textContent === '即時'){ window.open('https://mopsov.twse.com.tw/mops/web/t05st01?firstin=1&TYPEK=' + (o.dataset.m === '上櫃' ? 'otc' : 'sii') + '&co_id=' + encodeURIComponent(o.dataset.c), '_blank'); return; }
+    const box = document.createElement('div'); box.className = 'body'; box.textContent = '讀取中…'; o.appendChild(box);
+    if (o.dataset.k !== 'msg' && o.dataset.k !== 'ann'){ box.textContent = $('.s', o).textContent; return; }
+    try { const b = await ghx('info-data', 'b/' + o.dataset.d + '/' + o.dataset.c.slice(0, 2) + '.json', 86400000); box.textContent = b[o.dataset.id] || $('.s', o).textContent; } catch(e){ box.textContent = $('.s', o).textContent; }
+  });
+}
+
 // ====================== 一鍵報告 ======================
 const REPOF = {};
 let REPT = null;
