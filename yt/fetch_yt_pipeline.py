@@ -77,6 +77,8 @@ ANALYSIS_PROMPT = """
 """
 
 ERRS = []
+LAT = []
+THINK = [{'thinkingLevel': 'low'}, {'thinkingBudget': 0}, None]
 NS = {'atom': 'http://www.w3.org/2005/Atom', 'yt': 'http://www.youtube.com/xml/schemas/2015', 'media': 'http://search.yahoo.com/mrss/'}
 
 
@@ -110,11 +112,22 @@ def gemini(video):
     if not GEMINI_API_KEY:
         return None
     content = f"影片標題: {video['title']}\n影片網址: {video['url']}\n影片說明與主要內容:\n{video['description'][:4000]}"
-    payload = {'contents': [{'parts': [{'text': ANALYSIS_PROMPT}, {'text': content}]}],
-               'generationConfig': {'temperature': 0.1, 'responseMimeType': 'application/json'}}
+    gc = {'temperature': 0.1, 'responseMimeType': 'application/json'}
+    if THINK[0]:
+        gc['thinkingConfig'] = THINK[0]   # 新模型預設會「想很久」，摘要不需要，調低才不會逾時又省額度
+    payload = {'contents': [{'parts': [{'text': ANALYSIS_PROMPT}, {'text': content}]}], 'generationConfig': gc}
     for i in range(4):
         try:
-            r = requests.post(GEMINI_ENDPOINT, json=payload, headers={'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY}, timeout=90)
+            t0 = time.time()
+            r = requests.post(GEMINI_ENDPOINT, json=payload, headers={'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY}, timeout=240)
+            LAT.append(round(time.time() - t0, 1))
+            if r.status_code == 400 and 'thinking' in r.text.lower() and THINK[0]:
+                THINK.pop(0)
+                if THINK[0]:
+                    payload['generationConfig']['thinkingConfig'] = THINK[0]
+                else:
+                    payload['generationConfig'].pop('thinkingConfig', None)
+                continue
             if r.status_code == 200:
                 txt = r.json()['candidates'][0]['content']['parts'][0]['text']
                 return json.loads(txt)
@@ -177,7 +190,7 @@ def main():
     out = sorted(recs.values(), key=lambda x: x['publish_time'], reverse=True)
     json.dump(out, open(OUT, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
     json.dump({'updated': datetime.now(timezone(timedelta(hours=8))).strftime('%Y-%m-%d %H:%M'), 'n': len(out), 'new_ai': new_ai,
-               'model': GEMINI_MODEL if GEMINI_API_KEY else '', 'err': ERRS[:3]}, open(os.path.join(OUT_DIR, 'meta.json'), 'w', encoding='utf-8'), ensure_ascii=False)
+               'model': GEMINI_MODEL if GEMINI_API_KEY else '', 'err': ERRS[:3], 'sec': LAT[:8], 'think': THINK[0]}, open(os.path.join(OUT_DIR, 'meta.json'), 'w', encoding='utf-8'), ensure_ascii=False)
     print(f'完成：共 {len(out)} 支影片，這次新分析 {new_ai} 支')
 
 
