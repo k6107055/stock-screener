@@ -280,13 +280,13 @@ function prefetchAll(){
 async function prefetchStocks(){
   const hold = (HOMEF && HOMEF.pf ? HOMEF.pf.hold.map(x => x.code) : (LISTS ? LISTS.hold : [])) || [];
   const L = LISTS && LISTS.lists.find(l => l.name === SUB.list);
-  const codes = [...new Set(hold.concat(L ? L.codes : []))].slice(0, 12);
+  const codes = [...new Set(hold.concat(L ? L.codes : []))].slice(0, 20);
   const td = today();
   for (const c of codes){
     const hit = ls.get('stk_' + c, null);
     if (hit && hit.__d === td) continue;
-    try { const d = await rawCall('stock', {code: c}); d.__d = td; ls.set('stk_' + c, Object.assign(d, {myTx: null})); rememberStk(c); } catch(e){ break; }
-    await new Promise(r => setTimeout(r, 1200));
+    try { const d = await rawCall('kline', {code: c}); const o = ls.get('stk_' + c, null) || {}; ls.set('stk_' + c, Object.assign(o, d, {__d: td})); rememberStk(c); } catch(e){ break; }
+    await new Promise(r => setTimeout(r, 600));
   }
 }
 function pairScreen(msg){
@@ -800,9 +800,13 @@ async function stockDetail(code){
   const cached = ls.get('stk_' + code, null), cm = ls.get('stkm_' + code, null);
   $('#ttl').textContent = code + ' ' + ((cached && cached.name) || sname(code));
   smap().catch(() => {});   // 名稱表背景抓，不卡畫面
-  M.innerHTML = `<div id="sd">${cached ? '' : loading('抓報價、K 線…')}</div>`;
+  M.innerHTML = `<div id="sd"></div>`;
   loadCharts().catch(() => {});
-  if (cached){ if (cm && cm.code === code) MORE = cm; renderStock(code, cached, true); }
+  if (cm && cm.code === code) MORE = cm;
+  // v2.5 一點進來就先畫出整頁：有存過就用存的，沒有就先用自選清單上的價格，K 線那格顯示讀取中
+  const li = LISTS && LISTS.info && LISTS.info[code];
+  const quick = li && li.p ? {price: li.p, prev: li.c != null ? Math.round(li.p / (1 + li.c / 100) * 100) / 100 : null} : null;
+  renderStock(code, cached || {code, name: sname(code), q: quick, k: null}, true);
   rememberStk(code);
   // ① 報價：馬上開始，盤中每 2.5 秒跳一次（不等 K 線）
   setLive(async () => {
@@ -819,13 +823,29 @@ async function stockDetail(code){
   // ③ 慢的（小幫手、營收、FinMind）另外跑，回來再補上
   call('stockMore', {code}).then(m => { if (SUB.code !== code) return; MORE = m; ls.set('stkm_' + code, m); renderMore(code);
     if (!GHCHIP[code] && m.chip && window.LightweightCharts && $('#cc')) drawChips(m.chip); }).catch(e => { if (SUB.code === code && $('#more') && !MORE) $('#more').innerHTML = `<div class="sub" style="padding:0 4px 10px">💡 小幫手資料暫時抓不到：${esc(e.message)}</div>`; });
-  // ④ K 線＋報價＋我的持股（約 1 秒）
+  // ④ 我的持股／交易／清單（要開試算表，比較慢，另外跑）
+  call('stockMe', {code}).then(me => { if (VIEW !== 'stock' || SUB.code !== code) return; STK = Object.assign(STK || {}, me); paintMe(code); paintQ(code); }).catch(() => {});
+  // ⑤ K 線（不開試算表，最快）
   try {
-    const d = await call('stock', {code});
+    const d = await call('kline', {code, noq: !!LIVE});
     if (VIEW !== 'stock' || SUB.code !== code) return;
-    ls.set('stk_' + code, Object.assign({}, d, {myTx: null, __d: today()}));
-    renderStock(code, d, false);
-  } catch(e){ if (!cached) $('#sd').innerHTML = `<div class="err">${esc(e.message)}</div>`; else toast(e.message); }
+    STK = Object.assign(STK || {}, d, d.q ? {} : {q: STK && STK.q});
+    ls.set('stk_' + code, Object.assign({}, STK, {myTx: null, __d: today()}));
+    $('#ttl').textContent = code + ' ' + (STK.name || sname(code));
+    paintQ(code);
+    if (window.LightweightCharts) drawMain(code); else loadCharts().then(() => drawMain(code)).catch(() => {});
+  } catch(e){ if (!cached && $('#ck')) $('#ck').innerHTML = `<div class="err">${esc(e.message)}</div>`; else toast(e.message); }
+}
+function paintQ(code){ if (!$('#qcard') || !STK) return; if (LIVE && LIVE.q) return paintLive(code, false); $('#qcard').innerHTML = quoteHtml(STK.q, STK); bindQuoteBtns(code, STK); }
+function paintMe(code){
+  const d = STK || {};
+  const a = $('#mycard'), b = $('#mytx');
+  if (a) a.innerHTML = d.my && d.my.shares ? `<div class="card"><h3>💼 我的持股</h3><div class="grid3" style="margin-top:0"><div class="kv"><span class="sub">股數</span><b class="m">${shTxt(d.my.shares)}</b></div>
+      <div class="kv"><span class="sub">均價</span><b class="m">${fp(d.my.avg)}</b></div><div class="kv"><span class="sub">損益(未扣費)</span><b class="m" id="mypl">—</b></div></div></div>` : '';
+  if (b) b.innerHTML = d.myTx && d.myTx.length ? `<div class="card"><h3>🧾 我的交易</h3>${d.myTx.map(t => txRow(t)).join('')}</div>` : '';
+  $$('[data-tx]', b || document).forEach(el => el.onclick = () => txForm(d.myTx.find(t => t.id === el.dataset.tx), () => stockDetail(code)));
+  const q = (LIVE && LIVE.q) || d.q;
+  if (q && q.price && d.my && d.my.shares && $('#mypl')) $('#mypl').innerHTML = money(Math.round(q.price * d.my.shares - d.my.cost));
 }
 function renderStock(code, d, stale){
   $('#ttl').textContent = code + ' ' + (d.name || sname(code));
@@ -839,16 +859,13 @@ function renderStock(code, d, stale){
   h += `<div class="card" id="repcard"></div>`;
   h += `<div class="card" id="chipcard"><h3>🏦 籌碼統計（張）</h3><div id="csum"><div class="sub">讀取中…</div></div></div>`;
   h += `<div class="card" id="book"><h3>📒 五檔</h3><div class="sub">讀取中…</div></div>`;
-  if (d.my && d.my.shares){
-    h += `<div class="card"><h3>💼 我的持股</h3><div class="grid3" style="margin-top:0"><div class="kv"><span class="sub">股數</span><b class="m">${shTxt(d.my.shares)}</b></div>
-      <div class="kv"><span class="sub">均價</span><b class="m">${fp(d.my.avg)}</b></div><div class="kv"><span class="sub">損益(未扣費)</span><b class="m" id="mypl">—</b></div></div></div>`;
-  }
+  h += `<div id="mycard"></div>`;
   h += `<div id="more">${MORE ? '' : '<div class="card">' + loading('讀取法人預估、券商報告、小助理…') + '</div>'}</div>`;
-  if (d.myTx && d.myTx.length) h += `<div class="card"><h3>🧾 我的交易</h3>${d.myTx.map(t => txRow(t)).join('')}</div>`;
+  h += `<div id="mytx"></div>`;
   $('#sd').innerHTML = h;
   bindQuoteBtns(code, d);
-  $$('[data-tx]').forEach(el => el.onclick = () => txForm(d.myTx.find(t => t.id === el.dataset.tx), () => stockDetail(code)));
   STK = d;
+  paintMe(code);
   if (MORE) renderMore(code);
   paintRep(code);
   loadCharts().then(() => { if (SUB.code !== code) return; drawMain(code); drawChips(chipOf(code)); }).catch(() => { $('#ck').innerHTML = '<div class="empty">圖表載入失敗，按 ↻ 重試</div>'; });
@@ -1054,6 +1071,7 @@ function drawMain(code){
   const kt = ktNow();
   $('#chipbox').hidden = kt === 'intr';
   if (kt === 'intr') return drawIntr();
+  if (!STK || !STK.k){ $('#ck').innerHTML = `<div class="empty">${loading('讀取 K 線…')}</div>`; return; }
   const base = withLive(STK && STK.k, (LIVE && LIVE.q) || (STK && STK.q));
   drawK(aggK(base, kt), null, kt === 'd' ? 120 : kt === 'w' ? 104 : 72);
 }
