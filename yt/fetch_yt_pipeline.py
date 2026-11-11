@@ -3,7 +3,7 @@ YouTube 財經筆記（J-System）— 原始版本由 Gemini 設計，Claude 整
   ・每天抓 12 個頻道最新影片（YouTube RSS，免金鑰）
   ・用 Gemini 做投資決策卡（GEMINI_API_KEY 放在 GitHub Secrets；沒有 key 就只存影片說明）
   ・已經分析過的影片不再送 Gemini（省 Gemini 額度）；保留 30 天
-輸出：latest_intel.json（發佈到 yt-data 分支，Atlas 直接讀）
+輸出：latest_intel.json、meta.json（發佈到 yt-data 分支，Atlas 直接讀）
 """
 import os, re, sys, json, time
 import requests
