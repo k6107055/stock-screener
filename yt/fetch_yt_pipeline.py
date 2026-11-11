@@ -55,6 +55,7 @@ ANALYSIS_PROMPT = """
 資訊不足以判斷的欄位請填空字串，不要編造。台股請寫成「代號 名稱」，例如「2330 台積電」。
 """
 
+ERRS = []
 NS = {'atom': 'http://www.w3.org/2005/Atom', 'yt': 'http://www.youtube.com/xml/schemas/2015', 'media': 'http://search.yahoo.com/mrss/'}
 
 
@@ -97,12 +98,15 @@ def gemini(video):
                 txt = r.json()['candidates'][0]['content']['parts'][0]['text']
                 return json.loads(txt)
             if r.status_code in (429, 500, 503):
+                ERRS.append(f'{r.status_code} {r.text[:200]}')
                 time.sleep(20 * (i + 1))
                 continue
             print(f'Gemini 錯誤 [{r.status_code}]: {r.text[:300]}')
+            ERRS.append(f'{r.status_code} {r.text[:300]}')
             return None
         except Exception as e:
             print(f'呼叫 Gemini 失敗: {e}')
+            ERRS.append(str(e)[:200])
             time.sleep(5)
     return None
 
@@ -129,7 +133,10 @@ def main():
             prev = recs.get(vid)
             if prev and (prev.get('ai') or not GEMINI_API_KEY):
                 continue   # 分析過了，不再花 Gemini 額度
-            p = gemini(v)
+            if len(ERRS) >= 6:
+                p = None   # Gemini 一直失敗就先停，不浪費時間
+            else:
+                p = gemini(v)
             if p:
                 new_ai += 1
                 time.sleep(7)   # 免費額度每分鐘次數有限
@@ -148,7 +155,7 @@ def main():
     out = sorted(recs.values(), key=lambda x: x['publish_time'], reverse=True)
     json.dump(out, open(OUT, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
     json.dump({'updated': datetime.now(timezone(timedelta(hours=8))).strftime('%Y-%m-%d %H:%M'), 'n': len(out), 'new_ai': new_ai,
-               'model': GEMINI_MODEL if GEMINI_API_KEY else ''}, open(os.path.join(OUT_DIR, 'meta.json'), 'w', encoding='utf-8'), ensure_ascii=False)
+               'model': GEMINI_MODEL if GEMINI_API_KEY else '', 'err': ERRS[:3]}, open(os.path.join(OUT_DIR, 'meta.json'), 'w', encoding='utf-8'), ensure_ascii=False)
     print(f'完成：共 {len(out)} 支影片，這次新分析 {new_ai} 支')
 
 
