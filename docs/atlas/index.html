@@ -996,7 +996,7 @@ function quoteHtml(q, d){
   const lim = q.up && q.price >= q.up ? '<span class="tag h">漲停</span>' : q.down && q.price <= q.down ? '<span class="tag" style="background:var(--downbg);color:var(--down)">跌停</span>' : '';
   return `<div style="display:flex;align-items:flex-end;gap:10px"><div class="big ${cls(chg)}" id="qp">${fp(q.price)}</div>
     <div class="${cls(chg)}" style="padding-bottom:5px" id="qc">${chg == null ? '' : sgn(chg) + fp(chg) + '（' + sgn(chg) + fp(chg / q.prev * 100) + '%）'}</div>${lim}
-    <div class="sub" style="margin-left:auto;padding-bottom:6px" id="qt">${q.t ? (LIVE && LIVE.open ? '🔴 即時 ' : '') + esc(q.t) : ''}</div></div>
+    <div class="sub" style="margin-left:auto;padding-bottom:6px" id="qt">${q.t ? (q.stale ? '⚠️ 延遲報價 ' + esc(String(q.d || '').slice(4, 6) + '/' + String(q.d || '').slice(6)) + ' ' : LIVE && LIVE.open ? '🔴 即時 ' : '') + esc(q.t) + (q.src && !q.stale && q.src !== '證交所' ? '・' + esc(q.src) : '') : ''}</div></div>
     <div class="grid4"><div><span class="sub">開</span> ${fp(q.o)}</div><div><span class="sub">高</span> <span class="up">${fp(q.h)}</span></div><div><span class="sub">低</span> <span class="down">${fp(q.l)}</span></div><div><span class="sub">量</span> ${fmt(q.v)}</div></div>
     <div class="btns" style="margin-top:10px"><button class="btn sm g" id="bL">⭐ 加入清單${d && d.inLists && d.inLists.length ? '（' + d.inLists.length + '）' : ''}</button>
     <button class="btn sm g" id="bT">＋記交易</button><button class="btn sm g" id="bR">📑 一鍵報告</button><button class="btn sm g" data-est="${esc(SUB.code || '')}">🎯 法人上下修</button>
