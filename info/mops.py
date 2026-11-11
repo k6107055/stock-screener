@@ -4,7 +4,7 @@ Atlas 公開資訊觀測站（官方 OpenAPI，免金鑰）
 輸出（發佈到 info-data 分支，手機直接讀）：
   index.json            哪幾天有資料、各類筆數、更新時間
   d/YYYY-MM-DD.json     當天所有項目（不含長內文）
-  b/YYYY-MM-DD.json     重大訊息的「說明」全文（點開才讀）
+  b/YYYY-MM-DD/NN.json  重大訊息的「說明」全文（依股號前兩碼分檔，點開才讀）
   state/*.json          上個月董監持股快照（算持股異動、設質解質用）
 類型 k：msg 重大訊息／ann 其他公告／xfer 內部人轉讓申報／hold 內部人持股異動／pledge 設質解質
 """
@@ -114,11 +114,23 @@ def main():
             days[d] = {x['id']: x for x in json.load(open(f'{OUT}/d/{f}', encoding='utf-8'))}
         else:
             os.remove(f'{OUT}/d/{f}')
+    import shutil
     for f in os.listdir(OUT + '/b'):
-        if f[:-5] >= cutoff:
-            bodies[f[:-5]] = json.load(open(f'{OUT}/b/{f}', encoding='utf-8'))
+        pth = f'{OUT}/b/{f}'
+        if os.path.isfile(pth):          # 舊格式（整天一檔）→ 改成依股號前兩碼分檔
+            d0 = f[:-5]
+            if d0 >= cutoff and d0 in days:
+                for k, v in json.load(open(pth, encoding='utf-8')).items():
+                    it = days[d0].get(k)
+                    if it:
+                        bodies.setdefault(d0, {})[it['c'][:2] + k] = v
+            os.remove(pth)
+        elif f >= cutoff:
+            for g2 in os.listdir(pth):
+                for k, v in json.load(open(f'{pth}/{g2}', encoding='utf-8')).items():
+                    bodies.setdefault(f, {})[g2[:2] + k] = v
         else:
-            os.remove(f'{OUT}/b/{f}')
+            shutil.rmtree(pth)
 
     def add(item, body=None):
         d = item['d']
@@ -126,7 +138,7 @@ def main():
             return
         days.setdefault(d, {})[item['id']] = item
         if body:
-            bodies.setdefault(d, {})[item['id']] = body[:6000]
+            bodies.setdefault(d, {})[item['c'][:2] + item['id']] = body[:6000]
 
     ok = {}
     # ① 重大訊息
@@ -251,7 +263,12 @@ def main():
             cnt[x['k']] = cnt.get(x['k'], 0) + 1
         idx['days'].append({'d': d, 'n': cnt})
     for d, b in bodies.items():
-        json.dump(b, open(f'{OUT}/b/{d}.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
+        os.makedirs(f'{OUT}/b/{d}', exist_ok=True)
+        grp = {}
+        for k, v in b.items():
+            grp.setdefault(k[:2], {})[k[2:]] = v
+        for gk, gv in grp.items():
+            json.dump(gv, open(f'{OUT}/b/{d}/{gk}.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
     hs = {m: json.load(open(f'{OUT}/state/hold_{m}.json', encoding='utf-8'))['ym'] for m in ('上市', '上櫃') if os.path.exists(f'{OUT}/state/hold_{m}.json')}
     idx['holdYm'] = hs
     json.dump(idx, open(f'{OUT}/index.json', 'w', encoding='utf-8'), ensure_ascii=False, indent=0)

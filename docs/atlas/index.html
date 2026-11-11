@@ -178,6 +178,78 @@ button:active,.ht.rw:active,.row[data-code]:active,.card[id^=go]:active{opacity:
 label.ck{display:flex;gap:10px;align-items:center;color:var(--tx);font-size:16px;margin:12px 0}label.ck input{width:22px;height:22px}
 .sugg div.sr{padding:9px 10px 9px 14px}
 body:not(.priv) .privhint{display:none}
+
+/* 觀測站／YouTube */
+.ofl{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:4px 0 10px}
+.ofl select,.ofl input{width:auto;font-size:14px;padding:6px 8px;border-radius:9px}
+.ofl input[type=search]{flex:1;min-width:140px}
+.ofl input[type=date]{max-width:150px}
+.ot{display:grid;grid-template-columns:1fr;gap:2px;padding:10px 0;border-top:1px solid var(--line)}
+.ot:first-child{border-top:0}
+.ot .h{display:flex;gap:6px;align-items:center;font-size:12.5px;color:var(--sub)}
+.ot .h b{color:var(--tx);font-size:14.5px}
+.ot .h .tm{margin-left:auto;font-variant-numeric:tabular-nums}
+.ot .s{font-size:14.5px;line-height:1.4}
+.ot .r{font-size:12.5px;color:var(--sub)}
+.ot .body{white-space:pre-wrap;font-size:13.5px;background:var(--bg);border-radius:10px;padding:10px;margin-top:6px;-webkit-user-select:text;user-select:text}
+.ot.hd{display:none}
+.ot.mine .h b::after{content:'持股';font-size:10.5px;background:var(--upbg);color:var(--up);border-radius:5px;padding:0 4px;margin-left:4px;font-weight:600}
+.ot.watch .h b::after{content:'觀察';font-size:10.5px;background:var(--pri2);color:var(--pri);border-radius:5px;padding:0 4px;margin-left:4px;font-weight:600}
+.yv h4{margin:4px 0 6px;font-size:15px;line-height:1.35}
+.yv h4 a{color:var(--tx);text-decoration:none}
+.yv .dc{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
+.yv .dc .kv b{font-size:13px;font-weight:500}
+.yv .stk{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.yv .stk span{font-size:12.5px;background:var(--bg);border-radius:8px;padding:2px 8px}
+.yv .stk span[data-code]{background:var(--pri2);color:var(--pri)}
+.yv .act{margin-top:8px;font-size:13.5px;background:var(--warnbg);color:var(--warn);border-radius:10px;padding:7px 10px}
+/* ====== 電腦（寬螢幕）：左側導覽＋多欄儀表板；手機不受影響 ====== */
+@media (min-width:1000px){
+  body{padding-bottom:28px;padding-left:92px;-webkit-user-select:text;user-select:text}
+  nav{top:0;right:auto;width:92px;flex-direction:column;justify-content:flex-start;gap:4px;padding:72px 0 12px;border-top:0;border-right:1px solid var(--line)}
+  nav button{flex:none;padding:12px 0;font-size:12.5px;border-radius:12px;margin:0 8px}
+  nav button.on{background:var(--pri2)}
+  nav button i{font-size:24px}
+  header{max-width:1480px;margin:0 auto;padding:18px 24px 12px}
+  header h1{font-size:22px}
+  main{max-width:1480px;margin:0 auto;padding:0 24px}
+  .chart{height:440px}.chart.s{height:230px}
+  .fab{bottom:32px;right:32px}
+  .mask{align-items:center}
+  .sheet{border-radius:18px;max-width:640px;max-height:86vh}
+  .sheet::before{display:none}
+  .card{break-inside:avoid}
+  .idx{gap:12px}.idx>div{padding:12px 16px}.idx b{font-size:22px}.idx small{font-size:13px}
+  /* 多欄：庫存、資產、資訊、記帳 */
+  #main.v-home,#main.v-asset{column-count:2;column-gap:16px}
+  #main.v-home>*,#main.v-asset>*{break-inside:avoid}
+  .v-info #ib,.v-book #bb{column-count:2;column-gap:16px}
+  .v-info #ib>.tabsm,.v-info #ib>.search,.v-info #ib>.ofl,.v-info #ib>div[style*="text-align:center"]{column-span:all}
+  .v-info #ib>.card#il,.v-info #ib>.card.one{column-span:all}
+  #il{column-count:2;column-gap:28px}
+  #il .art{break-inside:avoid}
+  /* 自選清單：多欄排列 */
+  #wl .card{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));column-gap:28px}
+  #wl .card>h3,#wl .card>.btns,#wl .card>.sub,#wl .card>.empty{grid-column:1/-1}
+  #wl .card>.row{border-top:0;border-bottom:1px solid var(--line)}
+  /* 個股頁：左邊報價＋K 線、右邊籌碼／五檔／法人預估 */
+  #sd{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(360px,1fr);gap:16px;align-items:start}
+  /* 指數頁：左報價、右圖 */
+  #main.v-idx{display:grid;grid-template-columns:minmax(320px,400px) minmax(0,1fr);gap:16px;align-items:start}
+  #main.v-idx>#ixq{grid-column:1;grid-row:1}
+  #main.v-idx>.card:not(#ixq){grid-column:2;grid-row:1 / span 2}
+  #main.v-idx>.sub{grid-column:1;grid-row:2}
+  #main.v-idx .chart{height:560px}
+  /* 觀測站表格 */
+  .ob .ot{grid-template-columns:92px 150px 96px minmax(0,1fr) minmax(160px,280px);column-gap:12px;align-items:start}
+  .ob .ot.hd{display:grid;font-size:12px;color:var(--sub);padding:4px 0}
+  .ob .ot .h{display:contents}
+  .ob .ot .tag{justify-self:start;margin-left:0}
+  .ob .ot .h .tm{order:-1;margin:0;font-size:13px}
+  .ob .ot .body{grid-column:1/-1}
+  .v-info #ib>.card.one{column-span:all}
+  .yvl{column-count:2;column-gap:16px}
+}
 </style>
 </head>
 <body>
@@ -376,6 +448,7 @@ function go(v, arg, opt){
   if (opt.tab) NAV = [];
   else if (!opt.back && !opt.same && (CUR.v !== v || (CUR.arg || null) !== (arg || null))) { NAV.push({v: CUR.v, arg: CUR.arg, y: window.scrollY}); if (NAV.length > 30) NAV.shift(); }
   CUR = {v, arg: arg || null};
+  { const m = $('#main'); [...m.classList].filter(c => c.startsWith('v-')).forEach(c => m.classList.remove(c)); m.classList.add('v-' + v); }
   VIEW = v; SEQ++; $$('#nav button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
   $('#ttl').textContent = TITLES[v] || 'Atlas';
   stopLive(); clearInterval(REPT); REPT = null; destroyCharts();
@@ -983,17 +1056,17 @@ function renderStock(code, d, stale){
   $('#ttl').textContent = code + ' ' + (d.name || sname(code));
   let h = '';
   (d.errs || []).forEach(e => h += `<div class="err">⚠️ ${esc(e)}</div>`);
-  h += `<div class="card" id="qcard">${quoteHtml(d.q, d)}</div>`;
+  h += `<div class="sdl"><div class="card" id="qcard">${quoteHtml(d.q, d)}</div>`;
   h += `<div class="card"><div class="tabsm" id="kt">${[['intr', '分時'], ['d', '日K'], ['w', '週K'], ['m', '月K']].map(([k, t]) => `<button data-k="${k}" class="${ktNow() === k ? 'on' : ''}">${t}</button>`).join('')}</div>
     <div class="legend" id="klg"></div><div class="chart" id="ck"></div>
     <div id="chipbox"><div class="tabsm" id="cw" style="margin-top:8px"><button data-k="all" class="on">三大法人</button><button data-k="f">外資</button><button data-k="it">投信</button><button data-k="dl">自營</button><button data-k="mg">融資券</button></div>
     <div class="legend" id="clg"></div><div class="chart s" id="cc"></div><div class="sub" id="csrc"></div></div></div>`;
-  h += `<div class="card" id="repcard"></div>`;
+  h += `<div class="card" id="repcard"></div></div><div class="sdr">`;
   h += `<div class="card" id="chipcard"><h3>🏦 籌碼統計（張）</h3><div id="csum"><div class="sub">讀取中…</div></div></div>`;
   h += `<div class="card" id="book"><h3>📒 五檔</h3><div class="sub">讀取中…</div></div>`;
   h += `<div id="mycard"></div>`;
   h += `<div id="more">${MORE ? '' : '<div class="card">' + loading('讀取法人預估、券商報告、小助理…') + '</div>'}</div>`;
-  h += `<div id="mytx"></div>`;
+  h += `<div id="mytx"></div></div>`;
   $('#sd').innerHTML = h;
   bindQuoteBtns(code, d);
   STK = d;
@@ -1341,12 +1414,14 @@ async function vPick(){
 
 // ====================== 資訊（法人預估／產業研究包／報告）======================
 async function vInfo(){
-  const s = SUB.info || 'est';
+  const s = SUB.info || 'mops';
   const M = $('#main');
-  M.innerHTML = `<div class="seg" id="seg"><button data-s="est">🎯 法人預估</button><button data-s="ind">🏭 產業研究包</button><button data-s="rep">📑 整合報告</button></div><div id="ib">${loading()}</div>`;
+  M.innerHTML = `<div class="seg" id="seg"><button data-s="mops">觀測站</button><button data-s="yt">YouTube</button><button data-s="rep">報告</button><button data-s="est">法人預估</button><button data-s="ind">產業研究</button></div><div id="ib">${loading()}</div>`;
   $$('#seg button').forEach(b => { b.classList.toggle('on', b.dataset.s === s); b.onclick = () => { SUB.info = b.dataset.s; vInfo(); }; });
   const B = $('#ib');
   try {
+    if (s === 'mops') return await mopsView(B);
+    if (s === 'yt') return await ytView(B);
     if (s === 'est'){
       const days = SUB.estDays || 3, mine = !!SUB.estMine;
       const d = await call('estList', {days, mineOnly: mine});
@@ -1381,6 +1456,121 @@ async function vInfo(){
       bindCodes(B);
     }
   } catch(e){ B.innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+}
+
+// ====================== v2.8 公開資訊觀測站（證交所／櫃買官方 OpenAPI，GitHub 每天抓好放 info-data 分支）======================
+const RAW = 'https://raw.githubusercontent.com/k6107055/stock-screener/';
+const GXM = {};
+async function ghx(branch, path, maxAge){
+  const k = 'gx_' + branch + '/' + path, hit = GXM[k] || ls.get(k, null);
+  if (hit && Date.now() - hit.t < (maxAge || 600000)) return hit.d;
+  try {
+    const r = await fetch(RAW + branch + '/' + path, {cache: 'no-cache'});
+    if (!r.ok) throw new Error(r.status === 404 ? '還沒有資料' : 'GitHub ' + r.status);
+    const d = await r.json(), e = {d, t: Date.now()}; GXM[k] = e;
+    if (JSON.stringify(d).length < 400000) ls.set(k, e);
+    return d;
+  } catch(e){ if (hit) return hit.d; throw e; }
+}
+const MOPSK = [['msg', '重大訊息'], ['ann', '其他公告'], ['xfer', '內部人轉讓申報'], ['hold', '內部人持股異動'], ['pledge', '設質解質']];
+function myCodeSets(){
+  const hold = new Set(), watch = new Set();
+  ((LISTS && LISTS.hold) || []).forEach(c => hold.add(c));
+  ((HOMEF && HOMEF.pf && HOMEF.pf.hold) || []).forEach(x => hold.add(x.code));
+  ((LISTS && LISTS.lists) || []).forEach(l => l.codes.forEach(c => { if (!hold.has(c)) watch.add(c); }));
+  return {hold, watch};
+}
+async function mopsView(B){
+  if (!LISTS) { try { await refreshLists(); } catch(e){} }
+  const F = SUB.mf = Object.assign({k: 'msg', sc: 'all', mk: '', ty: '', q: '', from: '', to: ''}, SUB.mf || {});
+  B.innerHTML = loading('讀取公開資訊觀測站…');
+  let idx; try { idx = await ghx('info-data', 'index.json', 300000); } catch(e){ B.innerHTML = `<div class="err">觀測站資料讀不到：${esc(e.message)}</div>`; return; }
+  const days = idx.days.map(x => x.d);
+  if (!days.length){ B.innerHTML = '<div class="empty">還沒有資料</div>'; return; }
+  if (!F.to || days.indexOf(F.to) < 0 && F.to > days[0]) F.to = days[0];
+  if (!F.from) F.from = days[Math.min(days.length - 1, 4)];
+  const need = days.filter(d => d >= F.from && d <= F.to).slice(0, 31);
+  const lists = await Promise.all(need.map(d => ghx('info-data', 'd/' + d + '.json', d === days[0] ? 300000 : 86400000).catch(() => [])));
+  const all = [].concat(...lists);
+  const {hold, watch} = myCodeSets();
+  const cnt = {}; MOPSK.forEach(([k]) => cnt[k] = 0);
+  const base = all.filter(x => (F.sc === 'all' || (F.sc === 'hold' ? hold.has(x.c) : (hold.has(x.c) || watch.has(x.c)))) && (!F.mk || x.m === F.mk));
+  base.forEach(x => cnt[x.k]++);
+  const types = [...new Set(base.filter(x => x.k === F.k).map(x => x.ty))].sort();
+  if (F.ty && types.indexOf(F.ty) < 0) F.ty = '';
+  const q = F.q.trim().toLowerCase();
+  const rows = base.filter(x => x.k === F.k && (!F.ty || x.ty === F.ty) && (!q || (x.c + x.n + x.s + x.r).toLowerCase().indexOf(q) >= 0))
+    .sort((a, b) => a.d === b.d ? ((b.t || '') > (a.t || '') ? 1 : -1) : (a.d < b.d ? 1 : -1));
+  const N = SUB.mn || 60;
+  const cls2 = x => hold.has(x.c) ? ' mine' : watch.has(x.c) ? ' watch' : '';
+  const row = x => `<div class="ot${cls2(x)}" data-id="${esc(x.id)}" data-d="${esc(x.d)}" data-c="${esc(x.c)}" data-k="${esc(x.k)}">
+      <div class="h"><b>${esc(x.c)} ${esc(x.n)}</b><span class="tag">${esc(x.ty)}</span><span class="tm">${esc(x.d.slice(5).replace('-', '/'))}${x.t ? ' ' + esc(x.t) : ''}</span></div>
+      <div class="s">${esc(x.s)}</div><div class="r">${esc(x.r || '')}</div></div>`;
+  const holdNote = (F.k === 'hold' || F.k === 'pledge') && !rows.length ? `<div class="sub" style="padding:6px 2px">💡 董監持股是官方每月公布一次（目前基準 ${esc(Object.values(idx.holdYm || {}).map(y => (+y.slice(0, -2) + 1911) + '/' + y.slice(-2)).join('、') || '—')}），下個月公布後會開始列出增減與設質、解質。</div>` : '';
+  B.innerHTML = `<div class="tabsm" id="mk">${MOPSK.map(([k, t]) => `<button data-k="${k}" class="${F.k === k ? 'on' : ''}">${t} ${cnt[k] || ''}</button>`).join('')}</div>
+    <div class="ofl">
+      <div class="tabsm" style="margin:0" id="msc">${[['hold', '持股'], ['watch', '觀察名單'], ['all', '全部公司']].map(([k, t]) => `<button data-s="${k}" class="${F.sc === k ? 'on' : ''}">${t}</button>`).join('')}</div>
+      <select id="mmk"><option value="">上市＋上櫃</option><option ${F.mk === '上市' ? 'selected' : ''}>上市</option><option ${F.mk === '上櫃' ? 'selected' : ''}>上櫃</option></select>
+      <select id="mty"><option value="">全部類型</option>${types.map(t => `<option ${F.ty === t ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select>
+      <input type="date" id="mfrom" value="${esc(F.from)}" min="${esc(days[days.length - 1])}" max="${esc(days[0])}"><span class="sub">～</span><input type="date" id="mto" value="${esc(F.to)}" min="${esc(days[days.length - 1])}" max="${esc(days[0])}">
+      <input type="search" id="mq" placeholder="🔍 股號／公司／主旨" value="${esc(F.q)}" autocorrect="off" autocapitalize="off"></div>
+    <div class="card one ob"><div class="ot hd"><span>時間</span><span>公司</span><span>類型</span><span>主旨</span><span>備註</span></div>
+      ${rows.slice(0, N).map(row).join('') || `<div class="empty">這個條件下沒有資料${F.sc !== 'all' ? '（可以切到「全部公司」看看）' : ''}</div>`}${holdNote}
+      ${rows.length > N ? `<div style="text-align:center;margin-top:8px"><button class="btn g sm" id="mmore">再顯示 ${Math.min(60, rows.length - N)} 筆（共 ${rows.length}）</button></div>` : ''}</div>
+    <div class="sub" style="padding:0 4px 12px">資料：證交所／櫃買中心 OpenAPI，每天 07:20、12:20、17:20、21:20 更新（重大訊息通常隔天早上才會進來）。最後更新 ${esc(idx.updated)}。點一則看全文，點公司名稱進個股頁。</div>`;
+  const re = () => { saveSub(); mopsView(B); };
+  $$('#mk button', B).forEach(b => b.onclick = () => { F.k = b.dataset.k; F.ty = ''; SUB.mn = 60; re(); });
+  $$('#msc button', B).forEach(b => b.onclick = () => { F.sc = b.dataset.s; re(); });
+  $('#mmk', B).onchange = e => { F.mk = e.target.value; re(); };
+  $('#mty', B).onchange = e => { F.ty = e.target.value; re(); };
+  $('#mfrom', B).onchange = e => { F.from = e.target.value || ''; if (F.from > F.to) F.to = F.from; re(); };
+  $('#mto', B).onchange = e => { F.to = e.target.value || days[0]; if (F.from > F.to) F.from = F.to; re(); };
+  let tm; $('#mq', B).oninput = e => { clearTimeout(tm); tm = setTimeout(() => { F.q = e.target.value; const p = e.target.selectionStart; re(); setTimeout(() => { const i = $('#mq'); if (i){ i.focus(); try { i.setSelectionRange(p, p); } catch(x){} } }, 50); }, 450); };
+  const mm = $('#mmore', B); if (mm) mm.onclick = () => { SUB.mn = N + 60; re(); };
+  $$('.ot[data-id]', B).forEach(el => el.onclick = async ev => {
+    if (ev.target.closest('b')){ ev.stopPropagation(); return go('stock', el.dataset.c); }
+    const ex = $('.body', el); if (ex){ ex.remove(); return; }
+    const box = document.createElement('div'); box.className = 'body'; box.textContent = '讀取中…'; el.appendChild(box);
+    if (el.dataset.k !== 'msg' && el.dataset.k !== 'ann'){ box.textContent = $('.s', el).textContent + '\n' + $('.r', el).textContent; return; }
+    try { const b = await ghx('info-data', 'b/' + el.dataset.d + '/' + el.dataset.c.slice(0, 2) + '.json', 86400000); box.textContent = b[el.dataset.id] || $('.s', el).textContent; }
+    catch(e){ box.textContent = $('.s', el).textContent; }
+  });
+}
+
+// ====================== v2.8 YouTube 財經筆記（Gemini 決策卡，GitHub 每天抓好放 yt-data 分支）======================
+async function ytView(B){
+  const F = SUB.yf = Object.assign({ch: '', mine: false, q: ''}, SUB.yf || {});
+  B.innerHTML = loading('讀取 YouTube 筆記…');
+  let list, meta = {};
+  try { [list, meta] = await Promise.all([ghx('yt-data', 'latest_intel.json', 600000), ghx('yt-data', 'meta.json', 600000).catch(() => ({}))]); }
+  catch(e){ B.innerHTML = `<div class="err">YouTube 筆記讀不到：${esc(e.message)}</div>`; return; }
+  const {hold, watch} = myCodeSets();
+  const chans = [...new Set(list.map(x => x.channel_name))];
+  const q = F.q.trim().toLowerCase();
+  const rows = list.filter(x => (!F.ch || x.channel_name === F.ch) && (!F.mine || (x.codes || []).some(c => hold.has(c) || watch.has(c)))
+    && (!q || (x.video_title + x.summary + (x.mentioned_stocks || []).join(' ')).toLowerCase().indexOf(q) >= 0));
+  const N = SUB.yn || 20;
+  const dc = x => { const d = x.decision_card || {}; const it = [['產業階段', d.industry_stage], ['獲利來源', d.profit_driver], ['估值時間軸', d.valuation_timeline], ['上下修性質', d.revision_nature]].filter(a => a[1]);
+    return it.length ? `<div class="dc">${it.map(([a, b]) => `<div class="kv"><span class="sub">${a}</span><b>${esc(b)}</b></div>`).join('')}</div>` : ''; };
+  const stk = x => { const m = x.mentioned_stocks || []; if (!m.length) return '';
+    return `<div class="stk">${m.map(t => { const c = (String(t).match(/\b(\d{4,6}[A-Z]?)\b/) || [])[1]; return `<span ${c ? `data-code="${esc(c)}"` : ''}>${hold.has(c) ? '💼 ' : watch.has(c) ? '⭐ ' : ''}${esc(t)}</span>`; }).join('')}</div>`; };
+  const km = x => (x.key_metrics || []).length ? `<div class="sub" style="margin-top:8px">${x.key_metrics.map(k => `${esc(k.label)}：<b style="color:var(--tx)">${esc(k.val)}</b>`).join('　')}</div>` : '';
+  const card = x => `<div class="card yv"><div class="sub">${esc(x.channel_name)}・${esc(new Date(x.publish_time).toLocaleString('zh-TW', {month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false}))}${x.ai ? '' : '・<span class="tag w">只有影片說明</span>'}</div>
+    <h4><a href="${esc(x.video_url)}" target="_blank" rel="noopener">${esc(x.video_title)}</a></h4><div style="font-size:14px">${esc(x.summary || '')}</div>${dc(x)}${km(x)}${stk(x)}
+    ${x.action_discipline ? `<div class="act">🧭 ${esc(x.action_discipline)}</div>` : ''}</div>`;
+  B.innerHTML = `${meta.model ? '' : `<div class="err">還沒接上 Gemini：目前只顯示影片說明，沒有決策卡。到 GitHub 設定 GEMINI_API_KEY 後，下次排程（每天 07:30、19:30）就會自動分析。</div>`}
+    <div class="ofl"><select id="ych"><option value="">全部頻道（${list.length}）</option>${chans.map(c => `<option ${F.ch === c ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select>
+      <div class="tabsm" style="margin:0"><button id="ymine" class="${F.mine ? 'on' : ''}">只看提到我的股票</button></div>
+      <input type="search" id="yq" placeholder="🔍 標題／摘要／股票" value="${esc(F.q)}" autocorrect="off" autocapitalize="off"></div>
+    <div class="yvl">${rows.slice(0, N).map(card).join('') || '<div class="empty">沒有符合的影片</div>'}</div>
+    ${rows.length > N ? `<div style="text-align:center;margin:4px 0 12px"><button class="btn g sm" id="ymore">再顯示 20 支（共 ${rows.length}）</button></div>` : ''}
+    <div class="sub" style="padding:0 4px 12px">12 個頻道，每天 07:30、19:30 更新，保留 30 天${meta.updated ? '；最後更新 ' + esc(meta.updated) : ''}${meta.model ? '；分析模型 ' + esc(meta.model) : ''}。點股票進個股頁。</div>`;
+  const re = () => { saveSub(); ytView(B); };
+  $('#ych', B).onchange = e => { F.ch = e.target.value; SUB.yn = 20; re(); };
+  $('#ymine', B).onclick = () => { F.mine = !F.mine; re(); };
+  let tm; $('#yq', B).oninput = e => { clearTimeout(tm); tm = setTimeout(() => { F.q = e.target.value; re(); setTimeout(() => { const i = $('#yq'); if (i){ i.focus(); const n = i.value.length; try { i.setSelectionRange(n, n); } catch(x){} } }, 50); }, 450); };
+  const mm = $('#ymore', B); if (mm) mm.onclick = () => { SUB.yn = N + 20; re(); };
+  bindCodes(B);
 }
 
 // ====================== 法人預估紀錄（單一檔：每一天的上修／下修，最新在最上面）======================
