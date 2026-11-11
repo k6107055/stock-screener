@@ -6,9 +6,7 @@ def g(n,u,h=UA,k=1500):
     try:
         r=requests.get(u,headers=h,timeout=25); out[n]={'u':u,'code':r.status_code,'len':len(r.text),'head':r.text[:k]}
     except Exception as e: out[n]={'u':u,'err':str(e)}
-for sym in ['%5ETWOII','%5ETWII']:
-    for per in ['1d','d']:
-        g('libra_%s_%s'%(sym,per), yr+'FinanceChartService.ApacLibraCharts;period=%s;symbols=%%5B%%22%s%%22%%5D;type=tick'%(per,sym))
-        g('libra2_%s_%s'%(sym,per), yr+'FinanceChartService.ApacLibraCharts;period=%s;symbols=%%5B%%22%s%%22%%5D'%(per,sym))
+for i,q in enumerate(['symbols=%5B%22%5ETWOII%22%5D;type=tick','period=1m;symbols=%5B%22%5ETWOII%22%5D','period=tick;symbols=%5B%22%5ETWOII%22%5D','period=5m;symbols=%5B%22%5ETWOII%22%5D','symbols=%5B%22%5ETWOII%22%5D','period=1d;symbols=%5B%222330.TW%22%5D;type=tick','symbols=%5B%222330.TW%22%5D;type=tick']):
+    g('v%d'%i, yr+'FinanceChartService.ApacLibraCharts;'+q, k=900)
 g('fm_tpex','https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockPrice&data_id=TPEx&start_date=2026-11-05',{'User-Agent':'x'},600)
 json.dump(out,open('out/probe.json','w'),ensure_ascii=False,indent=1)
