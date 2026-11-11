@@ -2,11 +2,10 @@ name: 公開資訊觀測站（Atlas）
 
 on:
   schedule:
-    # 台灣時間 07:20、12:20、17:20、21:20（官方 OpenAPI 每天更新；GitHub 排程可能延遲）
-    - cron: '20 23 * * *'
-    - cron: '20 4 * * *'
-    - cron: '20 9 * * *'
-    - cron: '20 13 * * *'
+    # 即時重大訊息：台灣時間 07:00～23:40 每 20 分鐘（GitHub 排程常會晚幾分鐘）
+    - cron: '*/20 23,0-15 * * *'
+    # 整套官方資料（轉讓申報、董監持股、公告…）：台灣時間 07:07、12:07、17:07、21:07
+    - cron: '7 23,4,9,13 * * *'
   workflow_dispatch:
   push:
     branches: [main]
@@ -34,6 +33,8 @@ jobs:
           mkdir -p info-out
           if git fetch --depth 1 origin info-data; then git archive FETCH_HEAD | tar -x -C info-out; fi
       - name: 抓公開資訊觀測站
+        env:
+          FULL: ${{ (github.event.schedule == '7 23,4,9,13 * * *' || github.event_name != 'schedule') && '1' || '0' }}
         run: python info/mops.py info-out
       - name: 發佈到 info-data 分支（只留最新一份）
         env:

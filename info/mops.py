@@ -20,6 +20,9 @@ TODAY = NOW.strftime('%Y-%m-%d')
 UA = {'User-Agent': 'Mozilla/5.0 (Atlas personal dashboard)', 'Accept': 'application/json'}
 TW = 'https://openapi.twse.com.tw/v1/opendata/'
 TP = 'https://www.tpex.org.tw/openapi/v1/'
+RSS = 'https://mopsov.twse.com.tw/nas/rss/mopsrss201001.xml'   # 觀測站即時重大訊息（前一天 17:30 以後，幾分鐘內就有）
+# 每 20 分鐘跑一次時只抓即時重大訊息；整套官方資料（比較大）一天抓 4 次
+FULL = os.getenv('FULL') == '1' or not os.path.exists(os.path.join(sys.argv[1] if len(sys.argv) > 1 else 'info-out', 'index.json'))
 
 
 def get(url):
@@ -141,6 +144,40 @@ def main():
             bodies.setdefault(d, {})[item['c'][:2] + item['id']] = body[:6000]
 
     ok = {}
+    # ⓪ 即時重大訊息（RSS）：先放進來，之後官方完整資料到了會把同一則換成有全文的版本
+    from urllib.parse import unquote_to_bytes
+    try:
+        r = requests.get(RSS, headers=UA, timeout=40)
+        t = r.content.decode('cp950', errors='replace')
+        n = 0
+        for it in re.findall(r'<item>(.*?)</item>', t, re.S):
+            link = (re.search(r'<link>\s*<!\[CDATA\[(.*?)\]\]>', it, re.S) or [None, ''])[1]
+            q = dict(re.findall(r'[?&](h\d*\d)=([^&]*)', link))
+            vals = {k[-1]: v for k, v in q.items()}   # h…1 股號、h…2 日期、h…3 時間
+            typek = (re.search(r'TYPEK=(\w+)', link) or [None, ''])[1]
+            if typek not in ('sii', 'otc'):
+                continue
+            code = vals.get('1', '')
+            ds, ts = vals.get('2', ''), vals.get('3', '')
+            title = (re.search(r'<description>\s*<!\[CDATA\[(.*?)\]\]>', it, re.S) or [None, ''])[1].strip()
+            nm = (re.search(r'<title>\(\w+\)(.*?)-重大訊息</title>', it) or [None, ''])[1]
+            if not code or len(ds) != 8 or not title:
+                continue
+            d, tt = f'{ds[:4]}-{ds[4:6]}-{ds[6:]}', hm(ts)
+            title = re.sub(r'\s*\r?\n\s*', '', title)
+            key = f'{code}|{d}|{tt}'
+            if any(x.get('k') == 'msg' and f"{x['c']}|{x['d']}|{x['t']}" == key and not x.get('u') for x in days.get(d, {}).values()):
+                continue   # 已經有官方完整版
+            add({'id': iid('msg', code, d, tt, title), 'k': 'msg', 'd': d, 't': tt, 'c': code, 'n': nm, 'm': '上市' if typek == 'sii' else '上櫃',
+                 'ty': msg_type(title), 's': title, 'r': '即時', 'u': link.replace('http://', 'https://')})
+            n += 1
+        ok['rss'] = n
+    except Exception as e:
+        print('RSS 失敗', e)
+        ok['rss'] = None
+    if not FULL:
+        return finish(days, bodies, ok)
+
     # ① 重大訊息
     for mkt, url in (('上市', TW + 't187ap04_L'), ('上櫃', TP + 'mopsfin_t187ap04_O')):
         rows = get(url)
@@ -151,6 +188,8 @@ def main():
                 continue
             d, t = roc(g(r, '發言日期')), hm(g(r, '發言時間'))
             title = re.sub(r'\s*\r?\n\s*', '', title)
+            for k0 in [k for k, x in days.get(d, {}).items() if x.get('u') and x['c'] == code and x['t'] == t]:
+                del days[d][k0]   # 換掉即時版
             add({'id': iid('msg', code, d, t, title), 'k': 'msg', 'd': d, 't': t, 'c': code, 'n': name_of(r), 'm': mkt,
                  'ty': msg_type(title), 's': title, 'r': ('事實發生日 ' + roc(g(r, '事實發生日'))) if g(r, '事實發生日') else g(r, '符合條款')},
                 g(r, '說明'))
@@ -253,7 +292,18 @@ def main():
         if not prev or prev.get('ym') != ym:
             json.dump({'ym': ym, 'snap': snap}, open(sf, 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
 
+    return finish(days, bodies, ok)
+
+
+def finish(days, bodies, ok):
     # 寫檔
+    old = {}
+    if os.path.exists(f'{OUT}/index.json'):
+        try:
+            old = json.load(open(f'{OUT}/index.json', encoding='utf-8'))
+        except Exception:
+            old = {}
+    ok = dict(old.get('src') or {}, **ok)
     idx = {'updated': NOW.strftime('%Y-%m-%d %H:%M'), 'src': ok, 'days': []}
     for d in sorted(days, reverse=True):
         items = sorted(days[d].values(), key=lambda x: (x.get('t') or '', x['c']), reverse=True)
@@ -271,8 +321,9 @@ def main():
             json.dump(gv, open(f'{OUT}/b/{d}/{gk}.json', 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
     hs = {m: json.load(open(f'{OUT}/state/hold_{m}.json', encoding='utf-8'))['ym'] for m in ('上市', '上櫃') if os.path.exists(f'{OUT}/state/hold_{m}.json')}
     idx['holdYm'] = hs
-    json.dump(idx, open(f'{OUT}/index.json', 'w', encoding='utf-8'), ensure_ascii=False, indent=0)
     print(json.dumps(ok, ensure_ascii=False), len(idx['days']), 'days')
+    idx['full'] = old.get('full', '') if not FULL else NOW.strftime('%Y-%m-%d %H:%M')
+    json.dump(idx, open(f'{OUT}/index.json', 'w', encoding='utf-8'), ensure_ascii=False, indent=0)
     if all(v is None for v in ok.values()):
         sys.exit('全部來源都抓不到')
 
