@@ -10,3 +10,5 @@ for i,q in enumerate(['symbols=%5B%22%5ETWOII%22%5D;type=tick','period=1m;symbol
     g('v%d'%i, yr+'FinanceChartService.ApacLibraCharts;'+q, k=900)
 g('fm_tpex','https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockPrice&data_id=TPEx&start_date=2026-11-05',{'User-Agent':'x'},600)
 json.dump(out,open('out/probe.json','w'),ensure_ascii=False,indent=1)
+r=requests.get(yr+'FinanceChartService.ApacLibraCharts;symbols=%5B%22%5ETWOII%22%5D;type=tick',headers=UA,timeout=25)
+json.dump(r.json(),open('out/full.json','w'),ensure_ascii=False)
