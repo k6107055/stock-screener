@@ -11,8 +11,29 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, timezone, timedelta
 
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
-GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-2.5-flash')   # 1.5 系列已停用
-GEMINI_ENDPOINT = f'https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent'
+GEMINI_MODEL = os.getenv('GEMINI_MODEL', '')   # 留空＝自動挑目前可用、最新的 flash 模型（舊模型下架也不用改程式）
+GEMINI_ENDPOINT = ''
+
+
+def pick_model():
+    global GEMINI_MODEL, GEMINI_ENDPOINT
+    if not GEMINI_MODEL and GEMINI_API_KEY:
+        try:
+            r = requests.get('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', headers={'x-goog-api-key': GEMINI_API_KEY}, timeout=30)
+            best = None
+            for m in r.json().get('models', []):
+                n = m.get('name', '').split('/')[-1]
+                mm = re.fullmatch(r'gemini-(\d+(?:\.\d+)?)-flash', n)
+                if mm and 'generateContent' in m.get('supportedGenerationMethods', []):
+                    v = float(mm.group(1))
+                    if not best or v > best[0]:
+                        best = (v, n)
+            GEMINI_MODEL = best[1] if best else 'gemini-flash-latest'
+        except Exception as e:
+            print('查模型清單失敗：', e)
+            GEMINI_MODEL = 'gemini-flash-latest'
+    GEMINI_ENDPOINT = f'https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent'
+    print('使用模型：', GEMINI_MODEL)
 OUT_DIR = sys.argv[1] if len(sys.argv) > 1 else 'yt-out'
 OUT = os.path.join(OUT_DIR, 'latest_intel.json')
 KEEP_DAYS = 30
@@ -117,6 +138,7 @@ def codes_of(stocks, text=''):
 
 
 def main():
+    pick_model()
     os.makedirs(OUT_DIR, exist_ok=True)
     old = {}
     if os.path.exists(OUT):
