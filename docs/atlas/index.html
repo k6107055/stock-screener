@@ -151,7 +151,8 @@ button:active,.ht.rw:active,.row[data-code]:active,.card[id^=go]:active{opacity:
 .sheet{padding-bottom:max(28px,env(safe-area-inset-bottom))}
 /* 庫存（籌碼K 風格）*/
 .idx{display:flex;gap:8px;margin-bottom:10px}
-.idx>div{flex:1;background:var(--card);border-radius:12px;padding:8px 10px;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.idx>div{flex:1;background:var(--card);border-radius:12px;padding:8px 10px;box-shadow:0 1px 2px rgba(0,0,0,.05);cursor:pointer}
+.idx>div:active{opacity:.6}
 .idx b{font-size:16px;display:block;font-variant-numeric:tabular-nums}
 .idx small{display:block;font-size:11.5px;white-space:nowrap}
 .brd{font-size:12px;color:var(--sub);margin:-4px 4px 10px}
@@ -349,11 +350,13 @@ async function runLive(){
   if (LJ !== j) return;
   liveBadge();
   if (more === 'slow') j.timer = setTimeout(runLive, 15000);
+  else if (more === 'fast') j.timer = setTimeout(runLive, j.err ? 15000 : 5000);
   else if (more !== false && isMkt()) j.timer = setTimeout(runLive, j.err ? Math.min(15000, LIVE_GAP * (1 + j.err)) : LIVE_GAP);
 }
 function liveBadge(){
   const el = $('#lv'); if (!el) return;
-  if (!LJ || !isMkt()){ el.innerHTML = LJ && LJ.ok && !isMkt() ? '已收盤' : ''; el.className = ''; return; }
+  const mk = (VIEW === 'idx' && IX && IX.s === 'fut') ? futOpen() : isMkt();
+  if (!LJ || !mk){ el.innerHTML = LJ && LJ.ok && !mk ? '已收盤' : ''; el.className = ''; return; }
   const t = LJ.ok ? new Date(LJ.ok + 8 * 3600e3).toISOString().slice(11, 19) : '';
   el.className = LJ.err ? 'bad' : '';
   el.innerHTML = `<i class="dot"></i>${LJ.err ? '重新連線…' : '即時 ' + t}`;
@@ -363,8 +366,8 @@ window.addEventListener('pageshow', () => runLive());
 window.addEventListener('focus', () => runLive());
 let NAV = [], CUR = {v: 'home', arg: null};   // 上一頁堆疊（像 iPhone 一樣往左滑回去）
 const SCR = {};                               // 每個分頁記住捲到哪
-const TITLES = {home:'庫存', stock:'自選', pick:'籌碼選股', info:'資訊', book:'記帳', asset:'資產', est:'法人預估紀錄'};
-const VIEWS = () => ({home: vHome, stock: vStock, pick: vPick, info: vInfo, book: vBook, asset: vAsset, est: vEst});
+const TITLES = {home:'庫存', stock:'自選', pick:'籌碼選股', info:'資訊', book:'記帳', asset:'資產', est:'法人預估紀錄', idx:'指數'};
+const VIEWS = () => ({home: vHome, stock: vStock, pick: vPick, info: vInfo, book: vBook, asset: vAsset, est: vEst, idx: vIdx});
 // opt.tab＝從下方分頁列切換（清空上一頁）；opt.back＝返回；opt.same＝同一頁重新整理
 function go(v, arg, opt){
   opt = opt || {};
@@ -400,7 +403,7 @@ $$('#nav button').forEach(b => b.onclick = () => {
   if (v === VIEW && v === 'stock' && SUB.code){ go('stock', undefined, {tab: true}); return; }
   go(v, undefined, {tab: true});
 });
-function refreshView(){ ls.set('home', null); go(VIEW, VIEW === 'stock' ? SUB.code : VIEW === 'est' ? CUR.arg : undefined, {same: true}); }
+function refreshView(){ ls.set('home', null); go(VIEW, VIEW === 'stock' ? SUB.code : (VIEW === 'est' || VIEW === 'idx') ? CUR.arg : undefined, {same: true}); }
 $('#btnRef').onclick = refreshView;
 $('#btnBack').onclick = back;
 $('#ttl').onclick = () => window.scrollTo({top: 0, behavior: 'smooth'});
@@ -633,7 +636,8 @@ let IDXQ = null;
 const nightFut = () => { const t = new Date(Date.now() + 8 * 3600e3), wd = t.getUTCDay(), hm = t.getUTCHours() * 100 + t.getUTCMinutes(); return (wd >= 1 && wd <= 5 && hm >= 1500) || (wd >= 2 && wd <= 6 && hm < 500); };
 function idxHtml(){
   const ix = IDXQ || (RTQ && RTQ.idx) || ls.get('idx', null) || {};
-  const one = (n, x, sub) => x ? `<div><span class="sub">${n}</span><b class="${cls(x.chg)}">${fmt(x.p, x.p > 10000 && n === '台指期' ? 0 : 2)}</b><small class="${cls(x.chg)}">${sgn(x.chg)}${fp(x.chg)}（${sgn(x.pct)}${fp(x.pct)}%）</small>${sub ? `<small class="sub">${sub}</small>` : ''}</div>` : `<div><span class="sub">${n}</span><b>—</b></div>`;
+  const IXK = {'加權': 'twse', '櫃買': 'otc', '台指期': 'fut'};
+  const one = (n, x, sub) => x ? `<div data-ix="${IXK[n]}"><span class="sub">${n}</span><b class="${cls(x.chg)}">${fmt(x.p, x.p > 10000 && n === '台指期' ? 0 : 2)}</b><small class="${cls(x.chg)}">${sgn(x.chg)}${fp(x.chg)}（${sgn(x.pct)}${fp(x.pct)}%）</small>${sub ? `<small class="sub">${sub}</small>` : ''}</div>` : `<div data-ix="${IXK[n]}"><span class="sub">${n}</span><b>—</b></div>`;
   const f = ix.fut, basis = f && ix.twse ? Math.round(f.p - ix.twse.p) : null;
   const fsub = (nightFut() ? '夜盤・' : '') + (basis != null ? (basis >= 0 ? '正價差 ' : '逆價差 ') + money(Math.abs(basis)) : '');
   let h = `<div class="idx">${one('加權', ix.twse)}${one('櫃買', ix.otc)}${one('台指期', f, fsub)}</div>`;
@@ -711,6 +715,129 @@ function welcome(){
 
 // ====================== 自選清單（多頁、可編輯）======================
 let LISTS = ls.get('lists', null), EDIT = false;
+// ====================== v2.7 指數詳細頁（加權／櫃買／台指期：分時＋日週月K；台指期分日盤／夜盤）======================
+document.addEventListener('click', e => { const el = e.target.closest && e.target.closest('[data-ix]'); if (!el) return; e.stopPropagation(); go('idx', el.dataset.ix); }, true);
+const IXN = {twse: '加權指數', otc: '櫃買指數', fut: '台指期'};
+const futOpen = () => { const t = new Date(Date.now() + 8 * 3600e3), wd = t.getUTCDay(), hm = t.getUTCHours() * 100 + t.getUTCMinutes(); return (wd >= 1 && wd <= 5 && hm >= 845 && hm <= 1345) || nightFut(); };
+let IX = null;
+function vIdx(s){
+  if (!IXN[s]) s = 'twse';
+  const M = $('#main');
+  $('#ttl').textContent = IXN[s];
+  SUB.ixkt = ['intr', 'd', 'w', 'm'].indexOf(SUB.ixkt) >= 0 ? SUB.ixkt : 'intr';
+  const c0 = ls.get('ix_' + s, null);
+  IX = {s, intr: c0 && c0.intr, sess: c0 && c0.sess, k: ls.get('ixk_' + s, null), tick: 0};
+  M.innerHTML = `<div class="card" id="ixq"></div>
+    <div class="card"><div class="tabsm" id="ixt">${[['intr', '分時'], ['d', '日K'], ['w', '週K'], ['m', '月K']].map(([k, t]) => `<button data-k="${k}" class="${SUB.ixkt === k ? 'on' : ''}">${t}</button>`).join('')}</div>
+    ${s === 'fut' ? `<div class="tabsm" id="ixs"></div>` : ''}<div class="legend" id="klg"></div><div class="chart" id="ck"></div><div class="sub" id="ixsrc" style="margin-top:6px"></div></div>
+    <div class="sub" style="padding:0 4px 12px">💡 點上方「分時／日K／週K／月K」切換${s === 'fut' ? '；台指期日盤 08:45～13:45、夜盤 15:00～隔天 05:00，K 線可分開看' : ''}。</div>`;
+  $$('#ixt button').forEach(b => b.onclick = () => { SUB.ixkt = b.dataset.k; saveSub(); $$('#ixt button').forEach(y => y.classList.toggle('on', y === b)); ixDraw(); });
+  paintIxQ(); loadCharts().then(ixDraw).catch(() => { $('#ck').innerHTML = '<div class="empty">圖表載入失敗，按 ↻ 重試</div>'; });
+  ixLoadK(s);
+  if (s === 'fut') call('rt', {codes: []}).then(r => { if (r.idx && r.idx.twse){ IDXQ = r.idx; ls.set('idx', r.idx); paintIxQ(); } }).catch(() => {});
+  setLive(async () => {
+    if (VIEW !== 'idx' || !IX || IX.s !== s) return false;
+    const live = s === 'fut' ? futOpen() : isMkt();
+    if (s !== 'fut' && IX.intr && IX.tick % 12){   // 加權／櫃買：每 2.5 秒跳價，每 30 秒重抓分時
+      const r = await call('rt', {codes: []}); if (r.idx && r.idx.twse){ IDXQ = r.idx; ls.set('idx', r.idx); }
+      IX.tick++; paintIxQ(); ixLiveTick(); return r.open;
+    }
+    IX.tick++;
+    try { await ixLoadIntr(s, IX.sessPick); }
+    catch(e){ if (!IX.intr && SUB.ixkt === 'intr' && $('#ck')) $('#ck').innerHTML = `<div class="err">${esc(e.message)}</div>`; throw e; }
+    return s === 'fut' ? (live ? 'fast' : false) : live;
+  });
+}
+async function ixLoadIntr(s, sess){
+  const d = await call('idxChart', {s, kt: 'intr', sess: sess || ''});
+  if (VIEW !== 'idx' || !IX || IX.s !== s) return;
+  const redraw = !IX.intr || IX.sess !== d.sess;
+  IX.intr = d.intr; IX.sess = d.sess; IX.now = d.now;
+  if (!sess) ls.set('ix_' + s, {intr: d.intr, sess: d.sess});
+  paintIxQ();
+  if (SUB.ixkt !== 'intr') return;
+  if (redraw || !KSER || !d.intr) return ixDraw();
+  const it = d.intr, c = C();   // 同一盤：只換資料，不重畫（保留放大／捲動位置）
+  try { KSER.setData(it.t.map((t, i) => ({time: t + 8 * 3600, value: it.c[i]})));
+    if (IX.vs) IX.vs.setData(it.t.map((t, i) => ({time: t + 8 * 3600, value: it.v[i], color: (it.c[i] >= it.o[i] ? c.up : c.down) + '66'}))); } catch(e){}
+  ixLiveTick();
+}
+async function ixLoadK(s){
+  try { const d = await call('idxChart', {s, kt: 'k'}); if (!IX || IX.s !== s) return; IX.k = d.k; ls.set('ixk_' + s, d.k); if (VIEW === 'idx' && SUB.ixkt !== 'intr') ixDraw(); }
+  catch(e){ if (VIEW === 'idx' && SUB.ixkt !== 'intr' && !IX.k && $('#ck')) $('#ck').innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+}
+function paintIxQ(){
+  const el = $('#ixq'); if (!el || !IX) return;
+  const s = IX.s, it = IX.intr, ix = IDXQ || ls.get('idx', null) || {};
+  let p, prev, t = '', o, h, l, extra = '';
+  if (s === 'fut'){
+    if (it){ p = it.last || it.c[it.c.length - 1]; prev = it.prev; o = it.open; h = it.hi; l = it.lo; t = it.t.length ? new Date((it.t[it.t.length - 1] + 8 * 3600) * 1000).toISOString().slice(11, 16) : ''; }
+    else if (ix.fut){ p = ix.fut.p; prev = ix.fut.p - ix.fut.chg; }
+    const sp = ix.twse && ix.twse.p, basis = p && sp ? Math.round(p - sp) : null;
+    extra = `<div class="grid4"><div><span class="sub">量</span> ${it && it.vol ? fmt(it.vol) : '—'}</div><div><span class="sub">未平倉</span> ${it && it.oi ? fmt(it.oi) : '—'}</div>
+      <div style="grid-column:span 2"><span class="sub">${basis == null ? '價差' : basis >= 0 ? '正價差' : '逆價差'}</span> ${basis == null ? '—' : money(Math.abs(basis))}<span class="sub">（對加權）</span></div></div>`;
+  } else {
+    const x = ix[s];
+    if (x){ p = x.p; prev = x.y || (x.p - x.chg); t = x.t || ''; }
+    else if (it){ p = it.c[it.c.length - 1]; prev = it.prev; }
+    if (it && it.c.length){ o = it.o[0]; h = Math.max(...it.h); l = Math.min(...it.l); if (p){ h = Math.max(h, p); l = Math.min(l, p); } }
+    if (s === 'twse' && MKT) extra = `<div class="brd" style="margin-top:8px">${esc(ymd8(MKT.d.replace(/-/g, '')))} 收盤：上漲 <span class="up">${MKT.up}</span>・下跌 <span class="down">${MKT.down}</span>${MKT.money && MKT.money.f != null ? `・外資 ${money(MKT.money.f)} 億・投信 ${money(MKT.money.t)} 億・自營 ${money(MKT.money.dl)} 億` : ''}</div>`;
+  }
+  const chg = p && prev ? p - prev : null, dg = s === 'fut' ? 0 : 2, gd = s === 'otc' ? 2 : 0;
+  const live = s === 'fut' ? futOpen() : isMkt();
+  const sessTag = s === 'fut' && IX.sess ? `<span class="tag">${IX.sess === 'night' ? '夜盤' : '日盤'}${it && it.name ? '・' + esc(it.name) : ''}</span>` : '';
+  el.innerHTML = `<div style="display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap"><div class="big ${cls(chg)}">${p ? fmt(p, dg) : '—'}</div>
+    <div class="${cls(chg)}" style="padding-bottom:5px">${chg == null ? '' : sgn(chg) + fmt(chg, dg) + '（' + sgn(chg) + fp(chg / prev * 100) + '%）'}</div>${sessTag}
+    <div class="sub" style="margin-left:auto;padding-bottom:6px">${live ? '🔴 即時 ' : '已收盤 '}${esc(t)}</div></div>
+    <div class="grid4"><div><span class="sub">開</span> ${o ? fmt(o, gd) : '—'}</div><div><span class="sub">高</span> <span class="up">${h ? fmt(h, gd) : '—'}</span></div><div><span class="sub">低</span> <span class="down">${l ? fmt(l, gd) : '—'}</span></div><div><span class="sub">${s === 'fut' ? '參考' : '昨收'}</span> ${prev ? fmt(prev, gd) : '—'}</div></div>${extra}`;
+  const st = $('#ixs');
+  if (st){ const cur = SUB.ixkt === 'intr' ? (IX.sessPick || IX.sess || 'day') : (SUB.ixsk || 'day');
+    st.innerHTML = [['day', '日盤'], ['night', '夜盤']].map(([k, t]) => `<button data-s="${k}" class="${cur === k ? 'on' : ''}">${t}${SUB.ixkt === 'intr' && IX.now === k ? ' 🔴' : ''}</button>`).join('');
+    $$('#ixs button').forEach(b => b.onclick = () => { const k = b.dataset.s;
+      if (SUB.ixkt === 'intr'){ IX.sessPick = k === IX.now ? null : k; IX.intr = null; ixDraw(); ixLoadIntr('fut', IX.sessPick).catch(e => toast(e.message)); }
+      else { SUB.ixsk = k; saveSub(); ixDraw(); }
+      paintIxQ(); }); }
+}
+function ixReset(){ if (IX) IX.vs = null; if (KCH){ CHARTS = CHARTS.filter(x => x !== KCH); try { KCH.remove(); } catch(e){} } KCH = null; KSER = null; KCS = null; KLAST = null; if ($('#ck')) $('#ck').innerHTML = ''; }
+function ixDraw(){
+  if (!window.LightweightCharts || !$('#ck') || !IX) return;
+  ixReset(); paintIxQ();
+  const src = $('#ixsrc');
+  if (SUB.ixkt === 'intr'){
+    if (src) src.textContent = IX.s === 'fut' ? '資料：期交所行情網（1 分 K）' : '資料：Yahoo';
+    return ixIntrChart(IX.intr);
+  }
+  if (src) src.textContent = IX.s === 'fut' ? '資料：FinMind（每天收盤後更新，近月合約自動接續）' : '資料：Yahoo';
+  const kk = IX.k ? (IX.s === 'fut' ? IX.k[SUB.ixsk === 'night' ? 'night' : 'day'] : IX.k.day) : null;
+  if (!IX.k){ $('#ck').innerHTML = `<div class="empty">${loading('讀取 K 線…')}</div>`; return; }
+  const kt = SUB.ixkt;
+  drawK(aggK(kk, kt), null, kt === 'd' ? 120 : kt === 'w' ? 104 : 72);
+}
+function ixIntrChart(it){
+  const c = C();
+  $('#klg').innerHTML = `<span style="--c:#868e96">${IX.s === 'fut' ? '參考價' : '昨收'}</span>`;
+  if (!it || !it.t.length){ $('#ck').innerHTML = `<div class="empty">${it === undefined || it === null ? loading('讀取分時…') : '這個時段還沒有成交'}</div>`; return; }
+  const ch = mkChart($('#ck'), {timeScale: {borderVisible: false, timeVisible: true, secondsVisible: false}, localization: {locale: 'zh-TW'}});
+  KCH = ch;
+  const last = it.c[it.c.length - 1], prev = it.prev || it.c[0], col = last >= prev ? c.up : c.down;
+  KSER = ch.addAreaSeries({lineColor: col, topColor: col + '40', bottomColor: col + '05', lineWidth: 2, priceLineVisible: false, priceFormat: {type: 'price', precision: IX.s === 'fut' ? 0 : 2, minMove: IX.s === 'fut' ? 1 : 0.01}});
+  KSER.setData(it.t.map((t, i) => ({time: t + 8 * 3600, value: it.c[i]})));
+  if (prev) KSER.createPriceLine({price: prev, color: '#868e96', lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: ''});
+  if (it.v.some(x => x > 0)){
+    const vs = IX.vs = ch.addHistogramSeries({priceFormat: {type: 'volume'}, priceScaleId: 'v', lastValueVisible: false, priceLineVisible: false});
+    ch.priceScale('v').applyOptions({scaleMargins: {top: 0.82, bottom: 0}});
+    KSER.priceScale().applyOptions({scaleMargins: {top: 0.08, bottom: 0.22}});
+    vs.setData(it.t.map((t, i) => ({time: t + 8 * 3600, value: it.v[i], color: (it.c[i] >= it.o[i] ? c.up : c.down) + '66'})));
+  }
+  ch.timeScale().fitContent();
+}
+function ixLiveTick(){
+  if (!IX || SUB.ixkt !== 'intr' || !KSER || !IX.intr) return;
+  const it = IX.intr;
+  let p = it.c[it.c.length - 1], ts = it.t[it.t.length - 1];
+  if (IX.s !== 'fut'){ const x = (IDXQ || {})[IX.s]; if (x && x.p && isMkt()){ p = x.p; ts = Math.max(ts, Math.floor(Date.now() / 60000) * 60); } }
+  try { KSER.update({time: ts + 8 * 3600, value: p}); } catch(e){}
+}
 async function vStock(code){
   if (code){ SUB.code = code; saveSub(); return stockDetail(code); }
   SUB.code = null;
