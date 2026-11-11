@@ -804,10 +804,10 @@ function ixDraw(){
   ixReset(); paintIxQ();
   const src = $('#ixsrc');
   if (SUB.ixkt === 'intr'){
-    if (src) src.textContent = IX.s === 'fut' ? '資料：期交所行情網（1 分 K）' : '資料：Yahoo';
+    if (src) src.textContent = IX.s === 'fut' ? '資料：期交所行情網（1 分 K）' : '資料：Yahoo奇摩股市（1 分線）';
     return ixIntrChart(IX.intr);
   }
-  if (src) src.textContent = IX.s === 'fut' ? '資料：FinMind（每天收盤後更新，近月合約自動接續）' : '資料：Yahoo';
+  if (src) src.textContent = IX.s === 'fut' ? '資料：FinMind（每天收盤後更新，近月合約自動接續；夜盤日期＝收盤那天）' : '資料：證交所／櫃買中心收盤資料（FinMind），量＝成交金額（億元）';
   const kk = IX.k ? (IX.s === 'fut' ? IX.k[SUB.ixsk === 'night' ? 'night' : 'day'] : IX.k.day) : null;
   if (!IX.k){ $('#ck').innerHTML = `<div class="empty">${loading('讀取 K 線…')}</div>`; return; }
   const kt = SUB.ixkt;
