@@ -305,7 +305,10 @@ function readPair(str){
 (function(){ const c = readPair(location.href); if (c){ CFG = c; try{ localStorage.setItem('atlas_cfg', JSON.stringify(c)); }catch(e){} } })();
 const loading = (t) => `<div class="load"><div class="spin"></div>${esc(t || '載入中…')}</div>`;
 function toast(t, ms){ const el = document.createElement('div'); el.className = 'toast'; el.textContent = t; document.body.appendChild(el); setTimeout(() => el.remove(), ms || 2200); }
-async function rawCall(op, args){
+let ACTIVE = 0;   // 使用者正在等的請求數（背景預抓會讓路）
+const idle = async (max) => { const t0 = Date.now(); while (ACTIVE > 0 && Date.now() - t0 < (max || 8000)) await new Promise(r => setTimeout(r, 300)); };
+async function rawCall(op, args){ ACTIVE++; try { return await rawCall0(op, args); } finally { ACTIVE--; } }
+async function rawCall0(op, args){
   if (window.__testApi) return window.__testApi(op, args || {});
   if (!CFG) throw new Error('尚未配對');
   const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 30000);
@@ -323,11 +326,21 @@ const SWR = {estList: 1, indList: 1, repList: 1, enList: 1, txList: 1, assets: 1
 const WRITE = /^(tx|en|ac)(Save|Del|Batch|Calibrate)$|^snapNow$|^init$|^saveSettings$|^list(Add|Del|Move|Create|Rename|Drop|Reorder)$/;
 const FRESH_MS = 60000, INFL = {}, RC = {};
 let MUT = 0, SEQ = 0, RR = null;
+// v2.11：短時間內重複要同一份資料 → 直接用記憶體裡的（同時要的也只發一次）；有寫入（記帳、改清單）就作廢
+const TTL = {kline: 300000, stockMore: 600000, stockMe: 120000, stockFiles: 600000, mopsLive: 60000, homeInfo: 120000, homeFast: 20000,
+  lists: 20000, holdPerf: 600000, stockMap: 3600000, repOf: 300000};
+const MC = new Map();
 function call(op, args){
   args = args || {};
-  if (WRITE.test(op)){ MUT = Date.now(); return rawCall(op, args); }
-  if (!SWR[op] || args.offset) return rawCall(op, args);
-  return swr(op, args, true);
+  if (WRITE.test(op)){ MUT = Date.now(); MC.clear(); return rawCall(op, args); }
+  if (SWR[op] && !args.offset) return swr(op, args, true);
+  if (!TTL[op]) return rawCall(op, args);
+  const k = ckey(op, args), h = MC.get(k);
+  if (h && h.t > MUT && Date.now() - h.t < TTL[op]) return h.p;
+  const p = rawCall(op, args); MC.set(k, {t: Date.now(), p});
+  p.catch(() => { if (MC.get(k) && MC.get(k).p === p) MC.delete(k); });
+  if (MC.size > 200) MC.delete(MC.keys().next().value);
+  return p;
 }
 function ckey(op, args){ return op + JSON.stringify(args); }
 function fetchFresh(op, args){
@@ -361,7 +374,7 @@ function prefetchAll(){
   if (Date.now() - PREF < FRESH_MS) return; PREF = Date.now();
   const jobs = [['estList', {days: SUB.estDays || 3, mineOnly: !!SUB.estMine}], ['repList', {limit: 60}], ['indList', {offset: 0, limit: 40, q: ''}],
     ['enList', {month: SUB.month || today().slice(0, 7)}], ['txList', {}], ['assets', {}]];
-  jobs.forEach(([op, a], i) => setTimeout(() => { const hit = RC[ckey(op, a)] || ls.get('rc_' + ckey(op, a), null); if (!hit || Date.now() - hit.t > FRESH_MS) fetchFresh(op, a).catch(() => {}); }, 300 * i));
+  jobs.forEach(([op, a], i) => setTimeout(async () => { await idle(); const hit = RC[ckey(op, a)] || ls.get('rc_' + ckey(op, a), null); if (!hit || Date.now() - hit.t > FRESH_MS) fetchFresh(op, a).catch(() => {}); }, 300 * i));
   rawCall('lists').then(d => { LISTS = d; ls.set('lists', d); prefetchStocks(); }).catch(() => {});
   setTimeout(() => loadCharts().catch(() => {}), 1500);
   gh('rank.json', 1800000).catch(() => {});
@@ -370,13 +383,14 @@ function prefetchAll(){
 async function prefetchStocks(){
   const hold = (HOMEF && HOMEF.pf ? HOMEF.pf.hold.map(x => x.code) : (LISTS ? LISTS.hold : [])) || [];
   const L = LISTS && LISTS.lists.find(l => l.name === SUB.list);
-  const codes = [...new Set(hold.concat(L ? L.codes : []))].slice(0, 20);
+  const codes = [...new Set(hold.concat(L ? L.codes : []))].slice(0, 12);
   const td = today();
   for (const c of codes){
     const hit = ls.get('stk_' + c, null);
     if (hit && hit.__d === td) continue;
+    await idle();   // 你在操作時先停，等空檔再抓
     try { const d = await rawCall('kline', {code: c}); const o = ls.get('stk_' + c, null) || {}; ls.set('stk_' + c, Object.assign(o, d, {__d: td})); rememberStk(c); } catch(e){ break; }
-    await new Promise(r => setTimeout(r, 600));
+    await new Promise(r => setTimeout(r, 1200));
   }
 }
 function pairScreen(msg){
@@ -948,7 +962,8 @@ async function pollLists(){
   const codes = Object.keys(LISTS.info);
   { const d = await call('quotes', {codes, idx: 1}); if (d.idx && d.idx.twse){ IDXQ = d.idx; ls.set('idx', d.idx); paintIdx(); } Object.keys(d.q).forEach(c => { const i = LISTS.info[c]; if (!i) return; const o = i.p; i.p = d.q[c].p; i.c = d.q[c].c;
       const el = $(`#wl [data-code="${c}"] .px`); if (el){ el.innerHTML = `<b>${fp(i.p)}</b><div>${pct(i.c)}</div>`; if (o != null && o !== i.p){ el.classList.remove('fu', 'fd'); void el.offsetWidth; el.classList.add(i.p > o ? 'fu' : 'fd'); } } });
-    LISTS.open = d.open; const t = $('#wlAt'); if (t) t.textContent = (d.open ? '即時 ' : '收盤 ') + d.at; ls.set('lists', LISTS);
+    LISTS.open = d.open; const t = $('#wlAt'); if (t) t.textContent = (d.open ? '即時 ' : '收盤 ') + d.at;
+    if (Date.now() - (pollLists.saved || 0) > 30000){ pollLists.saved = Date.now(); ls.set('lists', LISTS); }   // 存手機 30 秒一次就好，不要每 2.5 秒寫一次
   }
 }
 function paintLists(){
@@ -1153,20 +1168,25 @@ async function loadLib(code){
     (live || []).filter(x => x.c === code && !have.has(x.d + '|' + x.t)).forEach((x, i) => a.unshift(Object.assign({id: 'L' + i}, x)));
     a.sort((x, y) => (y.d + (y.t || '')) > (x.d + (x.t || '')) ? 1 : -1);
     LIB.ann = a; done(); });
+  if (SUB.lib === 'yt') loadLibYt(code);
+}
+function loadLibYt(code){   // YouTube 只有點「YouTube」分頁才讀（不佔記憶體／流量）
+  if (!LIB || LIB.ytLoading) return; LIB.ytLoading = true;
   ghx('yt-data', 'latest_intel.json', 600000).then(list => { if (!LIB || LIB.code !== code) return;
-    LIB.yt = list.filter(x => (x.codes || []).indexOf(code) >= 0 || (x.mentioned_stocks || []).some(t => new RegExp('(^|\\D)' + code + '(\\D|$)').test(t))); done(); }).catch(() => { if (LIB) { LIB.yt = []; done(); } });
+    LIB.yt = list.filter(x => (x.codes || []).indexOf(code) >= 0 || (x.mentioned_stocks || []).some(t => new RegExp('(^|\\D)' + code + '(\\D|$)').test(t))); paintLib(); }).catch(() => { if (LIB) { LIB.yt = []; paintLib(); } });
 }
 function libGroups(){
   const it = (LIB.files && LIB.files.items) || [];
   return {rep: it.filter(x => x.k === 'rep' || x.k === 'raw' || x.k === 'doc'), pdf: it.filter(x => x.k === 'pdf' || x.k === 'other'), img: it.filter(x => x.k === 'img'),
-    memo: it.filter(x => x.k === 'memo'), ann: LIB.ann || [], yt: LIB.yt || []};
+    memo: it.filter(x => x.k === 'memo'), ann: LIB.ann || [], yt: LIB.yt || null};
 }
 function paintLib(){
   const el = $('#lib'); if (!el || !LIB) return;
   const code = LIB.code, G = libGroups();
   let t = LIB.pick || (SUB.lib && G[SUB.lib] ? SUB.lib : 'rep');
-  if (!LIB.pick && !G[t].length){ const f = LIBT.find(([k]) => G[k].length); if (f && (LIB.files || t === 'ann' || t === 'yt')) t = f[0]; }
-  const all = G[t], N = LIBX ? 60 : 5, rows = all.slice(0, N);
+  if (!LIB.pick && (!G[t] || !G[t].length)){ const f = LIBT.find(([k]) => G[k] && G[k].length); if (f && (LIB.files || t === 'ann' || t === 'yt')) t = f[0]; }
+  if (t === 'yt' && !G.yt) loadLibYt(code);
+  const all = G[t] || [], N = LIBX ? 60 : 5, rows = all.slice(0, N);
   const nm = x => String(x.n || '').replace(new RegExp('^' + code + '[_\\s-]*'), '').replace(/\.(pdf|jpe?g|png|heic|webp)$/i, '');
   const ic = {rep: '📑', raw: '🤖', doc: '📄', pdf: '📕', other: '📎', memo: '📝'};
   const fileRow = x => `<a class="li" target="_blank" rel="noopener" href="${esc(x.u)}"><span class="ic">${ic[x.k] || '📄'}</span><span class="tx"><b>${esc(nm(x))}</b><span class="sub">${esc(x.d)}${x.s ? '・' + esc(x.s) : ''}${x.k === 'raw' ? '・小助理' : ''}</span></span></a>`;
@@ -1182,7 +1202,7 @@ function paintLib(){
   else body = rows.map(fileRow).join('');
   el.className = 'card lib';
   el.innerHTML = `<h3>📚 資料${LIB.files && LIB.files.folder ? `<a class="more" target="_blank" rel="noopener" href="${esc(LIB.files.folder)}">雲端資料夾 ›</a>` : ''}</h3>
-    <div class="tabsm" id="libt">${LIBT.map(([k, n]) => `<button data-k="${k}" class="${k === t ? 'on' : ''}">${n}${G[k].length ? ' ' + G[k].length : ''}</button>`).join('')}</div>
+    <div class="tabsm" id="libt">${LIBT.map(([k, n]) => `<button data-k="${k}" class="${k === t ? 'on' : ''}">${n}${G[k] && G[k].length ? ' ' + G[k].length : ''}</button>`).join('')}</div>
     ${body}${all.length > 5 ? `<div style="text-align:center;margin-top:8px"><button class="btn g sm" id="libx">${LIBX ? '收起' : '顯示全部 ' + all.length + ' 筆'}</button></div>` : ''}`;
   $$('#libt button', el).forEach(b => b.onclick = () => { SUB.lib = LIB.pick = b.dataset.k; LIBX = false; saveSub(); paintLib(); });
   const x = $('#libx', el); if (x) x.onclick = () => { LIBX = !LIBX; paintLib(); };
