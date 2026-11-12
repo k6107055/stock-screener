@@ -7,6 +7,11 @@ on:
     # 整套官方資料（轉讓申報、董監持股、公告…）：台灣時間 07:07、12:07、17:07、21:07
     - cron: '7 23,4,9,13 * * *'
   workflow_dispatch:
+    inputs:
+      full:
+        description: '1＝整套官方資料；0＝只抓即時重大訊息'
+        required: false
+        default: '1'
   push:
     branches: [main]
     paths: ['info/**', '.github/workflows/info.yml']
@@ -34,7 +39,7 @@ jobs:
           if git fetch --depth 1 origin info-data; then git archive FETCH_HEAD | tar -x -C info-out; fi
       - name: 抓公開資訊觀測站
         env:
-          FULL: ${{ (github.event.schedule == '7 23,4,9,13 * * *' || github.event_name != 'schedule') && '1' || '0' }}
+          FULL: ${{ (github.event.schedule == '7 23,4,9,13 * * *' || (github.event_name != 'schedule' && github.event.inputs.full != '0')) && '1' || '0' }}
         run: python info/mops.py info-out
       - name: 發佈到 info-data 分支（只留最新一份）
         env:
