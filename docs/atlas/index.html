@@ -287,8 +287,14 @@ const pct = n => n == null ? '<span class="sub">—</span>' : `<span class="${cl
 const ymd8 = d => { d = String(d); return d.length === 8 ? d.slice(4, 6) + '/' + d.slice(6) : d.slice(5).replace('-', '/'); };
 const today = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 const shTxt = sh => sh % 1000 === 0 ? fmt(sh / 1000) + ' 張' : (sh >= 1000 ? fmt(Math.floor(sh / 1000)) + ' 張 ' + fmt(sh % 1000) + ' 股' : fmt(sh) + ' 股');
-const ls = { get(k, d){ try{ const v = localStorage.getItem('ma_' + k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
-             set(k, v){ try{ localStorage.setItem('ma_' + k, JSON.stringify(v)); }catch(e){} } };
+// v2.10：讀過的放記憶體（不用每次重新解析）；手機儲存空間滿了就先清掉可以重抓的大資料再存，避免「快取存不進去 → 每次切頁都要等伺服器」
+const LSM = new Map();
+const lsGC = () => { try { const ks = []; for (let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i); if (/^ma_(gx_|rc_|lib_|kl_|chip_|more_)/.test(k)) ks.push(k); } ks.forEach(k => { localStorage.removeItem(k); LSM.delete(k.slice(3)); }); } catch(e){} };
+const ls = { get(k, d){ if (LSM.has(k)) { const v = LSM.get(k); return v === undefined ? d : v; } try{ const v = localStorage.getItem('ma_' + k); const o = v ? JSON.parse(v) : undefined; LSM.set(k, o); return o === undefined ? d : o; }catch(e){ return d; } },
+             set(k, v){ LSM.set(k, v == null ? undefined : v); const s = JSON.stringify(v);
+               try{ localStorage.setItem('ma_' + k, s); }catch(e){ lsGC(); try{ localStorage.setItem('ma_' + k, s); }catch(e2){} } } };
+// 開 App 時先把以前存的大檔（觀測站、YouTube 原始資料）清掉，那些放記憶體就好
+(() => { try { const ks = []; for (let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i); if (/^ma_gx_/.test(k) && (localStorage.getItem(k) || '').length > 60000) ks.push(k); } ks.forEach(k => localStorage.removeItem(k)); } catch(e){} })();
 // ====================== 配對（伺服器網址＋金鑰，只存在這支手機）======================
 let CFG = (() => { try { return JSON.parse(localStorage.getItem('atlas_cfg') || 'null'); } catch(e){ return null; } })();
 function readPair(str){
@@ -802,21 +808,21 @@ let LISTS = ls.get('lists', null), EDIT = false;
 document.addEventListener('click', e => { const el = e.target.closest && e.target.closest('[data-ix]'); if (!el) return; e.stopPropagation(); go('idx', el.dataset.ix); }, true);
 const IXN = {twse: '加權指數', otc: '櫃買指數', fut: '台指期'};
 const futOpen = () => { const t = new Date(Date.now() + 8 * 3600e3), wd = t.getUTCDay(), hm = t.getUTCHours() * 100 + t.getUTCMinutes(); return (wd >= 1 && wd <= 5 && hm >= 845 && hm <= 1345) || nightFut(); };
-let IX = null;
+let IX = null; const IXM = {};   // 指數頁資料放記憶體：切出去再回來直接秀
 function vIdx(s){
   if (!IXN[s]) s = 'twse';
   const M = $('#main');
   $('#ttl').textContent = IXN[s];
   SUB.ixkt = ['intr', 'd', 'w', 'm'].indexOf(SUB.ixkt) >= 0 ? SUB.ixkt : 'intr';
-  const c0 = ls.get('ix_' + s, null);
-  IX = {s, intr: c0 && c0.intr, sess: c0 && c0.sess, k: ls.get('ixk_' + s, null), tick: 0};
+  const c0 = IXM[s] || ls.get('ix_' + s, null);
+  IX = {s, intr: c0 && c0.intr, sess: c0 && c0.sess, k: (IXM[s] && IXM[s].k) || ls.get('ixk_' + s, null), kt: IXM[s] && IXM[s].kt || 0, tick: 0};
   M.innerHTML = `<div class="card" id="ixq"></div>
     <div class="card"><div class="tabsm" id="ixt">${[['intr', '分時'], ['d', '日K'], ['w', '週K'], ['m', '月K']].map(([k, t]) => `<button data-k="${k}" class="${SUB.ixkt === k ? 'on' : ''}">${t}</button>`).join('')}</div>
     ${s === 'fut' ? `<div class="tabsm" id="ixs"></div>` : ''}<div class="legend" id="klg"></div><div class="chart" id="ck"></div><div class="sub" id="ixsrc" style="margin-top:6px"></div></div>
     <div class="sub" style="padding:0 4px 12px">💡 點上方「分時／日K／週K／月K」切換${s === 'fut' ? '；台指期日盤 08:45～13:45、夜盤 15:00～隔天 05:00，K 線可分開看' : ''}。</div>`;
   $$('#ixt button').forEach(b => b.onclick = () => { SUB.ixkt = b.dataset.k; saveSub(); $$('#ixt button').forEach(y => y.classList.toggle('on', y === b)); ixDraw(); });
   paintIxQ(); loadCharts().then(ixDraw).catch(() => { $('#ck').innerHTML = '<div class="empty">圖表載入失敗，按 ↻ 重試</div>'; });
-  ixLoadK(s);
+  if (!IX.k || Date.now() - IX.kt > 600000) ixLoadK(s);   // 日K 10 分鐘內看過就不再重抓
   if (s === 'fut') call('rt', {codes: []}).then(r => { if (r.idx && r.idx.twse){ IDXQ = r.idx; ls.set('idx', r.idx); paintIxQ(); } }).catch(() => {});
   setLive(async () => {
     if (VIEW !== 'idx' || !IX || IX.s !== s) return false;
@@ -836,7 +842,7 @@ async function ixLoadIntr(s, sess){
   if (VIEW !== 'idx' || !IX || IX.s !== s) return;
   const redraw = !IX.intr || IX.sess !== d.sess;
   IX.intr = d.intr; IX.sess = d.sess; IX.now = d.now;
-  if (!sess) ls.set('ix_' + s, {intr: d.intr, sess: d.sess});
+  if (!sess){ IXM[s] = Object.assign(IXM[s] || {}, {intr: d.intr, sess: d.sess}); ls.set('ix_' + s, {intr: d.intr, sess: d.sess}); }
   paintIxQ();
   if (SUB.ixkt !== 'intr') return;
   if (redraw || !KSER || !d.intr) return ixDraw();
@@ -846,7 +852,7 @@ async function ixLoadIntr(s, sess){
   ixLiveTick();
 }
 async function ixLoadK(s){
-  try { const d = await call('idxChart', {s, kt: 'k'}); if (!IX || IX.s !== s) return; IX.k = d.k; ls.set('ixk_' + s, d.k); if (VIEW === 'idx' && SUB.ixkt !== 'intr') ixDraw(); }
+  try { const d = await call('idxChart', {s, kt: 'k'}); if (!IX || IX.s !== s) return; IX.k = d.k; IX.kt = Date.now(); IXM[s] = Object.assign(IXM[s] || {}, {k: d.k, kt: IX.kt}); ls.set('ixk_' + s, d.k); if (VIEW === 'idx' && SUB.ixkt !== 'intr') ixDraw(); }
   catch(e){ if (VIEW === 'idx' && SUB.ixkt !== 'intr' && !IX.k && $('#ck')) $('#ck').innerHTML = `<div class="err">${esc(e.message)}</div>`; }
 }
 function paintIxQ(){
@@ -858,7 +864,7 @@ function paintIxQ(){
     else if (ix.fut){ p = ix.fut.p; prev = ix.fut.p - ix.fut.chg; }
     const sp = ix.twse && ix.twse.p, basis = p && sp ? Math.round(p - sp) : null;
     extra = `<div class="grid4"><div><span class="sub">量</span> ${it && it.vol ? fmt(it.vol) : '—'}</div><div><span class="sub">未平倉</span> ${it && it.oi ? fmt(it.oi) : '—'}</div>
-      <div style="grid-column:span 2"><span class="sub">${basis == null ? '價差' : basis >= 0 ? '正價差' : '逆價差'}</span> ${basis == null ? '—' : money(Math.abs(basis))}<span class="sub">（對加權）</span></div></div>`;
+      <div style="grid-column:span 2"><span class="sub">${basis == null ? '價差' : basis >= 0 ? '正價差' : '逆價差'}</span> ${basis == null ? '—' : fmt(Math.abs(basis))} 點<span class="sub">（對加權）</span></div></div>`;
   } else {
     const x = ix[s];
     if (x){ p = x.p; prev = x.y || (x.p - x.chg); t = x.t || ''; }
@@ -1538,7 +1544,7 @@ async function ghx(branch, path, maxAge){
     const r = await fetch(RAW + branch + '/' + path, {cache: 'no-cache'});
     if (!r.ok) throw new Error(r.status === 404 ? '還沒有資料' : 'GitHub ' + r.status);
     const d = await r.json(), e = {d, t: Date.now()}; GXM[k] = e;
-    if (JSON.stringify(d).length < 400000) ls.set(k, e);
+    if (JSON.stringify(d).length < 60000) ls.set(k, e);   // 大檔只放記憶體，不佔手機空間
     return d;
   } catch(e){ if (hit) return hit.d; throw e; }
 }
