@@ -211,6 +211,21 @@ body:not(.priv) .privhint{display:none}
 .lib .imgs a{display:block;aspect-ratio:1;border-radius:10px;background:var(--bg);overflow:hidden;text-decoration:none;color:var(--sub);font-size:11px;position:relative}
 .lib .imgs img{width:100%;height:100%;object-fit:cover;display:block}
 .lib .imgs span{position:absolute;left:4px;right:4px;bottom:3px;text-shadow:0 0 3px var(--card)}
+.fin .ftb{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0 4px}
+.fin .ftb select{width:auto;font-size:13px;padding:4px 8px;border-radius:8px}
+.fin .chart{height:260px}
+.fin .badge{display:inline-block;font-size:12px;border-radius:7px;padding:1px 7px;margin:0 4px 4px 0;background:var(--upbg);color:var(--up);font-weight:600}
+.fin .badge.g{background:var(--downbg,#e6f6ee);color:var(--down)}
+.fin .lg{display:flex;flex-wrap:wrap;gap:10px;font-size:12px;color:var(--sub);margin:4px 0}
+.fin .lg span{cursor:pointer;display:inline-flex;align-items:center;gap:4px}
+.fin .lg span i{width:10px;height:3px;border-radius:2px;display:inline-block}
+.fin .lg span.off{opacity:.35;text-decoration:line-through}
+.fin .ft{overflow-x:auto;margin-top:8px;-webkit-overflow-scrolling:touch}
+.fin .ft table{border-collapse:collapse;font-size:12.5px;white-space:nowrap}
+.fin .ft th,.fin .ft td{padding:5px 8px;text-align:right;border-bottom:1px solid var(--line)}
+.fin .ft th:first-child,.fin .ft td:first-child{position:sticky;left:0;background:var(--card);text-align:left;z-index:1}
+.fin .ft tr:first-child th{color:var(--sub);font-weight:500}
+.fin .note{font-size:11.5px;color:var(--sub);margin-top:6px}
 .yv .act{margin-top:8px;font-size:13.5px;background:var(--warnbg);color:var(--warn);border-radius:10px;padding:7px 10px}
 /* ====== 電腦（寬螢幕）：左側導覽＋多欄儀表板；手機不受影響 ====== */
 @media (min-width:1000px){
@@ -1063,6 +1078,8 @@ async function stockDetail(code){
   call('stockMe', {code}).then(me => { if (VIEW !== 'stock' || SUB.code !== code) return; STK = Object.assign(STK || {}, me); paintMe(code); paintQ(code); }).catch(() => {});
   // ⑥ 📚 資料：雲端檔案＋公告＋YouTube（各自跑，不卡畫面）
   loadLib(code);
+  // ⑦ 📊 財報：滑到那張卡片才抓
+  watchFin(code);
   // ⑤ K 線（不開試算表，最快）
   try {
     const d = await call('kline', {code, noq: !!LIVE});
@@ -1094,6 +1111,7 @@ function renderStock(code, d, stale){
     <div class="legend" id="klg"></div><div class="chart" id="ck"></div>
     <div id="chipbox"><div class="tabsm" id="cw" style="margin-top:8px"><button data-k="all" class="on">三大法人</button><button data-k="f">外資</button><button data-k="it">投信</button><button data-k="dl">自營</button><button data-k="mg">融資券</button></div>
     <div class="legend" id="clg"></div><div class="chart s" id="cc"></div><div class="sub" id="csrc"></div></div></div>`;
+  h += `<div class="card fin" id="fin"><h3>📊 財報</h3><div class="sub">滑到這裡才讀取…</div></div>`;
   h += `<div class="card" id="repcard"></div></div><div class="sdr">`;
   h += `<div class="card" id="chipcard"><h3>🏦 籌碼統計（張）</h3><div id="csum"><div class="sub">讀取中…</div></div></div>`;
   h += `<div class="card" id="book"><h3>📒 五檔</h3><div class="sub">讀取中…</div></div>`;
@@ -1213,6 +1231,150 @@ function paintLib(){
     if (o.dataset.k !== 'msg' && o.dataset.k !== 'ann'){ box.textContent = $('.s', o).textContent; return; }
     try { const b = await ghx('info-data', 'b/' + o.dataset.d + '/' + o.dataset.c.slice(0, 2) + '.json', 86400000); box.textContent = b[o.dataset.id] || $('.s', o).textContent; } catch(e){ box.textContent = $('.s', o).textContent; }
   });
+}
+
+// ====================== v2.12 個股頁「📊 財報」：EPS（含法人預估）、三率、月營收、循環指標 ======================
+const FINT = [['eps', 'EPS'], ['mg', '三率'], ['rev', '營收'], ['cyc', '循環']];
+let FIN = null; const FINM = {};
+function watchFin(code){
+  FIN = {code, d: FINM[code] || null};
+  const el = $('#fin'); if (!el) return;
+  if (FIN.d) return paintFin();
+  const go1 = () => { if (!FIN || FIN.code !== code || FIN.loading) return; FIN.loading = true; el.innerHTML = '<h3>📊 財報</h3>' + loading('讀取財報…');
+    call('fin', {code}).then(d => { FINM[code] = d; if (FIN && FIN.code === code){ FIN.d = d; paintFin(); } })
+      .catch(e => { if (FIN && FIN.code === code && $('#fin')) $('#fin').innerHTML = `<h3>📊 財報</h3><div class="err">${esc(e.message)}</div>`; }); };
+  if (!('IntersectionObserver' in window)) return go1();
+  const io = new IntersectionObserver(es => { if (es.some(x => x.isIntersecting)){ io.disconnect(); go1(); } }, {rootMargin: '300px'});
+  io.observe(el);
+}
+const qLabel = d => { const y = d.slice(0, 4), m = +d.slice(5, 7); return y + 'Q' + Math.ceil(m / 3); };
+const r1 = n => n == null || isNaN(n) ? null : Math.round(n * 10) / 10;
+const r2 = n => n == null || isNaN(n) ? null : Math.round(n * 100) / 100;
+const yoyOf = (a, b) => a == null || b == null || b === 0 ? null : r1((a - b) / Math.abs(b) * 100);
+function finSeries(){
+  const d = FIN.d, F = SUB.fin = Object.assign({t: 'eps', mode: 'q', sum: 's', yrs: 5}, SUB.fin || {});
+  const yNow = new Date().getFullYear(), from = String(yNow - F.yrs);
+  const qs = d.q;
+  // 每季（含近 4 季累積）
+  const Qs = qs.map((x, i) => {
+    const four = i >= 3 ? qs.slice(i - 3, i + 1) : null;
+    const sum = k => four && four.every(z => z[k] != null) ? r2(four.reduce((a, z) => a + z[k], 0)) : null;
+    return Object.assign({}, x, {lab: qLabel(x.d), eps4: sum('eps')});
+  });
+  Qs.forEach((x, i) => { const p = Qs[i - 4]; x.yoy = p ? yoyOf(x.eps, p.eps) : null; x.yoy4 = p ? yoyOf(x.eps4, p.eps4) : null; x.ryoy = p ? yoyOf(x.rev, p.rev) : null;
+    x.gm = x.rev ? r1(x.gp / x.rev * 100) : null; x.om = x.rev ? r1(x.op / x.rev * 100) : null; x.pm = x.rev ? r1(x.pti / x.rev * 100) : null; x.nm = x.rev ? r1(x.ni / x.rev * 100) : null;
+    const cogs = x.rev != null && x.gp != null ? x.rev - x.gp : null; x.dio = cogs > 0 && x.inv != null ? Math.round(x.inv / cogs * 91) : null; });
+  // 年度
+  const Y = {};
+  Qs.forEach(x => { const y = x.d.slice(0, 4); const o = Y[y] = Y[y] || {y, n: 0, eps: 0, rev: 0, gp: 0, op: 0, pti: 0, ni: 0, capex: 0, dep: 0};
+    o.n++; ['eps', 'rev', 'gp', 'op', 'pti', 'ni', 'capex', 'dep'].forEach(k => { if (x[k] != null) o[k] += x[k]; }); o.inv = x.inv; o.cl = x.cl; });
+  const Ys = Object.values(Y).sort((a, b) => a.y < b.y ? -1 : 1).map(o => Object.assign(o, {d: o.y + '-12-31', lab: o.n === 4 ? o.y : o.y + '（前' + o.n + '季）', eps: r2(o.eps),
+    gm: o.rev ? r1(o.gp / o.rev * 100) : null, om: o.rev ? r1(o.op / o.rev * 100) : null, pm: o.rev ? r1(o.pti / o.rev * 100) : null, nm: o.rev ? r1(o.ni / o.rev * 100) : null,
+    dio: o.rev - o.gp > 0 && o.inv != null ? Math.round(o.inv / ((o.rev - o.gp) / o.n) * 91) : null, rev: r2(o.rev), capex: r2(o.capex), dep: r2(o.dep)}));
+  Ys.forEach((o, i) => { const p = Ys[i - 1]; o.yoy = p && p.n === 4 && o.n === 4 ? yoyOf(o.eps, p.eps) : null; o.ryoy = p && p.n === 4 && o.n === 4 ? yoyOf(o.rev, p.rev) : null; });
+  // 月營收
+  const M = d.m.map((x, i) => { const p = d.m.find(z => z.ym === (+x.ym.slice(0, 4) - 1) + x.ym.slice(4)), pm = d.m[i - 1];
+    return Object.assign({}, x, {yoy: p ? yoyOf(x.rev, p.rev) : null, mom: pm ? yoyOf(x.rev, pm.rev) : null}); });
+  const maxRev = Math.max(...d.m.map(x => x.rev || 0));
+  // 股價：月均（季／年取平均）
+  const px = {}; d.px.forEach(x => px[x.ym] = x.p);
+  const avgPx = (y, ms) => { const v = ms.map(m => px[y + '-' + m]).filter(x => x != null); return v.length ? r2(v.reduce((a, b) => a + b, 0) / v.length) : null; };
+  return {F, from, Qs: Qs.filter(x => x.d >= from), Ys: Ys.filter(x => x.y >= from), M: M.filter(x => x.ym >= from), maxRev, avgPx, allQ: Qs, allM: M};
+}
+function finBadges(S){
+  const b = [], q = S.allQ.filter(x => x.yoy != null), m = S.allM;
+  if (q.length >= 3){ const [a, c, e] = q.slice(-3).map(x => x.yoy); if (e > c && c > a && e > 0) b.push('🔥 EPS 年增率連 3 季加速'); }
+  const lm = m[m.length - 1];
+  if (lm && lm.rev === S.maxRev) b.push('🆕 ' + lm.ym.replace('-', '/') + ' 營收創新高');
+  const ry = m.slice(-3).map(x => x.yoy); if (ry.length === 3 && ry.every(x => x != null) && ry[2] > ry[1] && ry[1] > ry[0] && ry[2] > 0) b.push('📈 營收年增率連 3 月加速');
+  return b;
+}
+function paintFin(){
+  const el = $('#fin'); if (!el || !FIN || !FIN.d) return;
+  const S = finSeries(), F = S.F, d = FIN.d;
+  if (!d.q.length){ el.innerHTML = '<h3>📊 財報</h3><div class="empty">查不到這檔的財報（可能是 ETF 或剛上市）</div>'; return; }
+  const sel = (id, opts, v) => `<select id="${id}">${opts.map(([k, t]) => `<option value="${k}" ${String(v) === String(k) ? 'selected' : ''}>${t}</option>`).join('')}</select>`;
+  const bar = F.t === 'eps' ? `<div class="tabsm" style="margin:0" id="fsum">${[['s', '單季'], ['4', '近4季累積']].map(([k, t]) => `<button data-k="${k}" class="${F.sum === k ? 'on' : ''}">${t}</button>`).join('')}</div>` : '';
+  const qy = F.t !== 'rev' ? `<div class="tabsm" style="margin:0" id="fmode">${[['q', '季報'], ['y', '年報']].map(([k, t]) => `<button data-k="${k}" class="${F.mode === k ? 'on' : ''}">${t}</button>`).join('')}</div>` : '';
+  const badges = finBadges(S);
+  el.innerHTML = `<h3>📊 財報<span class="sub" style="font-weight:400;margin-left:6px">${esc(d.at.slice(5))} 更新</span></h3>
+    ${badges.length ? `<div>${badges.map(x => `<span class="badge">${esc(x)}</span>`).join('')}</div>` : ''}
+    <div class="tabsm" id="ftab">${FINT.map(([k, t]) => `<button data-k="${k}" class="${F.t === k ? 'on' : ''}">${t}</button>`).join('')}</div>
+    <div class="ftb">${bar}${F.t === 'eps' && F.mode === 'y' ? '' : ''}${qy}${sel('fyrs', [[3, '近 3 年'], [5, '近 5 年'], [10, '近 10 年']], F.yrs)}</div>
+    <div class="lg" id="flg"></div><div class="chart" id="fch"></div><div class="ft" id="ftb"></div><div class="note" id="fnote"></div>`;
+  const re = () => { saveSub(); paintFin(); };
+  $$('#ftab button', el).forEach(b => b.onclick = () => { F.t = b.dataset.k; re(); });
+  $$('#fsum button', el).forEach(b => b.onclick = () => { F.sum = b.dataset.k; re(); });
+  $$('#fmode button', el).forEach(b => b.onclick = () => { F.mode = b.dataset.k; re(); });
+  $('#fyrs', el).onchange = e => { F.yrs = +e.target.value; re(); };
+  loadCharts().then(() => finDraw(S)).catch(() => { $('#fch').innerHTML = '<div class="empty">圖表載入失敗</div>'; });
+}
+function finDraw(S){
+  const box = $('#fch'); if (!box || !window.LightweightCharts) return;
+  if (FIN.ch){ CHARTS = CHARTS.filter(x => x !== FIN.ch); try { FIN.ch.remove(); } catch(e){} FIN.ch = null; }
+  box.innerHTML = '';
+  const F = S.F, c = C(), d = FIN.d, Y = F.mode === 'y';
+  const ch = FIN.ch = mkChart(box, {timeScale: {borderVisible: false, fixLeftEdge: true, fixRightEdge: true}, leftPriceScale: {visible: false, borderVisible: false},
+    localization: {locale: 'zh-TW', dateFormat: Y ? 'yyyy' : 'yyyy/MM'}, handleScroll: false, handleScale: false});
+  const T = x => x.d || (x.ym + '-15');
+  const lgs = [], hid = SUB.finOff = SUB.finOff || {};
+  const add = (key, name, color, mk) => { const s = mk(); s.applyOptions({visible: !hid[key]}); lgs.push({key, name, color, s}); return s; };
+  let rows = [], cols = [], note = '';
+  const ORANGE = '#f0a43a', BLUE = '#1f7ae0', GREY = '#8a94a6', PURPLE = '#8e5bd8';
+  if (F.t === 'eps'){
+    const src = Y ? S.Ys : S.Qs, k = !Y && F.sum === '4' ? 'eps4' : 'eps';
+    const eb = add('eps', Y ? '年度 EPS' : F.sum === '4' ? '近4季累積 EPS' : '單季 EPS', ORANGE, () => ch.addHistogramSeries({priceScaleId: 'left', priceFormat: {type: 'price', precision: 2, minMove: 0.01}}));
+    ch.priceScale('left').applyOptions({visible: true, scaleMargins: {top: 0.1, bottom: 0}});
+    const bars = src.filter(x => x[k] != null).map(x => ({time: T(x), value: x[k], color: ORANGE + 'cc'}));
+    let est = [];
+    if (Y) est = (d.est || []).filter(e => !src.some(x => x.y === e.y && x.n === 4)).map(e => ({time: e.y + '-12-31', value: e.eps, color: ORANGE + '55'}));
+    const all = bars.filter(b => !est.some(e => e.time === b.time)).concat(est).sort((a, b) => a.time < b.time ? -1 : 1);
+    eb.setData(all);
+    const pl = add('px', Y ? '股價（年均）' : '股價（季均）', c.up, () => ch.addLineSeries({color: c.up, lineWidth: 2, priceScaleId: 'right', lastValueVisible: false, priceLineVisible: false, priceFormat: {type: 'price', precision: 0, minMove: 1}}));
+    const pts = Y ? src.map(x => ({time: T(x), value: S.avgPx(x.y, ['01','02','03','04','05','06','07','08','09','10','11','12'])}))
+      : src.map(x => { const y = x.d.slice(0, 4), qn = Math.ceil(+x.d.slice(5, 7) / 3); return {time: T(x), value: S.avgPx(y, [1, 2, 3].map(i => ('0' + ((qn - 1) * 3 + i)).slice(-2)))}; });   // 季均價，和柱子對齊
+    pl.setData(pts.filter(x => x.value != null).sort((a, b) => a.time < b.time ? -1 : 1));
+    cols = src.map(x => x.lab);
+    rows = [[Y ? '年度 EPS' : F.sum === '4' ? '近4季 EPS' : '單季 EPS', src.map(x => fp(x[k]))], ['年增率', src.map(x => pct(Y ? x.yoy : F.sum === '4' ? x.yoy4 : x.yoy))]];
+    if (Y && est.length){ cols = cols.concat((d.est || []).filter(e => !src.some(x => x.y === e.y && x.n === 4)).map(e => e.y + ' 預估')); rows[0][1] = rows[0][1].concat((d.est || []).filter(e => !src.some(x => x.y === e.y && x.n === 4)).map(e => `<span class="sub">${fp(e.eps)}</span>`)); rows[1][1] = rows[1][1].concat(est.map(() => ''));
+      note = '淡色柱＝優分析法人預估 EPS（' + (d.est || []).map(e => e.y + ' 年 ' + fp(e.eps) + '，' + ymd8(e.d) + ' 更新').join('；') + '）'; }
+  } else if (F.t === 'mg'){
+    const src = Y ? S.Ys : S.Qs;
+    [['gm', '毛利率', ORANGE], ['om', '營業利益率', BLUE], ['pm', '稅前淨利率', GREY], ['nm', '稅後淨利率', PURPLE]].forEach(([k, n, col]) => {
+      const l = add(k, n, col, () => ch.addLineSeries({color: col, lineWidth: 2, priceLineVisible: false, lastValueVisible: false, pointMarkersVisible: true, priceFormat: {type: 'percent'}}));
+      l.setData(src.filter(x => x[k] != null).map(x => ({time: T(x), value: x[k]})));
+    });
+    cols = src.map(x => x.lab);
+    rows = [['毛利率 %', src.map(x => fp(x.gm))], ['營業利益率 %', src.map(x => fp(x.om))], ['稅前淨利率 %', src.map(x => fp(x.pm))], ['稅後淨利率 %', src.map(x => fp(x.nm))]];
+  } else if (F.t === 'rev'){
+    const src = S.M;
+    const rb = add('rev', '月營收（億）', ORANGE, () => ch.addHistogramSeries({priceScaleId: 'right', priceFormat: {type: 'price', precision: 2, minMove: 0.01}}));
+    rb.setData(src.map(x => ({time: x.ym + '-15', value: x.rev, color: x.rev === S.maxRev ? c.up : ORANGE + 'cc'})));
+    const yl = add('yoy', '年增率 %', BLUE, () => ch.addLineSeries({color: BLUE, lineWidth: 2, priceScaleId: 'left', priceLineVisible: false, lastValueVisible: false}));
+    ch.priceScale('left').applyOptions({visible: true});
+    yl.setData(src.filter(x => x.yoy != null).map(x => ({time: x.ym + '-15', value: x.yoy})));
+    cols = src.map(x => x.ym.replace('-', '/'));
+    rows = [['營收（億）', src.map(x => x.rev === S.maxRev ? `<b class="up">${fp(x.rev)}</b>` : fp(x.rev))], ['月增率', src.map(x => pct(x.mom))], ['年增率', src.map(x => pct(x.yoy))]];
+    note = '紅色柱＝歷史新高。月營收每月 10 號前公布，比季報早看到變化。';
+  } else {
+    const src = Y ? S.Ys : S.Qs;
+    const has = k => src.some(x => x[k] != null && x[k] !== 0);
+    if (has('capex')){ const cb = add('capex', '資本支出（億）', GREY, () => ch.addHistogramSeries({priceScaleId: 'right', priceFormat: {type: 'price', precision: 2, minMove: 0.01}}));
+      cb.setData(src.filter(x => x.capex != null).map(x => ({time: T(x), value: x.capex, color: GREY + '99'}))); }
+    if (has('cl')){ const cl = add('cl', '合約負債（億）', c.up, () => ch.addLineSeries({color: c.up, lineWidth: 2, priceScaleId: 'right', priceLineVisible: false, lastValueVisible: false}));
+      cl.setData(src.filter(x => x.cl != null).map(x => ({time: T(x), value: x.cl}))); }
+    if (has('dio')){ const dl = add('dio', '存貨週轉天數', BLUE, () => ch.addLineSeries({color: BLUE, lineWidth: 2, priceScaleId: 'left', priceLineVisible: false, lastValueVisible: false}));
+      ch.priceScale('left').applyOptions({visible: true}); dl.setData(src.filter(x => x.dio != null).map(x => ({time: T(x), value: x.dio}))); }
+    cols = src.map(x => x.lab);
+    rows = [['合約負債（億）', src.map(x => fp(x.cl))], ['存貨（億）', src.map(x => fp(x.inv))], ['存貨週轉天數', src.map(x => fp(x.dio))], ['資本支出（億）', src.map(x => fp(x.capex))], ['折舊（億）', src.map(x => fp(x.dep))]];
+    note = '合約負債變大＝客戶先付訂金（常見於缺貨搶產能）；存貨天數縮短＝供貨吃緊；資本支出衝高＝擴產，留意循環後段。' + (has('cl') ? '' : '這檔財報沒有合約負債科目。');
+  }
+  ch.timeScale().fitContent();
+  $('#flg').innerHTML = lgs.map(x => `<span data-k="${x.key}" class="${hid[x.key] ? 'off' : ''}"><i style="background:${x.color}"></i>${esc(x.name)}</span>`).join('');
+  $$('#flg span').forEach(sp => sp.onclick = () => { const k = sp.dataset.k; hid[k] = !hid[k]; saveSub(); const g = lgs.find(x => x.key === k); if (g) g.s.applyOptions({visible: !hid[k]}); sp.classList.toggle('off', !!hid[k]); });
+  $('#ftb').innerHTML = `<table><tr><th>${F.t === 'rev' ? '月份' : Y ? '年度' : '季度'}</th>${cols.map(x => `<th>${esc(x)}</th>`).join('')}</tr>${rows.map(([n, v]) => `<tr><td>${esc(n)}</td>${v.map(x => `<td>${x}</td>`).join('')}</tr>`).join('')}</table>`;
+  const tb = $('#ftb'); tb.scrollLeft = tb.scrollWidth;   // 最新的在最右邊，先捲過去
+  $('#fnote').innerHTML = esc(note) + `<br>資料：FinMind（證交所財報）；月均價為每月開高低收平均（近似）。`;
 }
 
 // ====================== 一鍵報告 ======================
