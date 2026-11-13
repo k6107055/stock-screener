@@ -1,0 +1,1150 @@
+[
+ {
+  "id": "yt-KYO-yXpacmY",
+  "channel_name": "理財達人秀 EBCmoneyshow",
+  "channel_id": "UCQvsuaih5lE0n_Ne54nNezg",
+  "channel_type": "台股盤勢與族群選股",
+  "video_title": "【理財達人秀】黃仁勳出軌 台股AI大洗牌？吐千點打腳 拉回就是買？CPO挑低檔 投信護中小！大戶搶資安！｜李兆華、容逸燊、高憲容、股魚2026.11.12【電視完整版】",
+  "video_url": "https://www.youtube.com/watch?v=KYO-yXpacmY",
+  "publish_time": "2026-11-12T13:00:14+00:00",
+  "summary": "台股受外部因素及高檔震盪影響出現修正，市場關注AI算力重分配與產業供應鏈變化。基本面聚焦於營收與獲利創高個股，在大盤拉回打腳階段，應關注資安、CPO及具實際業績支撐之中小型股，避免追高並留意籌碼變化。",
+  "decision_card": {
+   "industry_stage": "AI算力擴充期與後續軟體資安/CPO應用導入期",
+   "profit_driver": "規格升級 ＞ 出貨量",
+   "valuation_timeline": "",
+   "revision_nature": "短期情緒與籌碼面修正"
+  },
+  "key_metrics": [
+   {
+    "label": "大盤點位跌幅",
+    "val": "下跌1165點"
+   },
+   {
+    "label": "大盤防守關卡",
+    "val": "險守43000點"
+   }
+  ],
+  "mentioned_stocks": [],
+  "action_discipline": "不追高高檔衝刺股，逢拉回測試支撐時分批佈局營收獲利創高之優質股，留意投信買超籌碼與中小型股流動性。",
+  "codes": [],
+  "ai": true
+ },
+ {
+  "id": "yt-4YatjBDxCQs",
+  "channel_name": "投資優我罩—優分析",
+  "channel_id": "UCmBQRXvXkeYVBT8nZykMfWw",
+  "channel_type": "產業拆解與法人數據",
+  "video_title": "光通訊雙強對決！聯亞、全新你押誰？這檔獲利還沒開全速？看懂「這關鍵指標」才不會上錯車！【優分析影音解讀】ep.12",
+  "video_url": "https://www.youtube.com/watch?v=4YatjBDxCQs",
+  "publish_time": "2026-11-12T12:00:38+00:00",
+  "summary": "本影片針對光通訊磊晶廠聯亞與全新進行基本面比較。兩者雖均受惠AI光通訊需求，但獲利成長階段不同。聯亞主要受惠於矽光子CW Laser需求帶動，產能利用率與毛利率顯著回升，處於獲利加速期；全新則受限於消費性電子產品營收佔比仍高，AI光通訊貢獻尚處於前期放量階段，兩者在產能結構與產品組合改善時程上有所差異。",
+  "decision_card": {
+   "industry_stage": "光通訊CW Laser與矽光子需求高成長期",
+   "profit_driver": "規格升級 ＞ 出貨量",
+   "valuation_timeline": "",
+   "revision_nature": "需求端驅動"
+  },
+  "key_metrics": [],
+  "mentioned_stocks": [
+   "3081 聯亞",
+   "2455 全新"
+  ],
+  "action_discipline": "關注產能利用率與產品組合改善進程，追蹤上游磷化銦（InP）材料供應與CW Laser實際出貨狀況，避免僅憑EPS成長率盲目追高。",
+  "codes": [
+   "2455",
+   "3081"
+  ],
+  "ai": true
+ },
+ {
+  "id": "yt-kWCjeKpa7ZE",
+  "channel_name": "理財達人秀 EBCmoneyshow",
+  "channel_id": "UCQvsuaih5lE0n_Ne54nNezg",
+  "channel_type": "台股盤勢與族群選股",
+  "video_title": "【兆華艾綸說】12檔國安必買股 3大主動式ETF 實證！誰會再創高？｜李兆華、艾綸 2026.11.12 #台積電 #聯發科 #主動式ETF",
+  "video_url": "https://www.youtube.com/watch?v=kWCjeKpa7ZE",
+  "publish_time": "2026-11-12T12:00:15+00:00",
+  "summary": "本集節目針對市場大幅震盪與拉回情境進行分析，探討市值型與主動式ETF成分股（如大型權值股）的止跌反彈訊號。評估指標包含融資減幅、營收季報表現及投信買盤力道，提醒投資人在大盤波動時應控管槓桿風險，切忌盲目凹單，並觀察資金籌碼面與基本面強弱作為進出場依據。",
+  "decision_card": {
+   "industry_stage": "盤整消化期與籌碼沉澱期",
+   "profit_driver": "規格升級 ＞ 出貨量 ＞ 純漲價",
+   "valuation_timeline": "",
+   "revision_nature": ""
+  },
+  "key_metrics": [
+   {
+    "label": "觀察止跌關鍵指標",
+    "val": "融資清籌碼狀況、營收與季報基本面、投信連續買超力道"
+   }
+  ],
+  "mentioned_stocks": [
+   "2330 台積電",
+   "2308 台達電",
+   "2317 鴻海",
+   "2382 廣達",
+   "2454 聯發科"
+  ],
+  "action_discipline": "融資偏高或高槓桿工具（如正2）在下行趨勢中切忌逢低凹單或開高倍率；嚴格執行資金控管，等待籌碼沉澱與長天期均線支撐確立後再行佈局。",
+  "codes": [
+   "2308",
+   "2317",
+   "2330",
+   "2382",
+   "2454"
+  ],
+  "ai": true
+ },
+ {
+  "id": "yt-tjyueCCy9BQ",
+  "channel_name": "MoneyDJ理財網",
+  "channel_id": "UC8qLLXh5cuY_jtvOHsSYmTA",
+  "channel_type": "第一線產業深度訪談與新聞",
+  "video_title": "【MoneyDJ新股巡禮】特力屋深化居家服務 管家+體驗門市雙引擎",
+  "video_url": "https://www.youtube.com/watch?v=tjyueCCy9BQ",
+  "publish_time": "2026-11-12T00:13:30+00:00",
+  "summary": "特力屋（7867）預計於10月下旬掛牌上市。公司從傳統居家商品販售轉型，深化居家服務，以「管家服務」與「體驗門市」為雙引擎，搶攻老屋修繕、銀髮族群及高齡化社會帶來的居家健檢與翻新需求，藉由提升服務比重與自有品牌效益優化營運結構。",
+  "decision_card": {
+   "industry_stage": "傳統零售轉型高附加價值服務期",
+   "profit_driver": "規格升級",
+   "valuation_timeline": "",
+   "revision_nature": "需求端驅動"
+  },
+  "key_metrics": [
+   {
+    "label": "掛牌預計時間",
+    "val": "10月下旬"
+   }
+  ],
+  "mentioned_stocks": [
+   "7867 特力屋"
+  ],
+  "action_discipline": "關注上市後服務型營收比重提升幅度及獲利結構改善狀況，待基本面數據確認後再行布局。",
+  "codes": [
+   "7867"
+  ],
+  "ai": true
+ },
+ {
+  "id": "yt-g9AEcVCV4ic",
+  "channel_name": "財女珍妮",
+  "channel_id": "UCdwPn2TO60Ec8QDIFRx50lQ",
+  "channel_type": "美股產業趨勢與企業拆解",
+  "video_title": "2026/11/12(四) 輝達遭降評，股價跌完了？",
+  "video_url": "https://www.youtube.com/watch?v=g9AEcVCV4ic",
+  "publish_time": "2026-11-12T00:06:06+00:00",
+  "summary": "本集內容主要提供 Growin AI 財報與產業分析工具之推廣資訊，包括 Microsoft、Google、Amazon 等美股巨頭之財報分析與產業趨勢功能介紹。影片說明資訊中未提供具體大盤走勢、降評個股數據或台股個股分析細節。",
+  "decision_card": {
+   "industry_stage": "",
+   "profit_driver": "",
+   "valuation_timeline": "",
+   "revision_nature": ""
+  },
+  "key_metrics": [
+   {
+    "label": "Growin 入門方案首年折扣價",
+    "val": "US$49.30／年"
+   },
+   {
+    "label": "Growin 基本方案首年折扣價",
+    "val": "US$132.60／年"
+   },
+   {
+    "label": "Growin 進階方案首年折扣價",
+    "val": "US$191.25／年"
+   }
+  ],
+  "mentioned_stocks": [
+   "MSFT 微軟",
+   "GOOGL 谷歌",
+   "AMZN 亞馬遜",
+   "NVDA 輝達"
+  ],
+  "action_discipline": "資訊不足，建議依據實際財報數據與基本面變化進行理性評估，不盲目追高。",
+  "codes": [],
+  "ai": true
+ },
+ {
+  "id": "yt-YeRgAdgplQY",
+  "channel_name": "理財達人秀 EBCmoneyshow",
+  "channel_id": "UCQvsuaih5lE0n_Ne54nNezg",
+  "channel_type": "台股盤勢與族群選股",
+  "video_title": "【兆華艾綸說】反攻好洗 挖金流噴出股 提早進出場 30分K抓轉折｜李兆華、艾綸、楊雲翔 2026.11.11 part2",
+  "video_url": "https://www.youtube.com/watch?v=YeRgAdgplQY",
+  "publish_time": "2026-11-12T00:00:24+00:00",
+  "summary": "技術面討論大盤反攻與洗盤格局，建議投資人透過金流與30分K線尋找轉折點與提前進出場時機。產業聚焦於AI相關晶片如ASIC與AMD供應鏈。投資人應關注金流轉向與技術面轉折，不宜盲目追高，需回歸客觀籌碼與量能觀察。",
+  "decision_card": {
+   "industry_stage": "AI晶片與ASIC擴展期",
+   "profit_driver": "規格升級 ＞ 出貨量",
+   "valuation_timeline": "",
+   "revision_nature": ""
+  },
+  "key_metrics": [
+   {
+    "label": "技術指標",
+    "val": "30分K線轉折點"
+   }
+  ],
+  "mentioned_stocks": [],
+  "action_discipline": "觀察30分K訊號抓轉折，順應金流方向操作，切忌盲目追高，遵循嚴格停損停利紀律。",
+  "codes": [],
+  "ai": true
+ },
+ {
+  "id": "yt-ODGD_qHlkPM",
+  "channel_name": "游庭皓的財經皓角",
+  "channel_id": "UC0lbAQVpenvfA2QqzsRtL_g",
+  "channel_type": "總體經濟與國際股市",
+  "video_title": "2026/11/12(四)利空連環爆 輝達盤後重挫7% 老黃再爆桃花劫!股市V轉 該追股票嗎?【早晨財經速解讀】",
+  "video_url": "https://www.youtube.com/watch?v=ODGD_qHlkPM",
+  "publish_time": "2026-11-11T23:58:43+00:00",
+  "summary": "今日節目主要解讀輝達盤後下挫及市場利空消息影響下的股市表現。分析指出盤中出現V轉走勢，然整體操作仍需回歸基本面與產業供需變化。目前總體經濟與產業趨勢未變，投資人面對短線波動不應過度恐慌，亦不可盲目追高，應視個股評價面與均線支撐進行理性布局。",
+  "decision_card": {
+   "industry_stage": "AI伺服器與半導體供應鏈高成長期",
+   "profit_driver": "規格升級 ＞ 出貨量",
+   "valuation_timeline": "已反映至2025E-2026E EPS",
+   "revision_nature": "需求端驅動"
+  },
+  "key_metrics": [
+   {
+    "label": "輝達盤後跌幅",
+    "val": "約 7%"
+   }
+  ],
+  "mentioned_stocks": [],
+  "action_discipline": "不盲目追高，等待市場利空消化；若融資偏高則保持觀望，待回測長天期均線且止跌訊號出現後再行分批布局。",
+  "codes": [],
+  "ai": true
+ },
+ {
+  "id": "yt-GDXK60GE6Is",
+  "channel_name": "理財達人秀 EBCmoneyshow",
+  "channel_id": "UCQvsuaih5lE0n_Ne54nNezg",
+  "channel_type": "台股盤勢與族群選股",
+  "video_title": "【兆華艾綸說】回漲6千點 正式轉強？ 創意領軍 ASIC接棒噴｜李兆華、艾綸 2026.11.11 part1",
+  "video_url": "https://www.youtube.com/watch?v=GDXK60GE6Is",
+  "publish_time": "2026-11-11T23:45:11+00:00",
+  "summary": "大盤強勢反彈，轉強關鍵在於ASIC與半導體族群接棒拉升。市場聚焦黃仁勳與AMD最新產業動態對供應鏈的帶動效應，由創意領軍ASIC概念股走強。操作上仍須維持紀律，回歸基本面與籌碼面客觀評估，避免盲目追高。",
+  "decision_card": {
+   "industry_stage": "ASIC與先進封裝概念走強期",
+   "profit_driver": "規格升級 ＞ 出貨量",
+   "valuation_timeline": "",
+   "revision_nature": "需求端驅動"
+  },
+  "key_metrics": [
+   {
+    "label": "大盤反彈點數",
+    "val": "6000點"
+   }
+  ],
+  "mentioned_stocks": [
+   "3443 創意"
+  ],
+  "action_discipline": "不盲目追高熱門議題股，嚴格依據籌碼結構與長天期均線支撐客觀評估，遵循分批佈局與停損停利紀律。",
+  "codes": [
+   "3443"
+  ],
+  "ai": true
+ },
+ {
+  "id": "yt-O81sXlynyqw",
+  "channel_name": "理財達人秀 EBCmoneyshow",
+  "channel_id": "UCQvsuaih5lE0n_Ne54nNezg",
+  "channel_type": "台股盤勢與族群選股",
+  "video_title": "【理財達人秀】PCB、探針大漲 被砍價？ 財報還公道 鎖底部起漲？｜李兆華、陳於晨 2026.11.11 part3",
+  "video_url": "https://www.youtube.com/watch?v=O81sXlynyqw",
+  "publish_time": "2026-11-11T23:30:06+00:00",
+  "summary": "本集節目關注PCB與探針卡等零組件產業財報與產業變化。針對部分獲利回升、評價處於合理或低估階段的標的進行基本面追蹤，重點關注需求實質拉動與規格升級帶動的動能，操作上強調理性評價與紀律布局。",
+  "decision_card": {
+   "industry_stage": "PCB及探針卡相關產業迎升級與量產期",
+   "profit_driver": "出貨量 > 規格升級",
+   "valuation_timeline": "反映至2025/2026年獲利估值",
+   "revision_nature": "需求端驅動"
+  },
+  "key_metrics": [
+   {
+    "label": "重點產業領域",
+    "val": "PCB、探針卡、記憶體模組"
+   }
+  ],
+  "mentioned_stocks": [
+   "2367 耀華",
+   "2313 華通",
+   "3260 威剛"
+  ],
+  "action_discipline": "不追高高融資或短線爆量個股，待本益比回歸合理區間及技術面回測長天期均線尋求支撐時再行布局。",
+  "codes": [
+   "2313",
+   "2367",
+   "3260"
+  ],
+  "ai": true
+ },
+ {
+  "id": "yt-kkA-Uqa8oUI",
+  "channel_name": "理財達人秀 EBCmoneyshow",
+  "channel_id": "UCQvsuaih5lE0n_Ne54nNezg",
+  "channel_type": "台股盤勢與族群選股",
+  "video_title": "【兆華艾綸說】台股回漲6000點 正式轉強？創意領軍ASIC接棒噴 聯發科.世芯可押寶？玻纖.設備搶短多 30分K抓轉折！｜李兆華、艾綸、楊雲翔2026.11.11",
+  "video_url": "https://www.youtube.com/watch?v=kkA-Uqa8oUI",
+  "publish_time": "2026-11-11T13:30:26+00:00",
+  "summary": "台股隨營收發酵呈現反彈走勢，市場關注ASIC族群接棒表現與短線資金輪動。CPI數據影響市場對降息時程評估，輝達、AMD與博通等晶片大廠競合關係持續引導AI供應鏈脈動。操作上聚焦玻纖布與設備等短多題材，可搭配極短線指標（如30分鐘K線）控管進出時點。",
+  "decision_card": {
+   "industry_stage": "ASIC與設備族群輪動期",
+   "profit_driver": "規格升級 ＞ 出貨量",
+   "valuation_timeline": "",
+   "revision_nature": ""
+  },
+  "key_metrics": [
+   {
+    "label": "大盤反彈點數",
+    "val": "近四日連續上漲，波段累計反彈顯著"
+   }
+  ],
+  "mentioned_stocks": [
+   "3443 創意",
+   "2454 聯發科",
+   "3661 世芯-KY"
+  ],
+  "action_discipline": "不盲目追高，短線操作可利用30分鐘K線觀察轉折，控管資金風險並恪守停損停利紀律。",
+  "codes": [
+   "2454",
+   "3443",
+   "3661"
+  ],
+  "ai": true
+ },
+ {
+  "id": "yt-rpN7fumTugg",
+  "channel_name": "理財達人秀 EBCmoneyshow",
+  "channel_id": "UCQvsuaih5lE0n_Ne54nNezg",
+  "channel_type": "台股盤勢與族群選股",
+  "video_title": "【理財達人秀】台股N字反攻上演 複製7月強彈？外資砍價記憶體.PCB.探針卡 超跌賺價差與汰弱留強名單！｜李兆華、朱家泓、林信富、陳於晨2026.11.11【電視完整版】",
+  "video_url": "https://www.youtube.com/watch?v=rpN7fumTugg",
+  "publish_time": "2026-11-11T13:00:12+00:00",
+  "summary": "台股出現出量急彈，市場關切是否複製7月N字型反攻行情。AI相關供應鏈關注CoreWeave財報優異對市場信心的提振；同時需留意部分外資針對記憶體、PCB及探針卡調降目標價，以及AI資料中心建置時程可能延後對信驊、南電等供應鏈營運與報價的影響。",
+  "decision_card": {
+   "industry_stage": "AI供應鏈分化期 / 記憶體與PCB調整期",
+   "profit_driver": "規格升級",
+   "valuation_timeline": "",
+   "revision_nature": "認列時程遞延與外資砍價調降"
+  },
+  "key_metrics": [
+   {
+    "label": "大盤走勢",
+    "val": "連3天漲逾千點出量急彈"
+   }
+  ],
+  "mentioned_stocks": [
+   "3269 圓剛",
+   "2313 華通",
+   "5274 信驊",
+   "8046 南電"
+  ],
+  "action_discipline": "針對超跌個股尋求價差機會，營運衰退或遭砍價個股應執行汰弱留強，避免盲目追高。",
+  "codes": [
+   "2313",
+   "3269",
+   "5274",
+   "8046"
+  ],
+  "ai": true
+ },
+ {
+  "id": "yt-lQcyffgsjDc",
+  "channel_name": "統一投顧",
+  "channel_id": "UCsaU-82xFFTd1dZk8P53pAw",
+  "channel_type": "專業機構盤後與個股報告",
+  "video_title": "《統一有廖》說好的創高呢？Q4行情急轉直下！AI 基建喊卡引爆恐慌，廖總真心話：現在該逃還是該撿？",
+  "video_url": "https://www.youtube.com/watch?v=lQcyffgsjDc",
+  "publish_time": "2026-11-11T11:42:23+00:00",
+  "summary": "大盤受市場對AI基建需求暫緩之恐慌影響，第四季行情出現拉回修正。修正主因為評價面高檔調整與認列時程疑慮，而非基本面轉壞。投資人應關注台積電等核心供應鏈之實際出貨與訂單狀況，切勿因市場情緒盲目殺跌，建議等待評價面修復與技術面落底訊號。",
+  "decision_card": {
+   "industry_stage": "AI基礎建設拉貨與估值修復期",
+   "profit_driver": "規格升級 ＞ 出貨量",
+   "valuation_timeline": "已反映至2025E EPS",
+   "revision_nature": "情緒性賣壓與認列時程遞延"
+  },
+  "key_metrics": [],
+  "mentioned_stocks": [
+   "2330 台積電"
+  ],
+  "action_discipline": "不隨市場恐慌情緒追高殺低，待評價修正至合理區間及股價回測關鍵均線支撐打底後，再行分批佈局。",
+  "codes": [
+   "2330"
+  ],
+  "ai": true
+ },
+ {
+  "id": "yt-kaHEk8Kb854",
+  "channel_name": "Gooaye 股癌",
+  "channel_id": "UC23rnlQU_qE3cec9x709peA",
+  "channel_type": "美台股產業動態與心態分享",
+  "video_title": "EP713 | 🌲",
+  "video_url": "https://www.youtube.com/watch?v=kaHEk8Kb854",
+  "publish_time": "2026-11-11T08:14:32+00:00",
+  "summary": "本集節目內容主要為贊助廣告與生活經驗分享，並無提供特定大盤走勢方向、產業基本面分析、關鍵財務數據或特定點名個股資訊。",
+  "decision_card": {
+   "industry_stage": "",
+   "profit_driver": "",
+   "valuation_timeline": "",
+   "revision_nature": ""
+  },
+  "key_metrics": [],
+  "mentioned_stocks": [],
+  "action_discipline": "無相關股市分析與操作建議，請維持客觀理性並依據基本面數據做決策。",
+  "codes": [],
+  "ai": true
+ },
+ {
+  "id": "yt-ZBCIgMKM10o",
+  "channel_name": "統一證券",
+  "channel_id": "UCH-_jIlROuTFNtoQmUOhcoQ",
+  "channel_type": "券商晨會與市場動態",
+  "video_title": "【金羊起航 財富飛揚】統一證券2027投資新賽局",
+  "video_url": "https://www.youtube.com/watch?v=ZBCIgMKM10o",
+  "publish_time": "2026-11-11T05:28:29+00:00",
+  "summary": "統一證券舉辦2027投資新賽局論壇，探討全球資金定錨、利率轉折及AI科技浪潮下的台股產業輪動與布局方向。",
+  "decision_card": {
+   "industry_stage": "AI應用落地與半導體需求延伸期",
+   "profit_driver": "規格升級",
+   "valuation_timeline": "已反映至2027年",
+   "revision_nature": "需求端驅動"
+  },
+  "key_metrics": [],
+  "mentioned_stocks": [],
+  "action_discipline": "依循總體經濟與產業趨勢，掌握2027市場脈動分批布局新年度投資方向。",
+  "codes": [],
+  "ai": true
+ },
+ {
+  "id": "yt-FjcRUxUZ290",
+  "channel_name": "游庭皓的財經皓角",
+  "channel_id": "UC0lbAQVpenvfA2QqzsRtL_g",
+  "channel_type": "總體經濟與國際股市",
+  "video_title": "2026/11/11(三)輝達跌不停 美股被拖垮?通膨炸鍋!12月升息避不了?【早晨財經速解讀】",
+  "video_url": "https://www.youtube.com/watch?v=FjcRUxUZ290",
+  "publish_time": "2026-11-11T01:07:00+00:00",
+  "summary": "本集聚焦美股受輝達重挫拖累及通膨數據上升引發的市場波動。焦點包括10月CPI、非農就業等總經指標對12月升息預期的影響，並探討選後美股格局與市場槓桿去化過程；產業方面分析資料中心面臨之逆風與輝達估值（本益比）修正。",
+  "decision_card": {
+   "industry_stage": "資料中心逆風修正期",
+   "profit_driver": "",
+   "valuation_timeline": "",
+   "revision_nature": ""
+  },
+  "key_metrics": [],
+  "mentioned_stocks": [
+   "NVDA 輝達"
+  ],
+  "action_discipline": "觀察市場槓桿去化進度與估值修正，避免在高通膨與升息預期升溫下盲目追高",
+  "codes": [],
+  "ai": true
+ },
+ {
+  "id": "yt-94UFRC9yZis",
+  "channel_name": "財女珍妮",
+  "channel_id": "UCdwPn2TO60Ec8QDIFRx50lQ",
+  "channel_type": "美股產業趨勢與企業拆解",
+  "video_title": "2026/11/11（三) 通膨降太慢，12月升息兩碼？CoreWeave 財報後不跌了？",
+  "video_url": "https://www.youtube.com/watch?v=94UFRC9yZis",
+  "publish_time": "2026-11-11T01:06:35+00:00",
+  "summary": "影片內容主要為 Growin 財報分析工具之推廣與行銷資訊，並未提供具體的總體經濟數據分析、產業供需報告或個股財務預測。無法從中獲取大盤方向、關鍵數據或個股基本面評估。",
+  "decision_card": {
+   "industry_stage": "",
+   "profit_driver": "",
+   "valuation_timeline": "",
+   "revision_nature": ""
+  },
+  "key_metrics": [],
+  "mentioned_stocks": [],
+  "action_discipline": "資訊不足，無法提供操作建議。",
+  "codes": [],
+  "ai": true
+ },
+ {
+  "id": "yt-FIJE1dHiBNk",
+  "channel_name": "理財達人秀 EBCmoneyshow",
+  "channel_id": "UCQvsuaih5lE0n_Ne54nNezg",
+  "channel_type": "台股盤勢與族群選股",
+  "video_title": "【理財達人秀】出口36紅 PCB低檔跳更高 ACE股主動鎖 10元重新贏｜李兆華、紀緯明 2026.11.10 part3",
+  "video_url": "https://www.youtube.com/watch?v=FIJE1dHiBNk",
+  "publish_time": "2026-11-10T23:30:39+00:00",
+  "summary": "影片提供資訊僅包含標題與說明文字，無詳細逐字稿或具體產業與個股分析內容。無法評估大盤方向與關鍵數據。",
+  "decision_card": {
+   "industry_stage": "",
+   "profit_driver": "",
+   "valuation_timeline": "",
+   "revision_nature": ""
+  },
+  "key_metrics": [],
+  "mentioned_stocks": [],
+  "action_discipline": "資訊不足，維持觀望，不宜在缺乏基本面與具體數據佐證下進行投資操作。",
+  "codes": [],
+  "ai": true
+ },
+ {
+  "id": "yt-zuJ4zSzjqLo",
+  "channel_name": "財女珍妮",
+  "channel_id": "UCdwPn2TO60Ec8QDIFRx50lQ",
+  "channel_type": "美股產業趨勢與企業拆解",
+  "video_title": "AI、電網、國防都需要金屬！009835 全球礦業的新投資機會",
+  "video_url": "https://www.youtube.com/watch?v=zuJ4zSzjqLo",
+  "publish_time": "2026-11-10T12:32:52+00:00",
+  "summary": "AI基礎建設、電網升級與國防需求帶動金屬原物料長期需求。礦業公司獲利受限於開採成本、資本支出與原物料價格波動，非單純價格上漲即獲利。投資礦業ETF（009835）可分散單一礦業公司營運風險，適合長期配置。",
+  "decision_card": {
+   "industry_stage": "原物料需求結構性成長期",
+   "profit_driver": "出貨量與價格波動並重",
+   "valuation_timeline": "",
+   "revision_nature": ""
+  },
+  "key_metrics": [
+   {
+    "label": "投資標的",
+    "val": "009835 貝萊德世界礦業ETF"
+   },
+   {
+    "label": "關鍵原物料",
+    "val": "銅、鋁、鋼材"
+   }
+  ],
+  "mentioned_stocks": [
+   "BHP 必和必拓",
+   "Freeport-McMoRan 自由港麥克莫蘭"
+  ],
+  "action_discipline": "礦業股波動大，建議透過ETF分散風險，採定期定額或分批佈局策略，避免單筆追高。",
+  "codes": [],
+  "ai": true
+ },
+ {
+  "id": "yt-FDZ_qvI3qDU",
+  "channel_name": "游庭皓的財經皓角",
+  "channel_id": "UC0lbAQVpenvfA2QqzsRtL_g",
+  "channel_type": "總體經濟與國際股市",
+  "video_title": "2026/11/10(二)美股大反彈!現在該加碼 還是停損?輝達小M頭 棒打AI多頭?【早晨財經速解讀】",
+  "video_url": "https://www.youtube.com/watch?v=FDZ_qvI3qDU",
+  "publish_time": "2026-11-10T01:05:37+00:00",
+  "summary": "美股出現反彈但輝達（NVIDIA）走勢相對疲弱，市場關注其小M頭型態與即將到來的財報/關鍵十天。輝達面臨Megaspeed風暴、白宮政策分歧與企業角力等多重不確定因素影響。市場整體呈現預期落差，短線波動加劇，投資人需密切留意AI產業鏈獲利動能與總經數據變化。",
+  "decision_card": {
+   "industry_stage": "AI伺服器與晶片高成長轉分化期",
+   "profit_driver": "規格升級 ＞ 出貨量",
+   "valuation_timeline": "已反映至2025E-2026E EPS",
+   "revision_nature": "市場預期過高導致的預期落差修正與政策不確定性遞延"
+  },
+  "key_metrics": [
+   {
+    "label": "輝達關鍵觀察期",
+    "val": "10天"
+   }
+  ],
+  "mentioned_stocks": [
+   "NVDA 輝達"
+  ],
+  "action_discipline": "不盲目追高，待技術面頭部型態消化、回測長天期均線支撐並確認獲利基本面未受損後再行分批佈局。",
+  "codes": [],
+  "ai": true
+ },
+ {
+  "id": "yt-eO0835uQ8Bk",
+  "channel_name": "財女珍妮",
+  "channel_id": "UCdwPn2TO60Ec8QDIFRx50lQ",
+  "channel_type": "美股產業趨勢與企業拆解",
+  "video_title": "2026/11/10(二) 輝達跌誰接棒，AMD，GOOG趁勢起？",
+  "video_url": "https://www.youtube.com/watch?v=eO0835uQ8Bk",
+  "publish_time": "2026-11-10T01:03:07+00:00",
+  "summary": "影片內容主要為 Growin 財報分析工具之推廣與行銷資訊，並未針對輝達、AMD 或 Google 等個股進行具體的產業供需分析、財報數據解讀或市場趨勢判斷。缺乏實質投資分析內容。",
+  "decision_card": {
+   "industry_stage": "",
+   "profit_driver": "",
+   "valuation_timeline": "",
+   "revision_nature": ""
+  },
+  "key_metrics": [],
+  "mentioned_stocks": [
+   "NVDA 輝達",
+   "AMD 超微",
+   "GOOG 谷歌"
+  ],
+  "action_discipline": "影片內容為行銷推廣，無具體投資操作建議，建議投資人回歸個股基本面與財報數據進行獨立判斷。",
+  "codes": [],
+  "ai": true
+ },
+ {
+  "id": "yt-93M0T9NA3jI",
+  "channel_name": "辣個分析師-黎志建(Vic)",
+  "channel_id": "UCkf2mVeZAK7JUwR9JzeVlkQ",
+  "channel_type": "總經與大盤關鍵轉折",
+  "video_title": "國安基金進場穩了嗎？可以優先關注哪些股票？EP.21【股市V他命】｜2026/11/09｜黎志建 分析師｜辣個分析師",
+  "video_url": "https://www.youtube.com/watch?v=93M0T9NA3jI",
+  "publish_time": "2026-11-09T12:00:12+00:00",
+  "summary": "台股經歷大幅修正後出現反彈，市場關注國安基金進場護盤效應與美國期中選舉後AI基礎建設需求。目前盤勢處於籌碼沉澱期，融資大幅減肥有助於減輕賣壓，但AI資料中心建設進度與NVIDIA後續風險仍為關鍵變數。操作上建議區分搶反彈與長線布局策略，不宜過度追高。",
+  "decision_card": {
+   "industry_stage": "AI基礎建設需求觀察期",
+   "profit_driver": "出貨量與資本支出延續性",
+   "valuation_timeline": "",
+   "revision_nature": "需求端不確定性與政策影響"
+  },
+  "key_metrics": [
+   {
+    "label": "融資減幅",
+    "val": "420億元"
+   }
+  ],
+  "mentioned_stocks": [
+   "2330 台積電"
+  ],
+  "action_discipline": "區分短線搶反彈與長線分批布局策略，觀察國安基金護盤標的與籌碼沉澱狀況，避免追高。",
+  "codes": [
+   "2330"
+  ],
+  "ai": true
+ },
+ {
+  "id": "yt-_hlb0auQh9Q",
+  "channel_name": "MoneyDJ理財網",
+  "channel_id": "UC8qLLXh5cuY_jtvOHsSYmTA",
+  "channel_type": "第一線產業深度訪談與新聞",
+  "video_title": "【MoneyDJ新股巡禮】二次配走向一條龍 騏億鑫11月中上櫃",
+  "video_url": "https://www.youtube.com/watch?v=_hlb0auQh9Q",
+  "publish_time": "2026-11-09T01:50:32+00:00",
+  "summary": "騏億鑫(7848)為半導體廠務工程商，業務由二次配管路延伸至主系統統包，具備廠務整合能力。受惠半導體客戶全球擴產需求，營運隨晶圓代工與記憶體廠資本支出連動，預計11月中旬掛牌上櫃。",
+  "decision_card": {
+   "industry_stage": "半導體廠務工程擴張期",
+   "profit_driver": "出貨量與統包工程規模",
+   "valuation_timeline": "",
+   "revision_nature": ""
+  },
+  "key_metrics": [
+   {
+    "label": "成立年資",
+    "val": "逾20年"
+   },
+   {
+    "label": "業務範疇",
+    "val": "主系統工程、二次配裝機管路工程、材料製造銷售"
+   },
+   {
+    "label": "掛牌時程",
+    "val": "11月中旬"
+   }
+  ],
+  "mentioned_stocks": [
+   "7848 騏億鑫"
+  ],
+  "action_discipline": "觀察掛牌後籌碼穩定度，並追蹤半導體客戶資本支出與全球擴產進度作為營收先行指標。",
+  "codes": [
+   "7848"
+  ],
+  "ai": true
+ },
+ {
+  "id": "yt-eet_LPUY8Q0",
+  "channel_name": "游庭皓的財經皓角",
+  "channel_id": "UC0lbAQVpenvfA2QqzsRtL_g",
+  "channel_type": "總體經濟與國際股市",
+  "video_title": "雙11會員優惠開跑!!2026/11/9(一)黑天鵝?輝達間諜案 國安調查全面轉向?國安基金來了台股四萬點防線 守得住嗎?【早晨財經速解讀】",
+  "video_url": "https://www.youtube.com/watch?v=eet_LPUY8Q0",
+  "publish_time": "2026-11-09T01:05:46+00:00",
+  "summary": "本集節目主要聚焦於近期市場利空與賣壓分析，包含輝達間諜案引發的信任衝擊、美股、韓股與台股的修正壓力。同時探討國家隊、國安基金與央行針對股市與匯率的護盤機制與歷史脈絡，並持續追蹤權值股及美股大盤走勢。",
+  "decision_card": {
+   "industry_stage": "",
+   "profit_driver": "",
+   "valuation_timeline": "",
+   "revision_nature": ""
+  },
+  "key_metrics": [],
+  "mentioned_stocks": [],
+  "action_discipline": "面對市場黑天鵝與賣壓時，應保持理性觀望，關注政府基金護盤動向與重要均線支撐，避免在情緒發酵期盲目追高或恐慌拋售。",
+  "codes": [],
+  "ai": true
+ },
+ {
+  "id": "yt-LbLBfwX-BIY",
+  "channel_name": "KY99價值投資地下室",
+  "channel_id": "UCVyPg9M-YLDF3UZf6QLtWiA",
+  "channel_type": "價值投資與估值邏輯",
+  "video_title": "泰國新廠剛動土就被客戶全包！打進次世代ASIC、擺脫日廠牽制，這家一貫廠如何迎來超級大循環？",
+  "video_url": "https://www.youtube.com/watch?v=LbLBfwX-BIY",
+  "publish_time": "2026-11-08T11:02:53+00:00",
+  "summary": "AI伺服器、低軌衛星與IC載板推升高階材料需求。富喬突破日廠牽制，成為少數能穩定供應 Low Dk 二代布的台廠，並切入次世代 ASIC 供應鏈。預估高階產品（Low Dk + Low CTE）營收佔比將由 2025 年底約 45% 提升至 2026 年的 60%，泰國新廠產能已被客戶預訂，具備長線營運成長動能。",
+  "decision_card": {
+   "industry_stage": "高階玻纖布規格升級與產能擴充期",
+   "profit_driver": "規格升級 ＞ 出貨量",
+   "valuation_timeline": "已反映至2025E-2026E EPS",
+   "revision_nature": "需求端驅動"
+  },
+  "key_metrics": [
+   {
+    "label": "2025年底高階產品營收佔比預估",
+    "val": "約 45%"
+   },
+   {
+    "label": "2026年高階產品營收佔比預估",
+    "val": "60%"
+   }
+  ],
+  "mentioned_stocks": [
+   "1815 富喬"
+  ],
+  "action_discipline": "觀察高階玻纖布實際出貨比重與泰國新廠量產時程，逢拉回至關鍵均線且籌碼沉澱時再行佈局，不宜在短期利多爆發時過度追高。",
+  "codes": [
+   "1815"
+  ],
+  "ai": true
+ },
+ {
+  "id": "yt-OE8-DFzF_T4",
+  "channel_name": "投資優我罩—優分析",
+  "channel_id": "UCmBQRXvXkeYVBT8nZykMfWw",
+  "channel_type": "產業拆解與法人數據",
+  "video_title": "【精華】散戶大崩潰！! 華爾街在怕什麼？吳嘉隆：別被嚇死! 主力「洗籌碼、換手再攻」的拉回陷阱!《股民想知道》ft. 吳嘉隆.俞璘",
+  "video_url": "https://www.youtube.com/watch?v=OE8-DFzF_T4",
+  "publish_time": "2026-11-07T12:00:37+00:00",
+  "summary": "本集節目討論美股與台股大盤近期波動，主要受華爾街籌碼洗盤、美債殖利率變化與聯準會政策預期影響。市場短期出現震盪拉回，但長線AI產業需求與趨勢未變，主力資金正進行籌碼換手。操作上應避免被短期市場情緒干擾，回歸基本面觀察。",
+  "decision_card": {
+   "industry_stage": "AI產業持續成長期",
+   "profit_driver": "規格升級 ＞ 出貨量",
+   "valuation_timeline": "",
+   "revision_nature": "籌碼面洗盤與技術面修正"
+  },
+  "key_metrics": [],
+  "mentioned_stocks": [
+   "2330 台積電"
+  ],
+  "action_discipline": "不隨市場情緒恐慌拋售，理性看待主力洗盤拉回，恪守紀律並依據基本面與長天期均線評估入場時機。",
+  "codes": [
+   "2330"
+  ],
+  "ai": true
+ },
+ {
+  "id": "yt-C1h1vcRVBZ0",
+  "channel_name": "統一投顧",
+  "channel_id": "UCsaU-82xFFTd1dZk8P53pAw",
+  "channel_type": "專業機構盤後與個股報告",
+  "video_title": "《投其所展》得材料者得天下，玻纖布、CCL全面引爆規格升級！ #台玻 #德宏 #騰輝電子 #聯茂",
+  "video_url": "https://www.youtube.com/watch?v=C1h1vcRVBZ0",
+  "publish_time": "2026-11-07T09:11:45+00:00",
+  "summary": "AI伺服器與次世代Rubin架構推動高頻高速材料規格升級，帶動玻纖布與CCL（銅箔基板）需求。焦點集中於Q布、石英纖維、PTFE及Low CTE等高階材料應用。",
+  "decision_card": {
+   "industry_stage": "高階材料規格升級期",
+   "profit_driver": "規格升級 ＞ 出貨量 ＞ 純漲價",
+   "valuation_timeline": "",
+   "revision_nature": "需求端驅動"
+  },
+  "key_metrics": [],
+  "mentioned_stocks": [
+   "1802 台玻",
+   "1757 德宏",
+   "6272 騰輝電子-KY",
+   "6213 聯茂"
+  ],
+  "action_discipline": "聚焦基本面與規格升級受惠股，嚴守技術面回測紀律，不盲目追高。",
+  "codes": [
+   "1757",
+   "1802",
+   "6213",
+   "6272"
+  ],
+  "ai": true
+ },
+ {
+  "id": "yt-B29biCAkl70",
+  "channel_name": "Gooaye 股癌",
+  "channel_id": "UC23rnlQU_qE3cec9x709peA",
+  "channel_type": "美台股產業動態與心態分享",
+  "video_title": "EP712 | 🦌",
+  "video_url": "https://www.youtube.com/watch?v=B29biCAkl70",
+  "publish_time": "2026-11-07T05:10:55+00:00",
+  "summary": "本集節目內容主要為商業贊助廣告推廣（火星生技武倍對策產品），未提供具體的台股大盤走勢分析、產業基本面數據或特定個股獲利預估等客觀投資資訊。",
+  "decision_card": {
+   "industry_stage": "",
+   "profit_driver": "",
+   "valuation_timeline": "",
+   "revision_nature": ""
+  },
+  "key_metrics": [],
+  "mentioned_stocks": [],
+  "action_discipline": "資訊不足，無具體操作紀律說明。",
+  "codes": [],
+  "ai": true
+ },
+ {
+  "id": "yt-mxd3b19fr-4",
+  "channel_name": "林睿閎分析師-John",
+  "channel_id": "UCXB8cCqwOHP3BmyhYLAUs0g",
+  "channel_type": "籌碼技術面與波段操作",
+  "video_title": "【上帝給他一副爛牌，他卻把整個世界買下來！洛克斐勒的傳奇一生】2026.11.07-John 林睿閎 分析師",
+  "video_url": "https://www.youtube.com/watch?v=mxd3b19fr-4",
+  "publish_time": "2026-11-07T01:00:26+00:00",
+  "summary": "該影片內容為人物傳記與投資心法分享，並非針對特定產業趨勢、總體經濟數據或個股基本面之分析報告。影片未提供任何關於台股大盤方向、產業供需數據或個股財務預測之資訊。",
+  "decision_card": {
+   "industry_stage": "",
+   "profit_driver": "",
+   "valuation_timeline": "",
+   "revision_nature": ""
+  },
+  "key_metrics": [],
+  "mentioned_stocks": [],
+  "action_discipline": "影片內容屬人物傳記與投資心法分享，無具體操作建議。",
+  "codes": [],
+  "ai": true
+ },
+ {
+  "id": "yt-DtKOnVKOotU",
+  "channel_name": "財經希引力",
+  "channel_id": "UCBES_XBcxRVyMUA9Ue9sy1g",
+  "channel_type": "台美股熱門話題與總經解讀",
+  "video_title": "TFLN崛起！矽光子不夠用了？聯電、頎邦搶攻高速光通訊，現在殺低可以撿?! 單通道衝上400G！傳統矽光子遇瓶頸，TFLN成為下一張王牌？ |產經希引力EP.228| 劉姸希| CC",
+  "video_url": "https://www.youtube.com/watch?v=DtKOnVKOotU",
+  "publish_time": "2026-11-06T13:00:09+00:00",
+  "summary": "高速光通訊傳輸需求推動TFLN（薄膜鈮酸鋰）技術崛起，作為矽光子技術的互補方案，解決高頻寬與低功耗瓶頸。聯電透過與HyperLight合作切入TFLN晶圓製造，預計2026年量產；頎邦則積極布局光通訊封裝，預期2027年相關業務顯著成長。整體產業處於技術驗證與導入初期，尚未進入大規模獲利爆發期。",
+  "decision_card": {
+   "industry_stage": "高速光通訊技術驗證與導入初期（TFLN材料與製程開發階段）",
+   "profit_driver": "規格升級（傳輸速率提升至800G/1.6T帶動技術迭代）",
+   "valuation_timeline": "已反映至2026-2028年長期成長預期",
+   "revision_nature": "需求端驅動（AI運算傳輸瓶頸帶動新技術需求）"
+  },
+  "key_metrics": [
+   {
+    "label": "TFLN電光頻寬",
+    "val": "100GHz以上"
+   },
+   {
+    "label": "聯電AI相關營收目標",
+    "val": "三年內突破10億美元"
+   },
+   {
+    "label": "聯電12吋矽光子晶圓量產時程",
+    "val": "2026年7月"
+   },
+   {
+    "label": "頎邦光通訊產品毛利率",
+    "val": "35%以上"
+   },
+   {
+    "label": "頎邦光通訊業務成長預估",
+    "val": "2027年達三倍以上"
+   }
+  ],
+  "mentioned_stocks": [
+   "2303 聯電",
+   "6147 頎邦"
+  ],
+  "action_discipline": "產業處於技術導入期，營收貢獻尚需時間發酵，建議關注技術驗證進度與量產良率，避免追逐短期題材炒作，採長線分批布局策略。",
+  "codes": [
+   "2303",
+   "6147"
+  ],
+  "ai": true
+ },
+ {
+  "id": "yt---5oNx_FUyU",
+  "channel_name": "辣個分析師-黎志建(Vic)",
+  "channel_id": "UCkf2mVeZAK7JUwR9JzeVlkQ",
+  "channel_type": "總經與大盤關鍵轉折",
+  "video_title": "AI泡沫要破了？訂單滿手卻跌不停，3個關鍵看懂這波殺盤！EP.65｜2026/11/6｜黎志建 分析師｜辣個分析師【產業金促Ｖ】",
+  "video_url": "https://www.youtube.com/watch?v=--5oNx_FUyU",
+  "publish_time": "2026-11-06T12:00:30+00:00",
+  "summary": "微軟財報提及算力交付延後引發市場對AI需求疑慮，但五大CSP資本支出仍維持高檔。目前AI供應鏈面臨電力瓶頸、缺料與長鞭效應導致的庫存調整，股價修正主因在於評價過高後的獲利了結，而非基本面崩壞。建議關注長線資本支出趨勢，並嚴控資金部位。",
+  "decision_card": {
+   "industry_stage": "AI伺服器供應鏈處於規格升級與產能擴張後的調整期",
+   "profit_driver": "出貨量與規格升級並重，短期受缺料影響",
+   "valuation_timeline": "已反映至2025-2026年獲利預期，目前進入評價修正階段",
+   "revision_nature": "認列時程遞延，非需求端結構性衰退"
+  },
+  "key_metrics": [
+   {
+    "label": "五大CSP資本支出趨勢",
+    "val": "維持高檔成長"
+   },
+   {
+    "label": "主要瓶頸",
+    "val": "電力供應與關鍵零組件缺料"
+   }
+  ],
+  "mentioned_stocks": [
+   "2330 台積電",
+   "2382 廣達",
+   "2317 鴻海",
+   "3231 緯創",
+   "6669 緯穎"
+  ],
+  "action_discipline": "基本面強勁不代表股價不跌，應嚴格執行資金控管，避免追高，並於長天期均線回測時分批佈局，保留現金部位以應對波動。",
+  "codes": [
+   "2317",
+   "2330",
+   "2382",
+   "3231",
+   "6669"
+  ],
+  "ai": true
+ },
+ {
+  "id": "yt-hF4iXEZmHjY",
+  "channel_name": "MoneyDJ理財網",
+  "channel_id": "UC8qLLXh5cuY_jtvOHsSYmTA",
+  "channel_type": "第一線產業深度訪談與新聞",
+  "video_title": "DJ有事嗎 | Ep.269 美股三大考驗，台股下週法說接力賽",
+  "video_url": "https://www.youtube.com/watch?v=hF4iXEZmHjY",
+  "publish_time": "2026-11-05T22:00:25+00:00",
+  "summary": "美股面臨財報週、通膨數據與大選不確定性三大考驗，波動加劇。台股進入法說會密集期，市場聚焦半導體與AI供應鏈展望，資金動能受美股連動影響，建議關注法說會釋出的實質訂單與資本支出指引，而非僅看短期股價波動。",
+  "decision_card": {
+   "industry_stage": "",
+   "profit_driver": "",
+   "valuation_timeline": "",
+   "revision_nature": ""
+  },
+  "key_metrics": [
+   {
+    "label": "美股考驗因素",
+    "val": "財報週、通膨數據、大選不確定性"
+   },
+   {
+    "label": "台股觀察重點",
+    "val": "法說會展望、半導體供應鏈"
+   }
+  ],
+  "mentioned_stocks": [],
+  "action_discipline": "觀察美股波動對台股連動影響，法說會期間應聚焦基本面指引，避免追高，待市場消化不確定性後再行佈局。",
+  "codes": [],
+  "ai": true
+ },
+ {
+  "id": "yt-D6bBOFrKf9U",
+  "channel_name": "Gooaye 股癌",
+  "channel_id": "UC23rnlQU_qE3cec9x709peA",
+  "channel_type": "美台股產業動態與心態分享",
+  "video_title": "EP711 | 🕊🐦🦚🦜🦉🦅🐦🐧",
+  "video_url": "https://www.youtube.com/watch?v=D6bBOFrKf9U",
+  "publish_time": "2026-11-04T09:00:23+00:00",
+  "summary": "本集節目主要為贊助商廣告資訊，未提供關於大盤走勢、產業基本面、關鍵財務數據或個股之具體分析與預測。",
+  "decision_card": {
+   "industry_stage": "",
+   "profit_driver": "",
+   "valuation_timeline": "",
+   "revision_nature": ""
+  },
+  "key_metrics": [],
+  "mentioned_stocks": [],
+  "action_discipline": "資訊不足，無具體操作紀律建議。",
+  "codes": [],
+  "ai": true
+ },
+ {
+  "id": "yt-5F86KGrvgCw",
+  "channel_name": "MoneyDJ理財網",
+  "channel_id": "UC8qLLXh5cuY_jtvOHsSYmTA",
+  "channel_type": "第一線產業深度訪談與新聞",
+  "video_title": "【DJ看台股】華碩不只賣電腦！AI伺服器成長200% 實體AI、人型機器人佈局全面啟動",
+  "video_url": "https://www.youtube.com/watch?v=5F86KGrvgCw",
+  "publish_time": "2026-11-04T08:25:41+00:00",
+  "summary": "華碩(2357)轉型AI伺服器與實體AI解決方案，伺服器業務營收年增約200%，營收占比提升至36%。公司策略由傳統PC轉向AI基礎設施與機器人應用，營收結構轉變為主要成長動能，需持續觀察AI伺服器出貨放量與機器人業務之實際獲利貢獻。",
+  "decision_card": {
+   "industry_stage": "AI伺服器成長擴張期與實體AI佈局初期",
+   "profit_driver": "出貨量與產品組合優化",
+   "valuation_timeline": "",
+   "revision_nature": "需求端驅動"
+  },
+  "key_metrics": [
+   {
+    "label": "伺服器業務營收年增率",
+    "val": "約200%"
+   },
+   {
+    "label": "基礎設施解決方案事業群營收占比",
+    "val": "36%"
+   }
+  ],
+  "mentioned_stocks": [
+   "2357 華碩"
+  ],
+  "action_discipline": "關注AI伺服器營收占比提升之獲利品質，機器人業務屬長期佈局，短期對財報貢獻有限，操作應以基本面成長趨勢為依歸，避免追逐題材炒作。",
+  "codes": [
+   "2357"
+  ],
+  "ai": true
+ },
+ {
+  "id": "yt-9f68tBKZGbs",
+  "channel_name": "林睿閎分析師-John",
+  "channel_id": "UCXB8cCqwOHP3BmyhYLAUs0g",
+  "channel_type": "籌碼技術面與波段操作",
+  "video_title": "台股止跌倒數 準備拿現金撿便宜！2026.11.02-【請支援輸贏】EP17-John &艾綸    @Alansays  ​",
+  "video_url": "https://www.youtube.com/watch?v=9f68tBKZGbs",
+  "publish_time": "2026-11-02T13:13:43+00:00",
+  "summary": "影片內容主要為投顧節目宣傳，未提供具體總體經濟數據、產業供需分析或個股基本面研究。無法從中獲取客觀投資判斷依據，建議投資人回歸財報與產業趨勢進行獨立評估。",
+  "decision_card": {
+   "industry_stage": "",
+   "profit_driver": "",
+   "valuation_timeline": "",
+   "revision_nature": ""
+  },
+  "key_metrics": [],
+  "mentioned_stocks": [],
+  "action_discipline": "資訊不足，無法提供具體操作建議。建議投資人應獨立判斷，審慎評估並自負投資風險。",
+  "codes": [],
+  "ai": true
+ },
+ {
+  "id": "yt-ywazT1mxpXk",
+  "channel_name": "辣個分析師-黎志建(Vic)",
+  "channel_id": "UCkf2mVeZAK7JUwR9JzeVlkQ",
+  "channel_type": "總經與大盤關鍵轉折",
+  "video_title": "台達順達變阿達！HVDC又要延後？電源還有未來嗎？EP.20【股市V他命】｜2026/11/02｜黎志建 分析師｜辣個分析師",
+  "video_url": "https://www.youtube.com/watch?v=ywazT1mxpXk",
+  "publish_time": "2026-11-02T12:00:22+00:00",
+  "summary": "AI資本支出持續增加但市場對現金流產生疑慮，導致科技股震盪。台達電法說顯示HVDC成長瓶頸非技術問題，而是人力培訓（需8000小時證照）導致產能擴張受限。BBU需求仍具潛力，但短期受限於供應鏈與認列節奏，建議投資人關注長線基本面，避免追高，採取回測均線承接策略。",
+  "decision_card": {
+   "industry_stage": "AI電源與儲能設備擴張期，受限於人力與供應鏈瓶頸",
+   "profit_driver": "出貨量（受限於人力培訓產能）",
+   "valuation_timeline": "已反映至2025-2026年成長預期",
+   "revision_nature": "認列時程遞延（受限於人力培訓與供應鏈瓶頸）"
+  },
+  "key_metrics": [
+   {
+    "label": "HVDC人力培訓時數",
+    "val": "8000小時"
+   }
+  ],
+  "mentioned_stocks": [
+   "2308 台達電",
+   "3211 順達"
+  ],
+  "action_discipline": "市場震盪期嚴控資金水位，避免追高，採取長多回測長天期均線承接策略，關注AI資本支出與現金流變化。",
+  "codes": [
+   "2308",
+   "3211"
+  ],
+  "ai": true
+ },
+ {
+  "id": "yt-zOyLOFT4m6E",
+  "channel_name": "KY99價值投資地下室",
+  "channel_id": "UCVyPg9M-YLDF3UZf6QLtWiA",
+  "channel_type": "價值投資與估值邏輯",
+  "video_title": "資本支出誰受惠？不可逆的磷化銦黃金大週期！",
+  "video_url": "https://www.youtube.com/watch?v=zOyLOFT4m6E",
+  "publish_time": "2026-11-01T08:00:02+00:00",
+  "summary": "科技巨頭AI資本支出持續擴大，帶動高傳輸速率與光通訊需求。磷化銦（InP）作為高速光收發模組關鍵材料，迎接技術規格升級紅利。分析聚焦於相關受惠供應鏈與光通訊產業供需循環，長線觀察AI擴建潮下的實際獲利貢獻。",
+  "decision_card": {
+   "industry_stage": "光通訊材料與高速傳輸規格升級期",
+   "profit_driver": "規格升級 ＞ 出貨量",
+   "valuation_timeline": "已反映至2025E-2026E EPS",
+   "revision_nature": "需求端驅動"
+  },
+  "key_metrics": [
+   {
+    "label": "AI資本支出方向",
+    "val": "科技巨頭持續擴大"
+   },
+   {
+    "label": "關鍵材料技術",
+    "val": "磷化銦 (InP)"
+   }
+  ],
+  "mentioned_stocks": [],
+  "action_discipline": "不追高未經實質獲利驗證之題材股，待回測關鍵支撐且基本面數據確認後再行佈局。",
+  "codes": [],
+  "ai": true
+ },
+ {
+  "id": "yt-rvaYDPtDvNk",
+  "channel_name": "林睿閎分析師-John",
+  "channel_id": "UCXB8cCqwOHP3BmyhYLAUs0g",
+  "channel_type": "籌碼技術面與波段操作",
+  "video_title": "【為什麼每次崩盤，他都能大賺？看懂李嘉誠最恐怖的能力】2026.10.31-John 林睿閎 分析師",
+  "video_url": "https://www.youtube.com/watch?v=rvaYDPtDvNk",
+  "publish_time": "2026-10-31T01:00:07+00:00",
+  "summary": "提供的影片資訊僅包含分析師個人聯繫方式與投顧公司宣傳，未提供任何關於大盤走勢、產業供需數據或個股基本面分析內容，無法進行客觀數據分析。",
+  "decision_card": {
+   "industry_stage": "",
+   "profit_driver": "",
+   "valuation_timeline": "",
+   "revision_nature": ""
+  },
+  "key_metrics": [],
+  "mentioned_stocks": [],
+  "action_discipline": "資訊不足，無法制定操作紀律。",
+  "codes": [],
+  "ai": true
+ },
+ {
+  "id": "yt-0OvsQiAmAGQ",
+  "channel_name": "統一證券",
+  "channel_id": "UCH-_jIlROuTFNtoQmUOhcoQ",
+  "channel_type": "券商晨會與市場動態",
+  "video_title": "【投資Market Talk】決戰第四季：當AI循環碰上升息的台股攻守策略✨｜ ft.統一投顧廖婉婷、呂政道",
+  "video_url": "https://www.youtube.com/watch?v=0OvsQiAmAGQ",
+  "publish_time": "2026-10-29T12:00:06+00:00",
+  "summary": "本影片為統一投顧針對第四季台股攻守策略與總經局勢之訪談節目資訊。內容主要提供開戶及點數抽獎活動宣傳，未提供具體大盤方向、總體經濟數據細節或個別產業與公司之基本面分析數據。",
+  "decision_card": {
+   "industry_stage": "",
+   "profit_driver": "",
+   "valuation_timeline": "",
+   "revision_nature": ""
+  },
+  "key_metrics": [],
+  "mentioned_stocks": [],
+  "action_discipline": "",
+  "codes": [],
+  "ai": true
+ },
+ {
+  "id": "yt-ZDtGvQgJifc",
+  "channel_name": "統一投顧",
+  "channel_id": "UCsaU-82xFFTd1dZk8P53pAw",
+  "channel_type": "專業機構盤後與個股報告",
+  "video_title": "《華爾街劇透社》聯準會10月暫緩升息? 外資期貨空單的對手是散戶還是投信? Feat.統一期貨",
+  "video_url": "https://www.youtube.com/watch?v=ZDtGvQgJifc",
+  "publish_time": "2026-10-28T14:00:09+00:00",
+  "summary": "影片討論聯準會貨幣政策走向、美債殖利率變化及台股期貨籌碼動向。分析外資期貨空單與三大法人、散戶之博弈關係，評估總經環境變數與高收益債違約風險對股市之影響，未提及具體產業個股細節。",
+  "decision_card": {
+   "industry_stage": "",
+   "profit_driver": "",
+   "valuation_timeline": "",
+   "revision_nature": ""
+  },
+  "key_metrics": [],
+  "mentioned_stocks": [],
+  "action_discipline": "關注總體經濟數據與三大法人期現貨籌碼變化，嚴控風險，不盲目追高。",
+  "codes": [],
+  "ai": true
+ },
+ {
+  "id": "yt-r2FiiaOi-T0",
+  "channel_name": "KY99價值投資地下室",
+  "channel_id": "UCVyPg9M-YLDF3UZf6QLtWiA",
+  "channel_type": "價值投資與估值邏輯",
+  "video_title": "這家拿下全球首家5奈米UCIe(小晶片互連)量產的IP廠，新案狂增80%，如何坐等2027架構重組商機？",
+  "video_url": "https://www.youtube.com/watch?v=r2FiiaOi-T0",
+  "publish_time": "2026-10-28T11:45:12+00:00",
+  "summary": "先進製程推進至3nm/2nm使單晶片微縮面臨成本與良率瓶頸，以UCIe為核心的高速介面IP成為物理極限突破關鍵。神盾子公司乾瞻科技（InPsytech）主打5nm/3nm/2nm UCIe與3D封裝高速傳輸IP，享有100%高毛利率優勢，新案量大幅增長。重點關注先進封裝與矽智財架構重組趨勢下的長期成長動能。",
+  "decision_card": {
+   "industry_stage": "高速傳輸介面IP與UCIe小晶片互連技術導入初期",
+   "profit_driver": "規格升級 ＞ 出貨量 ＞ 純漲價",
+   "valuation_timeline": "已反映至2026E-2027E架構重組效益",
+   "revision_nature": "需求端驅動（先進製程與UCIe介面需求強勁）"
+  },
+  "key_metrics": [
+   {
+    "label": "乾瞻科技毛利率",
+    "val": "100%"
+   },
+   {
+    "label": "UCIe量產製程",
+    "val": "全球首家5奈米量產"
+   },
+   {
+    "label": "新案增長率",
+    "val": "80%"
+   }
+  ],
+  "mentioned_stocks": [
+   "6462 神盾"
+  ],
+  "action_discipline": "專注基本面與IP授權金/開案認列進度，留意高估值回檔風險，建議回測關鍵均線並待籌碼沉澱後再行布局，切勿盲目追高。",
+  "codes": [
+   "6462"
+  ],
+  "ai": true
+ }
+]
