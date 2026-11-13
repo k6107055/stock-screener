@@ -459,6 +459,8 @@ def main():
         if x['ch'] not in newest or x['pub'] > newest[x['ch']]['pub']:
             newest[x['ch']] = x
     for x in found:
+        if x['id'] in items and x.get('audio') and not items[x['id']].get('audio'):
+            items[x['id']]['audio'] = x['audio']           # 補回音檔網址（舊版沒存）
         if x['id'] in items or x['id'] in seen:
             continue
         seen[x['id']] = iso(now())
@@ -552,7 +554,7 @@ def main():
 def save(items, state, seen, cyc):
     k1 = iso(now() - timedelta(days=KEEP_ITEMS_DAYS))
     keep = sorted([x for x in items.values() if x['pub'] >= k1 or x.get('st') == 'todo'], key=lambda x: x['pub'], reverse=True)
-    pub = [{k: v for k, v in x.items() if k not in ('desc', 'audio')} for x in keep]
+    pub = [{k: v for k, v in x.items() if k != 'desc'} for x in keep]
     jsave('index.json', {'updated': iso(now()), 'stages': STAGES, 'items': pub,
                          'sources': json.load(open(os.path.join(os.path.dirname(__file__), 'sources.json'), encoding='utf-8'))})
     k2 = (now() - timedelta(days=KEEP_CYCLE_DAYS)).strftime('%Y-%m-%d')
