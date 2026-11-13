@@ -188,12 +188,18 @@ def pick_models():
 
 
 USED = {}
+BUSY = {}
+
+
+def order(kind):
+    # 這次執行中忙線（503）過兩次的模型排到後面，不要每集都先去撞
+    return sorted(MODELS[kind], key=lambda m: BUSY.get(m, 0) >= 2)
 
 
 def gen(kind, parts, js=False, max_out=65536, timeout=900, extra=None):
     """依序試模型；忙線（503/500）換下一個；額度滿（429）等一下再換；回傳 (文字, 模型, 是否被截斷)"""
     think = [{'thinkingLevel': 'low'}, {'thinkingBudget': 0}, None]
-    for mi, model in enumerate(MODELS[kind]):
+    for mi, model in enumerate(order(kind)):
         for attempt in range(3):
             if time.time() > DEADLINE:
                 raise RuntimeError('這次執行時間用完，下次排程再做')
@@ -233,6 +239,7 @@ def gen(kind, parts, js=False, max_out=65536, timeout=900, extra=None):
                 time.sleep(45)
                 continue
             if r.status_code in (500, 503, 504):
+                BUSY[model] = BUSY.get(model, 0) + 1
                 time.sleep(8)
                 if attempt >= 1:
                     break
@@ -310,7 +317,8 @@ def transcribe_audio(it):
             if tr:
                 more = [x for x in more if x[0] > tr[-1][0]]
             tr += more
-            if not cut or not more:
+            short = it.get('dur') and tr and tr[-1][0] < it['dur'] - 150   # 模型有時候只轉一半就停 → 接著轉
+            if not more or not (cut or short):
                 break
         return tr, model
     finally:
@@ -382,7 +390,7 @@ def analyze(it, tr):
     body = '\n'.join(f'[{fmt_ts(s)}] {t}' for s, t in tr)
     if len(body) > 150000:
         body = body[:150000] + '\n…（後面太長截掉）'
-    head = f"節目：{it['ch']}\n標題：{it['title']}\n日期：{it['pub'][:10]}\n節目說明：{it.get('desc', '')[:800]}\n\n逐字稿：\n"
+    head = f"節目：{it['ch']}\n標題：{it['title']}\n日期：{it['pub'][:10]}\n全長：{fmt_ts(tr[-1][0])}（章節 ch 要一路涵蓋到結尾）\n節目說明：{it.get('desc', '')[:800]}\n\n逐字稿：\n"
     t, model, _ = gen('smart', [{'text': ANA % '、'.join(INDS)}, {'text': head + body}], js=True, max_out=16384, timeout=600)
     t = t.strip()
     t = re.sub(r'^```(?:json)?|```$', '', t).strip()
@@ -404,7 +412,8 @@ def stage_of(x):
 def cycle_update(cyc, it, a):
     d = it['pub'][:10]
     chg, conflict = [], []
-    rows = [r for r in cyc if r['id'] != it['id']]
+    cyc[:] = [r for r in cyc if r['id'] != it['id']]      # 重做的那集：舊判斷先拿掉
+    rows = list(cyc)
     for x in a.get('cyc') or []:
         s = stage_of(x)
         ind = str(x.get('ind') or '').strip()
@@ -482,6 +491,18 @@ def main():
                 x['st'], x['pri'] = 'todo', 1
                 items[x['id']] = x
 
+    # 逐字稿只轉到一半的 Podcast（舊版的問題）→ 重做一次
+    for x in items.values():
+        if x.get('st') == 'done' and x['src'] == 'pod' and 'trEnd' not in x and not x.get('redo'):
+            try:
+                nn = jload(f"n/{x['id']}.json", {})
+                end = nn['tr'][-1][0] if nn.get('tr') else 0
+                x['trEnd'] = end
+                if x.get('dur') and end < x['dur'] - 300:
+                    x['st'], x['redo'], x['pri'] = 'todo', 1, 1
+                    log('逐字稿不完整，重做', x['title'][:30])
+            except Exception:
+                pass
     pick_models()
     todo = sorted([x for x in items.values() if x.get('st') == 'todo'], key=lambda x: (-(x.get('pri') or 0), x['pub']), reverse=False)
     todo.sort(key=lambda x: (-(x.get('pri') or 0), -(datetime.fromisoformat(x['pub']).timestamp())))
@@ -509,7 +530,7 @@ def main():
             it.update({'st': 'done', 'one': a.get('one', ''), 'bias': a.get('bias', ''), 'tags': (a.get('tags') or [])[:5], 'stk': stk[:12],
                        'inds': [{'ind': x.get('ind'), 's': stage_of(x)} for x in a.get('cyc') or [] if x.get('ind')][:8],
                        'chg': chg, 'conflict': conflict, 'alert': bool([c for c in chg if c['later']] or conflict),
-                       'hl': (a.get('hl') or [])[:5], 'done': iso(now()), 'dur': note['dur'], 'm': m2})
+                       'hl': (a.get('hl') or [])[:5], 'done': iso(now()), 'dur': note['dur'], 'm': m2, 'trEnd': tr[-1][0]})
             it.pop('pri', None)
             it.pop('err', None)
             log('  ✓', round(time.time() - t0), '秒', a.get('one', '')[:40])
