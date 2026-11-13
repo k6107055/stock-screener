@@ -1,0 +1,20 @@
+{
+  "_說明": "auto＝一出新集數就自動完整解析；btn＝只放進每日清單，按「📝 解析」才做；YouTube 版跟 Podcast 重複的（股癌、游庭皓）不列",
+  "pod": [
+    {"name": "股癌", "feed": "https://feeds.soundon.fm/podcasts/954689a5-3096-43a4-a80b-7810b219cef3.xml", "tier": "auto"},
+    {"name": "兆華與股惑仔", "feed": "https://feeds.soundon.fm/podcasts/91be014b-9f55-4bf3-a910-b232eda82d11.xml", "tier": "auto"},
+    {"name": "游庭皓的財經皓角", "feed": "https://feeds.soundcloud.com/users/soundcloud:users:735679489/sounds.rss", "tier": "auto"}
+  ],
+  "yt": [
+    {"name": "投資優我罩—優分析", "id": "UCmBQRXvXkeYVBT8nZykMfWw", "tier": "auto"},
+    {"name": "KY99價值投資地下室", "id": "UCVyPg9M-YLDF3UZf6QLtWiA", "tier": "auto"},
+    {"name": "統一投顧", "id": "UCsaU-82xFFTd1dZk8P53pAw", "tier": "auto"},
+    {"name": "MoneyDJ理財網", "id": "UC8qLLXh5cuY_jtvOHsSYmTA", "tier": "btn"},
+    {"name": "財女珍妮", "id": "UCdwPn2TO60Ec8QDIFRx50lQ", "tier": "btn"},
+    {"name": "財經希引力", "id": "UCBES_XBcxRVyMUA9Ue9sy1g", "tier": "btn"},
+    {"name": "理財達人秀", "id": "UCQvsuaih5lE0n_Ne54nNezg", "tier": "btn"},
+    {"name": "統一證券", "id": "UCH-_jIlROuTFNtoQmUOhcoQ", "tier": "btn"},
+    {"name": "林睿閎分析師", "id": "UCXB8cCqwOHP3BmyhYLAUs0g", "tier": "btn"},
+    {"name": "辣個分析師-黎志建", "id": "UCkf2mVeZAK7JUwR9JzeVlkQ", "tier": "btn"}
+  ]
+}

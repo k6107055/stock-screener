@@ -1,0 +1,55 @@
+name: 影音解析（Atlas）
+
+on:
+  schedule:
+    # 台灣時間 07～23 點每小時（GitHub 排程常延遲，Apps Script 的 ghKick 也會叫）
+    - cron: '20 23,0-15 * * *'
+  push:
+    branches: [main]
+    paths: ['media/**', '.github/workflows/media.yml']
+  workflow_dispatch:
+    inputs:
+      req:
+        description: '要解析的 id 或網址（逗號分隔，可空白）'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: atlas-media
+  cancel-in-progress: false
+
+jobs:
+  media:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - run: pip install requests
+      - name: 取回上次的資料（media-data 分支）
+        run: |
+          mkdir -p media-out
+          if git fetch --depth 1 origin media-data; then git archive FETCH_HEAD | tar -x -C media-out; fi
+      - name: 抓新集數＋Gemini 完整解析
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          MEDIA_REQ: ${{ github.event.inputs.req }}
+        run: python media/media.py media-out
+      - name: 發佈到 media-data 分支
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd media-out
+          [ -f index.json ] || exit 0
+          git init -q -b media-data
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "影音解析 $(TZ=Asia/Taipei date '+%F %H:%M')"
+          git push -f -q "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" media-data
