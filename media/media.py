@@ -743,7 +743,7 @@ def main():
 
     # 舊版做的逐字稿（沒有品質紀錄）重新檢查：只轉到一半、或陷入重複迴圈的 → 用新版重做一次
     for x in items.values():
-        if x.get('st') == 'done' and 'q' not in x and not x.get('redo'):
+        if x.get('st') == 'done' and 'q' not in x and not x.get('redo2'):
             try:
                 nn = jload(f"n/{x['id']}.json", {})
                 tr0 = nn.get('tr') or []
@@ -758,7 +758,7 @@ def main():
                 short = x.get('dur') and end < x['dur'] - 300
                 over = x.get('dur') and end > x['dur'] + 120
                 if ratio >= 0.05 or short or over:
-                    x['st'], x['redo'], x['pri'], x['tries'] = 'todo', 1, 1, 0
+                    x['st'], x['redo2'], x['pri'], x['tries'] = 'todo', 1, 1, 0
                     log(f"舊逐字稿有問題（重複 {ratio:.0%}{'，沒轉完' if short else ''}{'，時間超出片長' if over else ''}），重做", x['title'][:30])
                 else:
                     x['q'] = {'cov': 100 if not x.get('dur') else min(100, round(100 * end / x['dur'])), 'gaps': [], 'src': 'old', 'segs': 0, 'retry': 0}
@@ -794,7 +794,7 @@ def main():
                        'inds': [{'ind': x.get('ind'), 's': stage_of(x)} for x in a.get('cyc') or [] if x.get('ind')][:8],
                        'chg': chg, 'conflict': conflict, 'alert': bool([c for c in chg if c['later']] or conflict),
                        'hl': (a.get('hl') or [])[:5], 'done': iso(now()), 'dur': note['dur'], 'm': m2, 'trEnd': tr[-1][0]})
-            for k in ('pri', 'err', 'errk', 'errat', 'next', 'tries', 'redo'):
+            for k in ('pri', 'err', 'errk', 'errat', 'next', 'tries', 'redo', 'redo2'):
                 it.pop(k, None)
             log('  ✓', round(time.time() - t0), '秒', a.get('one', '')[:40])
         except Exception as e:
