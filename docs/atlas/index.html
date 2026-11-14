@@ -1812,7 +1812,7 @@ async function mopsView(B){
     <div class="card one ob"><div class="ot hd"><span>時間</span><span>公司</span><span>類型</span><span>主旨</span><span>備註</span></div>
       ${rows.slice(0, N).map(row).join('') || `<div class="empty">這個條件下沒有資料${F.sc !== 'all' ? '（可以切到「全部公司」看看）' : ''}</div>`}${holdNote}
       ${rows.length > N ? `<div style="text-align:center;margin-top:8px"><button class="btn g sm" id="mmore">再顯示 ${Math.min(60, rows.length - N)} 筆（共 ${rows.length}）</button></div>` : ''}</div>
-    <div class="sub" style="padding:0 4px 12px">重大訊息：打開這頁就向觀測站抓最新的（即時）${MOPSERR ? '<span class="down">（這次沒抓到：' + esc(MOPSERR) + '）</span>' : ''}，另外每 20 分鐘存檔一次；轉讓申報、董監持股、公告每天 07:07、12:07、17:07、21:07 更新。存檔最後更新 ${esc(idx.updated)}。點一則直接看全文，點公司名稱進個股頁。</div>`;
+    <div class="sub" style="padding:0 4px 12px">重大訊息：打開這頁就向觀測站抓最新的（即時）${MOPSERR ? '<span class="down">（這次沒抓到：' + esc(MOPSERR) + '）</span>' : ''}，另外每 20 分鐘存檔一次；轉讓申報、董監持股、公告每天 07:07、12:07、17:07、21:07 更新。存檔最後更新 ${esc(idx.updated)}。點一則直接開觀測站原文，點公司名稱進個股頁。</div>`;
   const re = () => { saveSub(); mopsView(B); };
   $$('#mk button', B).forEach(b => b.onclick = () => { F.k = b.dataset.k; F.ty = ''; SUB.mn = 60; re(); });
   $$('#msc button', B).forEach(b => b.onclick = () => { F.sc = b.dataset.s; re(); });
@@ -1862,6 +1862,7 @@ async function mediaView(B){
       <div class="sub">${ic} ${esc(x.ch)}・${esc(md2(x.pub))}${x.dur ? '・' + Math.round(x.dur / 60) + ' 分' : ''} ${st}${x.bias ? `<span class="pill ${biasCls(x.bias)}" style="margin-left:6px">${esc(x.bias)}</span>` : ''}</div>
       <h4>${esc(x.title)}</h4>
       ${x.one ? `<div class="one">💬 ${esc(x.one)}</div>` : ''}
+      ${x.brief ? `<div class="sub" style="margin-top:4px;line-height:1.55;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">${esc(x.brief)}</div>` : ''}
       ${cy || ind ? `<div class="chips">${cy || ind}</div>` : ''}
       ${mine.length ? `<div class="stk">${mine.map(s => `<span data-code="${esc(s.c)}">${hold.has(s.c) ? '💼' : '⭐'} ${esc(s.c + ' ' + s.n)}・<b class="${biasCls(s.v)}">${esc(s.v)}</b></span>`).join('')}</div>` : ''}
       ${x.st === 'new' ? `<div class="btns" style="margin-top:8px"><button class="btn sm" data-req="${esc(x.id)}">📝 解析這集</button><a class="btn sm g" style="text-decoration:none" target="_blank" rel="noopener" href="${esc(x.url)}">${x.src === 'pod' ? '🎧 原集' : '▶ 原片'}</a></div>` : ''}
@@ -1889,6 +1890,7 @@ async function mediaView(B){
 
 // ---- 一集的完整筆記 ----
 const NOTEM = {};
+let NOTE_T = 0;   // 從 Telegram 重點時間點進來（#n=id&t=秒）→ 音檔跳到那裡
 async function vNote(id){
   const M = $('#main');
   if (!id) return go('info', undefined, {tab: true});
@@ -1913,8 +1915,12 @@ async function vNote(id){
   // 循環變化（最重要，放最上面）
   const cv = (n.chg || []).map(c => `<div class="row"><div class="l"><div class="nm">${esc(c.ind)}</div><div class="sub">上次：${esc(c.pch)} ${esc(md2(c.pd))}</div></div><div class="r">${esc(STG[c.from])} → <b class="${c.later ? 'down' : 'up'}">${esc(STG[c.to])}</b><div class="sub">${c.later ? '⚠️ 往循環後段' : '↩️ 往前段'}</div></div></div>`)
     .concat((n.conflict || []).map(c => `<div class="row"><div class="l"><div class="nm">⚔️ ${esc(c.ind)}</div><div class="sub">觀點打架</div></div><div class="r">這集「${esc(STG[c.me])}」<div class="sub">${esc(c.och)} ${esc(md2(c.od))}「${esc(STG[c.other])}」</div></div></div>`)).join('');
+  // v2.15 先讓人 10 秒看懂：這集在講什麼 → 3 個重點（點時間跳過去）→ 講者建議
+  if (a.brief || (a.key || []).length || a.act) h += `<div class="card"><h3>🧠 這集在講什麼</h3>${a.brief ? `<div style="line-height:1.65">${esc(a.brief)}</div>` : ''}
+    ${(a.key || []).length ? `<ol class="hl" style="margin:10px 0 0;padding-left:20px">${a.key.map(k => `<li style="margin-bottom:6px">${esc(k.txt || '')} ${k.t ? tlink(k.t) : ''}</li>`).join('')}</ol>` : ''}
+    ${a.act ? `<div style="margin-top:8px">👉 <b>講者建議：</b>${esc(a.act)}</div>` : ''}</div>`;
   if (cv) h += `<div class="card alertc"><h3>🔴 必看：循環變化</h3>${cv}</div>`;
-  if ((a.hl || []).length) h += sec('📌 重點', `<ul class="hl">${a.hl.map(x => `<li>${esc(x)}</li>`).join('')}</ul>`);
+  if ((a.hl || []).length) h += sec('📌 重點', `<ul class="hl">${a.hl.map(x => `<li>${esc(x)}</li>`).join('')}</ul>`, (a.key || []).length ? false : undefined);
   if ((a.cyc || []).length) h += sec('🔄 產業循環判斷', a.cyc.map(c => `<div class="cy"><div class="h"><b data-ind="${esc(c.ind)}">${esc(c.ind)} ›</b>${stgBar(c.stage)}</div>
       <div class="sub">${c.side && c.side !== '—' ? `<span class="tag">${esc(c.side)}面</span>` : ''}${fact(c.fact)} ${esc(c.ev || '')} ${c.t ? tlink(c.t) : ''}</div></div>`).join('') + '<div class="sub" style="margin-top:6px">階段：①訂單回升 ②稼動率滿載 ③缺貨漲價（超額利潤）④宣布擴產 ⑤新產能量產 ⑥同業產能開出（尾聲）。點產業名稱看各節目的判斷怎麼變。需求面推動＝還沒到尾端；供給面推動＝偏後段。</div>');
   if ((a.stk || []).length) h += sec('🏷 個股觀點', `<div class="scrollx"><table class="stt"><tr><th>股票</th><th>看法</th><th>理由／數字</th></tr>${a.stk.map(s => { const c = String(s.c || '').toUpperCase(), tw = /^\d{4,6}[A-Z]?$/.test(c);
@@ -1934,6 +1940,9 @@ async function vNote(id){
   bindCodes(M);
   $$('[data-ind]', M).forEach(b => b.onclick = () => go('cyc', b.dataset.ind));
   const au = $('#nau');
+  if (NOTE_T){ const t0 = NOTE_T; NOTE_T = 0;
+    if (isYt) { toast('▶ 從 ' + ts2(t0) + ' 開始看：點上方「看原片」或時間連結', 4000); }
+    else if (au){ au.preload = 'metadata'; au.addEventListener('loadedmetadata', () => { au.currentTime = t0; }, {once: true}); au.load(); au.scrollIntoView({block: 'center'}); toast('🎧 已跳到 ' + ts2(t0) + '，按播放就從這裡開始', 4000); } }
   M.addEventListener('click', e => { const a2 = e.target.closest('a.ts'); if (!a2 || isYt) return; e.preventDefault(); if (au){ au.currentTime = +a2.dataset.t; au.play().catch(() => {}); au.scrollIntoView({behavior: 'smooth', block: 'center'}); } else toast('這集沒有可以直接播放的音檔，請到原集頁面'); });
   const trl = $('#trl');
   if (trl){
@@ -1982,8 +1991,9 @@ function loadLibYt(code){
     LIB.yt = (idx.items || []).filter(x => x.st === 'done' && (x.stk || []).some(s => s.c === code)); paintLib(); }).catch(() => { if (LIB) { LIB.yt = []; paintLib(); } });
 }
 
-// ---- 觀測站：點一則重大訊息 → 直接在 Atlas 裡看全文 ----
+// ---- 觀測站：點一則 → 有原文網址就直接開觀測站原文（v2.15）；沒有網址的才在 Atlas 裡展開 ----
 async function mopsTap(o){
+  if (o.dataset.u){ window.open(o.dataset.u, '_blank', 'noopener'); return; }
   const ex = $('.body', o); if (ex){ ex.remove(); return; }
   const box = document.createElement('div'); box.className = 'body'; box.textContent = '讀取中…'; o.appendChild(box);
   const s0 = ($('.s', o) || {}).textContent || '';
@@ -2144,7 +2154,7 @@ async function mediaSettings(box){
 function hashRoute(){
   const h = location.hash || '';
   let m;
-  if ((m = h.match(/^#n=([\w-]+)/))){ try { history.replaceState(null, '', location.pathname); } catch(e){} go('note', m[1]); return true; }
+  if ((m = h.match(/^#n=([\w-]+)(?:&t=(\d+))?/))){ NOTE_T = m[2] ? +m[2] : 0; try { history.replaceState(null, '', location.pathname); } catch(e){} go('note', m[1]); return true; }
   if (h === '#media'){ try { history.replaceState(null, '', location.pathname); } catch(e){} SUB.info = 'media'; go('info', undefined, {tab: true}); return true; }
   return false;
 }

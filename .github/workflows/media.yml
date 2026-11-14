@@ -34,7 +34,11 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
-      - run: pip install requests yt-dlp
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      # yt-dlp 現在要 JavaScript 執行環境（deno）才能完整讀 YouTube；[default] 會一起裝 YouTube 解碼元件
+      - run: pip install requests "yt-dlp[default]"
       - name: 確認有 ffmpeg（切音檔用）
         run: which ffmpeg || (sudo apt-get update -q && sudo apt-get install -y -q ffmpeg)
       - name: 取回上次的資料（media-data 分支）

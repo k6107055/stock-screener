@@ -167,7 +167,7 @@ def main():
             d, tt = f'{ds[:4]}-{ds[4:6]}-{ds[6:]}', hm(ts)
             title = re.sub(r'\s*\r?\n\s*', '', title)
             key = f'{code}|{d}|{tt}'
-            if any(x.get('k') == 'msg' and f"{x['c']}|{x['d']}|{x['t']}" == key and not x.get('u') for x in days.get(d, {}).values()):
+            if any(x.get('k') == 'msg' and f"{x['c']}|{x['d']}|{x['t']}" == key and x.get('r') != '即時' for x in days.get(d, {}).values()):
                 continue   # 已經有官方完整版
             add({'id': iid('msg', code, d, tt, title), 'k': 'msg', 'd': d, 't': tt, 'c': code, 'n': nm, 'm': '上市' if typek == 'sii' else '上櫃',
                  'ty': msg_type(title), 's': title, 'r': '即時', 'u': link.replace('http://', 'https://')})
@@ -189,11 +189,17 @@ def main():
                 continue
             d, t = roc(g(r, '發言日期')), hm(g(r, '發言時間'))
             title = re.sub(r'\s*\r?\n\s*', '', title)
-            for k0 in [k for k, x in days.get(d, {}).items() if x.get('u') and x['c'] == code and x['t'] == t]:
-                del days[d][k0]   # 換掉即時版
-            add({'id': iid('msg', code, d, t, title), 'k': 'msg', 'd': d, 't': t, 'c': code, 'n': name_of(r), 'm': mkt,
-                 'ty': msg_type(title), 's': title, 'r': ('事實發生日 ' + roc(g(r, '事實發生日'))) if g(r, '事實發生日') else g(r, '符合條款')},
-                g(r, '說明'))
+            u0 = ''
+            for k0 in [k for k, x in days.get(d, {}).items() if x.get('u') and x.get('r') == '即時' and x['c'] == code and x['t'] == t]:
+                u0 = u0 or days[d][k0]['u']
+                del days[d][k0]   # 換掉即時版（v2.15：觀測站原文網址留下來，Atlas 點了直接開原文）
+            it0 = {'id': iid('msg', code, d, t, title), 'k': 'msg', 'd': d, 't': t, 'c': code, 'n': name_of(r), 'm': mkt,
+                   'ty': msg_type(title), 's': title, 'r': ('事實發生日 ' + roc(g(r, '事實發生日'))) if g(r, '事實發生日') else g(r, '符合條款')}
+            if not u0:
+                u0 = next((x.get('u') for x in days.get(d, {}).values() if x.get('id') == it0['id'] and x.get('u')), '')
+            if u0:
+                it0['u'] = u0
+            add(it0, g(r, '說明'))
 
     # ② 其他公告：股東會召集公告、經營權異動、違規處分
     rows = get(TW + 't187ap38_L')

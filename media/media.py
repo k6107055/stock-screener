@@ -4,12 +4,14 @@ Atlas 影音解析（Podcast＋YouTube → Gemini 完整解析 → 循環帳本�
   ・兩段式省額度：① 便宜的 Flash-Lite 聽音檔／看影片 → 逐字稿（含時間）② 比較聰明的 Flash 讀逐字稿 → 重點、個股、循環判斷
   ・v2（11/14）逐字稿一律切 10 分鐘一段＋品質檢查（重複迴圈／沒轉完 → 換模型重轉），記完整度與缺口；
     YouTube 讀不到改抓字幕→音檔（yt-dlp）；頻道清單被擋改用 Apps Script 代抓（MEDIA_FEEDS）；錯誤分類＋下次重試時間
+  ・v2.15（11/14）私人／會員限定直接講清楚不重試；直播／首播還沒結束 → 2 小時後再試；每集用自己的暫存資料夾；
+    錯誤紀錄不再被頻道清單洗掉；AI 多產出「白話摘要 brief、3 個帶時間的重點 key、操作建議 act」給 Telegram 卡片用
   ・循環帳本 cycle.json：每次判斷都記下來，下一集進來就比對「階段有沒有變、不同節目有沒有打架」
   ・這裡只放公開內容（節目內容、產業判斷）；跟你持股有關的對照在 Atlas／Apps Script 做（不放到公開的 GitHub）
 輸出（發佈到 media-data 分支，Atlas 直接讀）：index.json、n/<id>.json、cycle.json、state.json
 環境變數：GEMINI_API_KEY、MEDIA_REQ（要解析的 id 或網址，逗號／空白分隔）、MAX_AUTO（這次最多自動解析幾集）
 """
-import os, re, sys, json, time, hashlib, base64, subprocess, html as H
+import os, re, sys, json, time, hashlib, base64, subprocess, shutil, html as H
 import requests
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone, timedelta
@@ -112,8 +114,17 @@ NS = {'atom': 'http://www.w3.org/2005/Atom', 'yt': 'http://www.youtube.com/xml/s
 
 
 def yt_items(src):
-    """YouTube 頻道新片：先直接讀 RSS；被 YouTube 擋（GitHub 伺服器常被擋）就改用 Apps Script 代抓、隨排程傳進來的清單（MEDIA_FEEDS）"""
+    """YouTube 頻道新片：優先用 Apps Script 代抓、隨排程傳進來的清單（MEDIA_FEEDS，有片長）；沒有才直接讀 RSS（11/14 起 RSS 對所有人回 404）"""
     out = []
+    rows = FEEDS.get(src['id'])
+    if rows:
+        for row in rows:
+            vid, title, pub, desc = row[:4]
+            yt_add(out, src, vid, title, '', pub, desc, row[4] if len(row) > 4 else 0)
+            if len(out) >= 6:
+                break
+        FEED_VIA['gas'] += 1
+        return out
     try:
         r = requests.get('https://www.youtube.com/feeds/videos.xml?channel_id=' + src['id'], headers=UA, timeout=30)
         root = ET.fromstring(r.content)
@@ -126,22 +137,13 @@ def yt_items(src):
             yt_add(out, src, vid, title, link, txt(e, 'atom:published', NS), desc)
             if len(out) >= 6:
                 break
-    except Exception as e:
-        rows = FEEDS.get(src['id'])
-        if rows:
-            for row in rows:
-                vid, title, pub, desc = row[:4]
-                yt_add(out, src, vid, title, '', pub, desc, row[4] if len(row) > 4 else 0)
-                if len(out) >= 6:
-                    break
-            FEED_VIA['gas'] += 1
-        else:
-            ERRS.append(f"{src['name']} RSS：{e}")
-            FEED_VIA['fail'] += 1
+    except Exception:
+        FEED_VIA['fail'] += 1                      # 不逐台記錯誤（會把真正的錯誤擠掉），最後彙整成一行
     return out
 
 
 FEED_VIA = {'gas': 0, 'fail': 0}
+REQ_IDS = set()
 try:
     FEEDS = json.loads(os.getenv('MEDIA_FEEDS', '') or '{}')
 except Exception:
@@ -198,9 +200,10 @@ DEAD = set()          # 已停用的模型（404），記在 state.json，下次
 
 class GemErr(RuntimeError):
     """kind：busy 忙線／quota 額度用完／bad 內容被拒（影片讀不到）／time 這次執行時間用完／ytblock YouTube 擋下／empty 空白"""
-    def __init__(self, kind, msg):
+    def __init__(self, kind, msg, codes=None):
         super().__init__(msg)
         self.kind = kind
+        self.codes = codes or []
 
 
 ERR_TXT = {'busy': 'Gemini 忙線中（使用人數太多），稍後自動重試',
@@ -209,6 +212,8 @@ ERR_TXT = {'busy': 'Gemini 忙線中（使用人數太多），稍後自動重�
            'time': '這次排程時間用完，下次排程接著做',
            'ytblock': 'Gemini 讀不到這支影片，改抓字幕和音檔也被 YouTube 擋下，這支無法解析',
            'empty': 'Gemini 回傳空白內容',
+           'private': '這支是私人／會員限定／已下架的影片，Gemini 和備援都讀不到，無法解析',
+           'live': '直播或首播還沒結束（或剛結束還在處理），2 小時後自動再試',
            'net': '連線失敗，稍後自動重試',
            'other': '解析失敗'}
 TRANSIENT = {'busy', 'time', 'net', 'empty', 'other'}
@@ -312,18 +317,18 @@ def gen(kind, parts, js=False, max_out=65536, timeout=900, extra=None, temp=0.2,
             continue
         break
     st = [c for _, c in codes]
-    bad_models = {m for m, c in codes if c == 400}
+    bad_models = {m for m, c in codes if c in (400, 403)}
     if len(bad_models) >= 2:
-        raise GemErr('bad', ERR_TXT['bad'])
+        raise GemErr('bad', ERR_TXT['bad'], st)
     if any(c in (500, 503, 504) for c in st):
-        raise GemErr('busy', ERR_TXT['busy'])
+        raise GemErr('busy', ERR_TXT['busy'], st)
     if st and all(c in (429, 404) for c in st):
-        raise GemErr('quota', ERR_TXT['quota'])
+        raise GemErr('quota', ERR_TXT['quota'], st)
     if 'net' in st:
-        raise GemErr('net', ERR_TXT['net'])
+        raise GemErr('net', ERR_TXT['net'], st)
     if 'empty' in st:
-        raise GemErr('empty', ERR_TXT['empty'])
-    raise GemErr('other', ERR_TXT['other'] + '：' + ', '.join(str(c) for c in st[:6]))
+        raise GemErr('empty', ERR_TXT['empty'], st)
+    raise GemErr('other', ERR_TXT['other'] + '：' + ', '.join(str(c) for c in st[:6]), st)
 
 
 # ============ 逐字稿：一律切成 10 分鐘一段，每段做品質檢查，不合格就換模型重轉 ============
@@ -506,12 +511,59 @@ def transcribe_audio(it):
 
 
 # ---- YouTube：Gemini 直接看影片（10 分鐘一段）；讀不到 → 改抓字幕 → 再不行抓音檔 ----
+def yt_probe(it):
+    """查影片狀態：私人／會員限定、直播中／首播預告、片長。先用 yt-dlp（最準），被擋就用 oEmbed（只分得出存不存在）"""
+    info = {}
+    try:
+        r = ytdlp(['--skip-download', '--print', '%(availability)s|%(live_status)s|%(duration)s', it['url']], timeout=120)
+        out = (r.stdout or '').strip().splitlines()
+        if out and '|' in out[-1]:
+            a, lv, du = (out[-1].split('|') + ['', ''])[:3]
+            info = {'avail': a, 'live': lv, 'dur': int(float(du)) if re.fullmatch(r'[\d.]+', du or '') else 0, 'by': 'yt-dlp'}
+        else:
+            err = (r.stderr or '').lower()
+            if re.search(r'private video|members-only|join this channel|video unavailable|has been removed|this video is not available', err):
+                info = {'avail': 'private', 'by': 'yt-dlp'}
+            elif re.search(r'live event will begin|premieres in|is_upcoming|this live event', err):
+                info = {'live': 'is_upcoming', 'by': 'yt-dlp'}
+            else:
+                info = {'blocked': 'sign in' in err or 'bot' in err, 'by': 'yt-dlp'}
+    except Exception as e:
+        info = {'blocked': True, 'by': 'yt-dlp', 'e': str(e)[:80]}
+    if not info.get('avail'):
+        try:
+            c = requests.get('https://www.youtube.com/oembed', params={'url': it['url'], 'format': 'json'}, timeout=20).status_code
+            if c in (401, 403, 404):
+                info['avail'] = 'private'
+            elif c == 200:
+                info['avail'] = info.get('avail') or 'public?'
+        except Exception:
+            pass
+    log('  影片狀態', info)
+    return info
+
+
 def transcribe_yt(it):
+    if not it.get('dur'):
+        p = yt_probe(it)                                 # 不知道片長（貼連結、直播）→ 先查，順便擋掉直播中／私人
+        if p.get('dur'):
+            it['dur'] = p['dur']
+        if p.get('live') in ('is_live', 'is_upcoming', 'post_live'):
+            raise GemErr('live', ERR_TXT['live'])
+        if p.get('avail') in ('private', 'subscriber_only', 'premium_only', 'needs_auth'):
+            raise GemErr('private', ERR_TXT['private'])
     try:
         return transcribe_yt_gemini(it)
     except GemErr as e:
-        if e.kind != 'bad':
+        if not (e.kind == 'bad' or (e.kind in ('other', 'empty') and 403 in e.codes)):
             raise
+        p = yt_probe(it)
+        if p.get('live') in ('is_live', 'is_upcoming', 'post_live'):
+            raise GemErr('live', ERR_TXT['live'])
+        if p.get('avail') in ('private', 'subscriber_only', 'premium_only', 'needs_auth'):
+            raise GemErr('private', ERR_TXT['private'])
+        if not it.get('dur') and it['pub'] >= iso(now() - timedelta(hours=8)):
+            raise GemErr('live', ERR_TXT['live'])       # 剛上片、查不到片長又讀不到：多半是直播剛結束還在處理
         log('  Gemini 讀不到這支影片 → 改抓字幕／音檔')
         return transcribe_yt_fallback(it)
 
@@ -533,9 +585,11 @@ def transcribe_yt_gemini(it):
         merge(tr, lines, s, keys)
         if not lines and segs and not dur:
             break                                        # 不知道片長又轉不出東西＝影片結束了
+        if not lines and not segs and not q['end']:
+            raise GemErr('empty', ERR_TXT['empty'])      # 第一段就完全轉不出來：不要當成「影片很短」交差
         segs.append({'s': s, 'e': s + n, 'end': q['end'], 'ok': q['ok'], 'try': k})
         log(f'    {fmt_ts(s)}～{fmt_ts(s + n)} {"✓" if q["ok"] else "△"} 轉到 {fmt_ts(s + q["end"])}（試 {k} 次）')
-        if not dur and q['end'] < n - 120 and not q['cut'] and q['rep'] < 0.1:
+        if not dur and lines and q['end'] < n - 120 and not q['cut'] and q['rep'] < 0.1:
             segs[-1]['e'] = s + q['end'] + 20            # 不知道片長：這段沒轉滿又沒壞＝影片結束了
             break
         s += CHUNK
@@ -617,6 +671,9 @@ ANA = """你是嚴守紀律、重視基本面與產業供需的台股研究員�
 {
  "one": "30 字內一句話結論",
  "bias": "偏多|偏空|中性",
+ "brief": "寫給『沒看這集、只有 10 秒』的人：用白話把講者的 ①核心看法 ②主要理由 ③結論或操作方向 串成 2～3 句，110 字內；不要空話（例如『值得關注』『影響深遠』），要講出具體的事、公司或數字",
+ "key": [{"t": "mm:ss（這個重點開始講的時間）", "txt": "這集最重要的 3 件事，依重要性排序；每件一句白話，45 字內，寫成『什麼事＋所以會怎樣』"}],
+ "act": "講者有給明確操作建議就寫（例如：拉回月線分批買 2454 聯發科、記憶體先減碼），40 字內；沒有就空字串，不要自己編",
  "tags": ["主題標籤，最多 5 個"],
  "hl": ["3～5 個重點，每點 40 字內"],
  "ch": [{"t": "mm:ss", "title": "章節名", "key": true/false, "sum": "這段在講什麼，40 字內"}],
@@ -629,8 +686,18 @@ ANA = """你是嚴守紀律、重視基本面與產業供需的台股研究員�
  "todo": [{"what": "之後要追蹤什麼", "when": "時間點，例：12/10 營收"}],
  "priced_in": "評價提醒，沒有就空字串"
 }
-規則：章節 ch 要涵蓋整集、key=true 標出最重要的 2～4 段；risk 至少要有一條 AI 補充的「這個說法要注意什麼」；
+規則：key 剛好 3 個（節目內容太少可以少於 3 個），時間要對到逐字稿；hl 是比較完整的 3～5 個重點，key 是從中挑最重要的 3 個；
+章節 ch 要涵蓋整集、key=true 標出最重要的 2～4 段；股票一律寫「代號＋名稱」；risk 至少要有一條 AI 補充的「這個說法要注意什麼」；
 節目是閒聊或沒有投資內容時，各欄位可以留空陣列，one 照實寫。不要編造逐字稿沒有的數字。"""
+
+
+def ts2s(t):
+    """'mm:ss' 或 'h:mm:ss' → 秒"""
+    p = [int(x) for x in re.findall(r'\d+', str(t or ''))][-3:]
+    v = 0
+    for x in p:
+        v = v * 60 + x
+    return v
 
 
 def analyze(it, tr):
@@ -686,6 +753,7 @@ def cycle_update(cyc, it, a):
 
 # ============ 主流程 ============
 def main():
+    global WORK
     if not KEY:
         log('沒有 GEMINI_API_KEY，不做')
         return
@@ -729,6 +797,7 @@ def main():
     # Telegram 按鈕／貼連結 要求的
     for r in REQ:
         if r in items:
+            REQ_IDS.add(r)
             if items[r].get('st') != 'done':
                 items[r]['st'], items[r]['pri'], items[r]['tries'] = 'todo', 1, 0
             continue
@@ -738,6 +807,7 @@ def main():
                 ERRS.append('看不懂的連結：' + r[:120])
                 continue
             x['req'] = r
+            REQ_IDS.add(x['id'])
             if x['id'] in items:
                 items[x['id']]['req'] = r
                 if items[x['id']].get('st') != 'done':
@@ -775,7 +845,7 @@ def main():
             except Exception:
                 pass
     if FEED_VIA['gas'] or FEED_VIA['fail']:
-        log(f"YouTube 頻道清單：直接讀被擋，改用 Apps Script 代抓 {FEED_VIA['gas']} 個、沒有資料 {FEED_VIA['fail']} 個")
+        log(f"YouTube 頻道清單：Apps Script 代抓 {FEED_VIA['gas']} 個、沒有資料 {FEED_VIA['fail']} 個" + ('（這次不是 Apps Script 叫的，YouTube 新片下次排程再抓）' if FEED_VIA['fail'] and not FEED_VIA['gas'] else ''))
     pick_models()
     todo = sorted([x for x in items.values() if x.get('st') == 'todo'], key=lambda x: (-(x.get('pri') or 0), x['pub']), reverse=False)
     todo.sort(key=lambda x: (-(x.get('pri') or 0), -(datetime.fromisoformat(x['pub']).timestamp())))
@@ -784,11 +854,15 @@ def main():
         if time.time() > DEADLINE - 6 * 60:
             log('時間不夠，剩下的下次做')
             break
+        if it.get('next') and it['next'] > iso(now()) and it['id'] not in REQ_IDS:
+            continue                                   # 還沒到下次重試時間（例如直播還沒結束、額度明天才重置）
         if not it.get('pri'):
             if nauto >= MAX_AUTO:
                 continue
             nauto += 1
         t0 = time.time()
+        WORK = os.path.join('/tmp/atlas-media', re.sub(r'[^\w-]', '_', it['id']))   # 每集自己的暫存資料夾，不會拿到上一支的字幕
+        shutil.rmtree(WORK, ignore_errors=True)
         try:
             log('▶ 解析', it['ch'], it['title'][:50])
             tr, m1 = transcribe_audio(it) if it['src'] == 'pod' else transcribe_yt(it)
@@ -796,28 +870,40 @@ def main():
                 raise RuntimeError('逐字稿是空的')
             a, m2 = analyze(it, tr)
             chg, conflict = cycle_update(cyc, it, a)
-            stk = [{'c': str(s.get('c') or '').strip().upper(), 'n': str(s.get('n') or '').strip(), 'v': s.get('v') or '中性'} for s in a.get('stk') or [] if s.get('n') or s.get('c')]
+            stk = [{'c': str(s.get('c') or '').strip().upper(), 'n': str(s.get('n') or '').strip(), 'v': s.get('v') or '中性',
+                    'w': str(s.get('why') or '')[:40], 'ts': ts2s(s.get('t'))} for s in a.get('stk') or [] if s.get('n') or s.get('c')]
+            key = [{'s': ts2s(k.get('t')), 'x': str(k.get('txt') or '')[:70]} for k in a.get('key') or [] if isinstance(k, dict) and k.get('txt')][:3]
+            risk = next((str(r.get('text') or '') for r in a.get('risk') or [] if isinstance(r, dict) and r.get('by') == 'AI'), '') \
+                or next((str(r.get('text') or '') for r in a.get('risk') or [] if isinstance(r, dict)), '')
+            todo = [str(t.get('when') or '') + ' ' + str(t.get('what') or '') for t in a.get('todo') or [] if isinstance(t, dict) and t.get('what')][:2]
             note = {'id': it['id'], 'src': it['src'], 'ch': it['ch'], 'title': it['title'], 'url': it['url'], 'pub': it['pub'], 'dur': it.get('dur') or (tr[-1][0] if tr else 0),
                     'audio': it.get('audio', ''), 'm': [m1, m2], 'at': iso(now()), 'tr': tr, 'a': a, 'chg': chg, 'conflict': conflict, 'q': it.get('q')}
             jsave(f"n/{it['id']}.json", note)
             it.update({'st': 'done', 'one': a.get('one', ''), 'bias': a.get('bias', ''), 'tags': (a.get('tags') or [])[:5], 'stk': stk[:12],
                        'inds': [{'ind': x.get('ind'), 's': stage_of(x)} for x in a.get('cyc') or [] if x.get('ind')][:8],
                        'chg': chg, 'conflict': conflict, 'alert': bool([c for c in chg if c['later']] or conflict),
-                       'hl': (a.get('hl') or [])[:5], 'done': iso(now()), 'dur': note['dur'], 'm': m2, 'trEnd': tr[-1][0]})
+                       'hl': (a.get('hl') or [])[:5], 'done': iso(now()), 'dur': note['dur'], 'm': m2, 'trEnd': tr[-1][0],
+                       'brief': str(a.get('brief') or '')[:220], 'key': key, 'act': str(a.get('act') or '')[:80],
+                       'risk': risk[:100], 'todo': [t.strip()[:60] for t in todo], 'pin': str(a.get('priced_in') or '')[:100]})
             for k in ('pri', 'err', 'errk', 'errat', 'next', 'tries', 'redo', 'redo2'):
                 it.pop(k, None)
             log('  ✓', round(time.time() - t0), '秒', a.get('one', '')[:40])
         except Exception as e:
             kind = e.kind if isinstance(e, GemErr) else 'other'
-            if kind != 'quota' and kind != 'time':
+            if kind not in ('quota', 'time', 'live'):
                 it['tries'] = (it.get('tries') or 0) + 1
             it['err'] = str(e)[:200]
             it['errk'] = kind
             it['errat'] = iso(now())
-            final = kind in ('bad', 'ytblock') or (it.get('tries') or 0) >= 4
+            final = kind in ('bad', 'ytblock', 'private') or (it.get('tries') or 0) >= 4 \
+                or (kind == 'live' and it['pub'] < iso(now() - timedelta(days=2)))
             it['st'] = 'err' if final else 'todo'
-            if not final:                         # 下次什麼時候再試（給 Telegram 通知用）
+            if final:
+                it.pop('next', None)
+            else:                                 # 下次什麼時候再試（給 Telegram 通知用）
                 nx = now() + timedelta(hours=1)
+                if kind == 'live':
+                    nx = now() + timedelta(hours=2)
                 if kind == 'quota':
                     nx = (now() + timedelta(days=1 if now().hour >= 16 else 0)).replace(hour=16, minute=20)
                 it['next'] = iso(nx)
@@ -826,6 +912,7 @@ def main():
             log('  ✗', kind, e)
             if kind in ('quota', 'time'):
                 break
+        shutil.rmtree(WORK, ignore_errors=True)
         # 做完一集就先存，萬一後面逾時也不會白做
         save(items, state, seen, cyc)
 
