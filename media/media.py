@@ -393,7 +393,7 @@ def tr_check(lines, span, prev_keys=None):
     return out, {'ok': ok, 'end': end, 'rep': round(ratio, 2), 'cut': cut}
 
 
-def tr_clip(part, span, prev_keys, extra=None):
+def tr_clip(part, span, prev_keys, extra=None, base=0):
     """轉一段（最多試 3 次，每次換模型、換溫度），回傳最好的一次 (行, 模型, 品質, 試了幾次)"""
     best, err = None, None
     for k in range(MAX_TRY):
@@ -405,7 +405,12 @@ def tr_clip(part, span, prev_keys, extra=None):
             if e.kind in ('bad', 'quota', 'time', 'ytblock'):
                 break
             continue
-        lines, q = tr_check(parse_tr(t), span, prev_keys)
+        raw = parse_tr(t)
+        if base and raw and raw[0][0] >= base - 90:
+            # 看影片片段時，AI 有時寫「整支影片的時間」（例如 21:30），有時從 00:00 起算 → 統一換成這段的相對時間
+            raw = [[x - base, y] for x, y in raw if x - base >= -30]
+            raw = [[max(0, x), y] for x, y in raw]
+        lines, q = tr_check(raw, span, prev_keys)
         score = (q['ok'], q['end'] * (1 - q['rep']))
         if not best or score > best[0]:
             best = (score, lines, model, q, k + 1)
@@ -520,14 +525,14 @@ def transcribe_yt_gemini(it):
             break
         part = {'file_data': {'file_uri': it['url']}, 'video_metadata': {'start_offset': f'{s}s', 'end_offset': f'{s + n}s'}}
         try:
-            lines, model, q, k = tr_clip(part, n, keys, extra={'mediaResolution': 'MEDIA_RESOLUTION_LOW'})
+            lines, model, q, k = tr_clip(part, n, keys, extra={'mediaResolution': 'MEDIA_RESOLUTION_LOW'}, base=s)
         except GemErr as e:
             if e.kind == 'bad' and segs:
                 break                                    # 已經轉了幾段，後面被拒＝影片結束了
             raise
         merge(tr, lines, s, keys)
-        if not lines and segs:
-            break
+        if not lines and segs and not dur:
+            break                                        # 不知道片長又轉不出東西＝影片結束了
         segs.append({'s': s, 'e': s + n, 'end': q['end'], 'ok': q['ok'], 'try': k})
         log(f'    {fmt_ts(s)}～{fmt_ts(s + n)} {"✓" if q["ok"] else "△"} 轉到 {fmt_ts(s + q["end"])}（試 {k} 次）')
         if not dur and q['end'] < n - 120 and not q['cut'] and q['rep'] < 0.1:
@@ -743,6 +748,11 @@ def main():
 
     # 舊版做的逐字稿（沒有品質紀錄）重新檢查：只轉到一半、或陷入重複迴圈的 → 用新版重做一次
     for x in items.values():
+        q0 = x.get('q') or {}
+        if x.get('st') == 'done' and q0.get('src') not in (None, 'old') and q0.get('cov', 100) < 80 and not x.get('redo3'):
+            x['st'], x['redo3'], x['pri'], x['tries'] = 'todo', 1, 1, 0      # 完整度太低 → 自動再重做一次
+            log(f"完整度只有 {q0.get('cov')}%，再重做一次", x['title'][:30])
+            continue
         if x.get('st') == 'done' and 'q' not in x and not x.get('redo2'):
             try:
                 nn = jload(f"n/{x['id']}.json", {})
