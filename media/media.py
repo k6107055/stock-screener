@@ -129,8 +129,9 @@ def yt_items(src):
     except Exception as e:
         rows = FEEDS.get(src['id'])
         if rows:
-            for vid, title, pub, desc in rows:
-                yt_add(out, src, vid, title, '', pub, desc)
+            for row in rows:
+                vid, title, pub, desc = row[:4]
+                yt_add(out, src, vid, title, '', pub, desc, row[4] if len(row) > 4 else 0)
                 if len(out) >= 6:
                     break
             FEED_VIA['gas'] += 1
@@ -147,12 +148,12 @@ except Exception:
     FEEDS = {}
 
 
-def yt_add(out, src, vid, title, link, pub, desc):
+def yt_add(out, src, vid, title, link, pub, desc, dur=0):
     if not vid or '#short' in title.lower() or '/shorts/' in link:
         return
     pub = datetime.fromisoformat(pub.replace('Z', '+00:00'))
     out.append({'id': 'yt-' + vid, 'src': 'yt', 'ch': src['name'], 'tier': src['tier'], 'title': title,
-                'url': 'https://www.youtube.com/watch?v=' + vid, 'vid': vid, 'pub': iso(pub), 'dur': 0, 'desc': (desc or '')[:1500]})
+                'url': 'https://www.youtube.com/watch?v=' + vid, 'vid': vid, 'pub': iso(pub), 'dur': int(dur or 0), 'desc': (desc or '')[:1500]})
 
 
 def resolve_req(u):
@@ -704,6 +705,8 @@ def main():
         if x['ch'] not in newest or x['pub'] > newest[x['ch']]['pub']:
             newest[x['ch']] = x
     for x in found:
+        if x['id'] in items and x.get('dur') and not items[x['id']].get('dur'):
+            items[x['id']]['dur'] = x['dur']               # 補上片長（Apps Script 代抓的清單有片長）
         if x['id'] in items and x.get('audio') and not items[x['id']].get('audio'):
             items[x['id']]['audio'] = x['audio']           # 補回音檔網址（舊版沒存）
         if x['id'] in items or x['id'] in seen:
