@@ -2,12 +2,14 @@
 Atlas 影音解析（Podcast＋YouTube → Gemini 完整解析 → 循環帳本）
   ・訂閱清單在 media/sources.json：auto＝新集數自動解析；btn＝放進清單，按「📝 解析」才做
   ・兩段式省額度：① 便宜的 Flash-Lite 聽音檔／看影片 → 逐字稿（含時間）② 比較聰明的 Flash 讀逐字稿 → 重點、個股、循環判斷
+  ・v2（11/14）逐字稿一律切 10 分鐘一段＋品質檢查（重複迴圈／沒轉完 → 換模型重轉），記完整度與缺口；
+    YouTube 讀不到改抓字幕→音檔（yt-dlp）；頻道清單被擋改用 Apps Script 代抓（MEDIA_FEEDS）；錯誤分類＋下次重試時間
   ・循環帳本 cycle.json：每次判斷都記下來，下一集進來就比對「階段有沒有變、不同節目有沒有打架」
   ・這裡只放公開內容（節目內容、產業判斷）；跟你持股有關的對照在 Atlas／Apps Script 做（不放到公開的 GitHub）
 輸出（發佈到 media-data 分支，Atlas 直接讀）：index.json、n/<id>.json、cycle.json、state.json
 環境變數：GEMINI_API_KEY、MEDIA_REQ（要解析的 id 或網址，逗號／空白分隔）、MAX_AUTO（這次最多自動解析幾集）
 """
-import os, re, sys, json, time, hashlib, html as H
+import os, re, sys, json, time, hashlib, base64, subprocess, html as H
 import requests
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone, timedelta
@@ -110,6 +112,7 @@ NS = {'atom': 'http://www.w3.org/2005/Atom', 'yt': 'http://www.youtube.com/xml/s
 
 
 def yt_items(src):
+    """YouTube 頻道新片：先直接讀 RSS；被 YouTube 擋（GitHub 伺服器常被擋）就改用 Apps Script 代抓、隨排程傳進來的清單（MEDIA_FEEDS）"""
     out = []
     try:
         r = requests.get('https://www.youtube.com/feeds/videos.xml?channel_id=' + src['id'], headers=UA, timeout=30)
@@ -118,18 +121,38 @@ def yt_items(src):
             vid = txt(e, 'yt:videoId', NS)
             title = txt(e, 'atom:title', NS)
             link = (e.find('atom:link', NS).attrib.get('href') if e.find('atom:link', NS) is not None else '') or ''
-            if not vid or '#short' in title.lower() or '/shorts/' in link:
-                continue
             g = e.find('media:group', NS)
             desc = txt(g, 'media:description', NS) if g is not None else ''
-            pub = datetime.fromisoformat(txt(e, 'atom:published', NS).replace('Z', '+00:00'))
-            out.append({'id': 'yt-' + vid, 'src': 'yt', 'ch': src['name'], 'tier': src['tier'], 'title': title,
-                        'url': 'https://www.youtube.com/watch?v=' + vid, 'vid': vid, 'pub': iso(pub), 'dur': 0, 'desc': desc[:1500]})
+            yt_add(out, src, vid, title, link, txt(e, 'atom:published', NS), desc)
             if len(out) >= 6:
                 break
     except Exception as e:
-        ERRS.append(f"{src['name']} RSS：{e}")
+        rows = FEEDS.get(src['id'])
+        if rows:
+            for vid, title, pub, desc in rows:
+                yt_add(out, src, vid, title, '', pub, desc)
+                if len(out) >= 6:
+                    break
+            FEED_VIA['gas'] += 1
+        else:
+            ERRS.append(f"{src['name']} RSS：{e}")
+            FEED_VIA['fail'] += 1
     return out
+
+
+FEED_VIA = {'gas': 0, 'fail': 0}
+try:
+    FEEDS = json.loads(os.getenv('MEDIA_FEEDS', '') or '{}')
+except Exception:
+    FEEDS = {}
+
+
+def yt_add(out, src, vid, title, link, pub, desc):
+    if not vid or '#short' in title.lower() or '/shorts/' in link:
+        return
+    pub = datetime.fromisoformat(pub.replace('Z', '+00:00'))
+    out.append({'id': 'yt-' + vid, 'src': 'yt', 'ch': src['name'], 'tier': src['tier'], 'title': title,
+                'url': 'https://www.youtube.com/watch?v=' + vid, 'vid': vid, 'pub': iso(pub), 'dur': 0, 'desc': (desc or '')[:1500]})
 
 
 def resolve_req(u):
@@ -169,6 +192,25 @@ def resolve_req(u):
 
 # ============ Gemini ============
 MODELS = {'lite': [], 'smart': []}
+DEAD = set()          # 已停用的模型（404），記在 state.json，下次不再浪費重試
+
+
+class GemErr(RuntimeError):
+    """kind：busy 忙線／quota 額度用完／bad 內容被拒（影片讀不到）／time 這次執行時間用完／ytblock YouTube 擋下／empty 空白"""
+    def __init__(self, kind, msg):
+        super().__init__(msg)
+        self.kind = kind
+
+
+ERR_TXT = {'busy': 'Gemini 忙線中（使用人數太多），稍後自動重試',
+           'quota': '今天 Gemini 免費額度用完，明天下午額度重置後自動重試',
+           'bad': 'Gemini 讀不到這個影片／音檔（請求被拒）',
+           'time': '這次排程時間用完，下次排程接著做',
+           'ytblock': 'Gemini 讀不到這支影片，改抓字幕和音檔也被 YouTube 擋下，這支無法解析',
+           'empty': 'Gemini 回傳空白內容',
+           'net': '連線失敗，稍後自動重試',
+           'other': '解析失敗'}
+TRANSIENT = {'busy', 'time', 'net', 'empty', 'other'}
 
 
 def pick_models():
@@ -180,108 +222,120 @@ def pick_models():
                 names.append(m['name'].split('/')[-1])
     except Exception as e:
         log('查模型失敗', e)
-    lite = sorted([n for n in names if re.fullmatch(r'gemini-\d+(\.\d+)?-flash-lite', n)], key=lambda n: -float(re.findall(r'[\d.]+', n)[0]))
-    smart = sorted([n for n in names if re.fullmatch(r'gemini-\d+(\.\d+)?-flash', n)], key=lambda n: -float(re.findall(r'[\d.]+', n)[0]))
-    MODELS['lite'] = list(dict.fromkeys(lite + ['gemini-flash-lite-latest'] + smart[-2:]))
-    MODELS['smart'] = list(dict.fromkeys(['gemini-flash-latest'] + smart + lite[:2]))
-    log('逐字稿模型', MODELS['lite'][:4], '分析模型', MODELS['smart'][:4])
+    ver = lambda n: -float(re.findall(r'[\d.]+', n)[0])
+    lite = sorted([n for n in names if re.fullmatch(r'gemini-\d+(\.\d+)?-flash-lite', n) and n not in DEAD], key=ver)
+    smart = sorted([n for n in names if re.fullmatch(r'gemini-\d+(\.\d+)?-flash', n) and n not in DEAD], key=ver)
+    # 逐字稿：新的 Lite 優先，最後用最新的 2 個 Flash 當備援（舊版用最舊的 Flash，常常已停用）
+    MODELS['lite'] = [m for m in dict.fromkeys(lite[:3] + ['gemini-flash-lite-latest'] + smart[:2]) if m not in DEAD]
+    MODELS['smart'] = [m for m in dict.fromkeys(['gemini-flash-latest'] + smart[:3] + lite[:1]) if m not in DEAD]
+    log('逐字稿模型', MODELS['lite'], '分析模型', MODELS['smart'])
 
 
 USED = {}
 BUSY = {}
 
 
-def order(kind):
-    # 這次執行中忙線（503）過兩次的模型排到後面，不要每集都先去撞
-    return sorted(MODELS[kind], key=lambda m: BUSY.get(m, 0) >= 2)
+def order(kind, shift=0):
+    # 這次執行中忙線（503）過兩次的模型排到後面，不要每集都先去撞；shift＝重試時換別的模型先上
+    ms = sorted(MODELS[kind], key=lambda m: BUSY.get(m, 0) >= 2)
+    if shift and ms:
+        shift %= len(ms)
+        ms = ms[shift:] + ms[:shift]
+    return ms
 
 
-def gen(kind, parts, js=False, max_out=65536, timeout=900, extra=None):
-    """依序試模型；忙線（503/500）換下一個；額度滿（429）等一下再換；回傳 (文字, 模型, 是否被截斷)"""
+def gen(kind, parts, js=False, max_out=65536, timeout=900, extra=None, temp=0.2, shift=0):
+    """依序試模型；忙線換下一個，全部忙線就等 1 分鐘再整輪試一次；回傳 (文字, 模型, 是否被截斷)；失敗丟 GemErr（有分類）"""
     think = [{'thinkingLevel': 'low'}, {'thinkingBudget': 0}, None]
-    for mi, model in enumerate(order(kind)):
-        for attempt in range(3):
-            if time.time() > DEADLINE:
-                raise RuntimeError('這次執行時間用完，下次排程再做')
-            gc = {'temperature': 0.2, 'maxOutputTokens': max_out}
-            if js:
-                gc['responseMimeType'] = 'application/json'
-            if think[0]:
-                gc['thinkingConfig'] = think[0]
-            if extra:
-                gc.update(extra)
-            try:
-                r = requests.post(f'{G}/v1beta/models/{model}:generateContent', headers={'x-goog-api-key': KEY},
-                                  json={'contents': [{'parts': parts}], 'generationConfig': gc}, timeout=timeout)
-            except Exception as e:
-                ERRS.append(f'{model} {str(e)[:100]}')
-                break
-            if r.status_code == 200:
-                j = r.json()
-                c = (j.get('candidates') or [{}])[0]
-                t = ''.join(p.get('text', '') for p in (c.get('content') or {}).get('parts', []) if not p.get('thought'))
-                USED[model] = USED.get(model, 0) + 1
-                if t.strip():
-                    return t, model, c.get('finishReason') == 'MAX_TOKENS'
-                ERRS.append(f'{model} 空白回應 {c.get("finishReason")}')
-                break
-            body = r.text[:200]
-            if r.status_code == 400 and 'thinking' in body.lower() and think[0]:
-                think.pop(0)
+    codes = []                                   # (模型, 狀態碼)
+    for rnd in range(2):
+        for model in order(kind, shift):
+            if model in DEAD:
                 continue
-            if r.status_code == 400 and ('mediaResolution' in body or 'media_resolution' in body) and extra:
-                extra = None
-                continue
-            ERRS.append(f'{model} {r.status_code} {body}')
-            if r.status_code == 429:
-                if 'PerDay' in body or 'per day' in body.lower():
-                    break                      # 這個模型今天額度用完 → 換下一個
-                time.sleep(45)
-                continue
-            if r.status_code in (500, 503, 504):
-                BUSY[model] = BUSY.get(model, 0) + 1
-                time.sleep(8)
-                if attempt >= 1:
+            ex = dict(extra) if extra else None
+            for attempt in range(3):
+                if time.time() > DEADLINE:
+                    raise GemErr('time', ERR_TXT['time'])
+                gc = {'temperature': temp, 'maxOutputTokens': max_out}
+                if js:
+                    gc['responseMimeType'] = 'application/json'
+                if think[0]:
+                    gc['thinkingConfig'] = think[0]
+                if ex:
+                    gc.update(ex)
+                try:
+                    r = requests.post(f'{G}/v1beta/models/{model}:generateContent', headers={'x-goog-api-key': KEY},
+                                      json={'contents': [{'parts': parts}], 'generationConfig': gc}, timeout=timeout)
+                except Exception as e:
+                    ERRS.append(f'{model} 連線 {str(e)[:100]}')
+                    codes.append((model, 'net'))
                     break
-                continue
-            break                              # 404 等其他錯誤 → 換模型
-    raise RuntimeError('Gemini 每個模型都失敗（可能今天額度用完）')
+                if r.status_code == 200:
+                    j = r.json()
+                    c = (j.get('candidates') or [{}])[0]
+                    t = ''.join(p.get('text', '') for p in (c.get('content') or {}).get('parts', []) if not p.get('thought'))
+                    USED[model] = USED.get(model, 0) + 1
+                    if t.strip():
+                        return t, model, c.get('finishReason') == 'MAX_TOKENS'
+                    ERRS.append(f'{model} 空白回應 {c.get("finishReason")}')
+                    codes.append((model, 'empty'))
+                    break
+                body = r.text[:300]
+                if r.status_code == 400 and 'thinking' in body.lower() and think[0]:
+                    think.pop(0)
+                    continue
+                if r.status_code == 400 and ('mediaResolution' in body or 'media_resolution' in body) and ex:
+                    ex = None
+                    continue
+                ERRS.append(f'{model} {r.status_code} {body[:160]}')
+                codes.append((model, r.status_code))
+                if r.status_code == 404:
+                    DEAD.add(model)              # 已停用 → 記下來，以後不再試
+                    break
+                if r.status_code == 429:
+                    if 'PerDay' in body or 'per day' in body.lower():
+                        break                    # 這個模型今天額度用完 → 換下一個
+                    time.sleep(45)
+                    continue
+                if r.status_code in (500, 503, 504):
+                    BUSY[model] = BUSY.get(model, 0) + 1
+                    time.sleep(8)
+                    if attempt >= 1:
+                        break
+                    continue
+                break                            # 400 等其他錯誤 → 換模型
+        # 這一輪全部失敗：如果有人只是忙線，等 1 分鐘再整輪試一次
+        if rnd == 0 and any(c in (500, 503, 504) for _, c in codes) and time.time() < DEADLINE - 120:
+            log('  Gemini 忙線，等 1 分鐘再試一輪')
+            time.sleep(60)
+            continue
+        break
+    st = [c for _, c in codes]
+    bad_models = {m for m, c in codes if c == 400}
+    if len(bad_models) >= 2:
+        raise GemErr('bad', ERR_TXT['bad'])
+    if any(c in (500, 503, 504) for c in st):
+        raise GemErr('busy', ERR_TXT['busy'])
+    if st and all(c in (429, 404) for c in st):
+        raise GemErr('quota', ERR_TXT['quota'])
+    if 'net' in st:
+        raise GemErr('net', ERR_TXT['net'])
+    if 'empty' in st:
+        raise GemErr('empty', ERR_TXT['empty'])
+    raise GemErr('other', ERR_TXT['other'] + '：' + ', '.join(str(c) for c in st[:6]))
 
 
-def upload(url):
-    r = requests.get(url, headers=UA, timeout=600)
-    r.raise_for_status()
-    data = r.content
-    mime = 'audio/mp4' if re.search(r'\.(m4a|mp4|aac)(\?|$)', url, re.I) else 'audio/mpeg'
-    st = requests.post(G + '/upload/v1beta/files', headers={'x-goog-api-key': KEY, 'X-Goog-Upload-Protocol': 'resumable', 'X-Goog-Upload-Command': 'start',
-                       'X-Goog-Upload-Header-Content-Length': str(len(data)), 'X-Goog-Upload-Header-Content-Type': mime, 'Content-Type': 'application/json'},
-                       json={'file': {'display_name': 'atlas-media'}}, timeout=60)
-    up = st.headers.get('x-goog-upload-url')
-    if not up:
-        raise RuntimeError('上傳音檔失敗 ' + st.text[:200])
-    f = requests.post(up, headers={'X-Goog-Upload-Offset': '0', 'X-Goog-Upload-Command': 'upload, finalize', 'Content-Length': str(len(data))}, data=data, timeout=600).json()['file']
-    for _ in range(60):
-        s = requests.get(f"{G}/v1beta/{f['name']}", headers={'x-goog-api-key': KEY}, timeout=30).json()
-        if s.get('state') == 'ACTIVE':
-            return f['name'], f['uri'], mime, len(data)
-        if s.get('state') == 'FAILED':
-            raise RuntimeError('Gemini 處理音檔失敗')
-        time.sleep(5)
-    raise RuntimeError('Gemini 處理音檔逾時')
-
-
-def drop_file(name):
-    try:
-        requests.delete(f'{G}/v1beta/{name}', headers={'x-goog-api-key': KEY}, timeout=30)
-    except Exception:
-        pass
-
+# ============ 逐字稿：一律切成 10 分鐘一段，每段做品質檢查，不合格就換模型重轉 ============
+CHUNK = 10 * 60           # 一段 10 分鐘：輸出短，AI 不容易陷入「同一句一直重複」
+OVL = 15                  # 段跟段重疊 15 秒，不會切掉句子
+MAX_TRY = 3               # 每段最多試 3 次（每次換模型、換溫度）
 
 TR_RULE = """把內容完整逐字轉成繁體中文逐字稿。規則：
-1. 每段一行，行首標時間 [mm:ss]（超過一小時用 [h:mm:ss]），時間是從節目開頭算的實際時間；大約每 20～40 秒或換話題就換一行。
-2. 保留原意與所有內容，口語贅字可以刪，但不要摘要、不要省略。
+1. 每段一行，行首標時間 [mm:ss]，時間從這段音訊／影片的開頭 00:00 起算；大約每 20～40 秒或換話題就換一行。
+2. 保留原意與所有內容，口語贅字可以刪，但不要摘要、不要省略、不要重複前面已經寫過的句子。
 3. 業配／廣告段落只寫一行：[mm:ss] （廣告）
 4. 股票、公司、英文術語盡量寫對（例如 台積電、CoWoS、HBM、輝達 NVIDIA）。
+5. 內容結束就停，不要編造、不要回頭再寫一次。
 只輸出逐字稿本身，不要任何說明。"""
 
 
@@ -290,7 +344,7 @@ def fmt_ts(s):
     return f'{s // 3600}:{s % 3600 // 60:02d}:{s % 60:02d}' if s >= 3600 else f'{s // 60:02d}:{s % 60:02d}'
 
 
-def parse_tr(t, base=0):
+def parse_tr(t):
     out = []
     for line in t.splitlines():
         m = re.match(r'\s*\[\s*(?:(\d+):)?(\d{1,3}):(\d{2})\s*\]\s*(.*)', line)
@@ -300,49 +354,236 @@ def parse_tr(t, base=0):
             continue
         s = int(m.group(1) or 0) * 3600 + int(m.group(2)) * 60 + int(m.group(3))
         out.append([s, m.group(4).strip()])
-    if base and out and out[0][0] < base - 90:      # 模型用了「片段內」的時間 → 加回起點
-        out = [[s + base, x] for s, x in out]
     return [x for x in out if x[1]]
 
 
-def transcribe_audio(it):
-    name, uri, mime, size = upload(it['audio'])
-    try:
-        part = {'file_data': {'mime_type': mime, 'file_uri': uri}}
-        tr, model = [], ''
-        for _ in range(4):
-            ask = TR_RULE if not tr else TR_RULE + f'\n\n前面已經轉到 [{fmt_ts(tr[-1][0])}]，請從那之後接著轉到節目結尾。'
-            t, model, cut = gen('lite', [part, {'text': ask}])
-            more = parse_tr(t)
-            if tr:
-                more = [x for x in more if x[0] > tr[-1][0]]
-            tr += more
-            short = it.get('dur') and tr and tr[-1][0] < it['dur'] - 150   # 模型有時候只轉一半就停 → 接著轉
-            if not more or not (cut or short):
+def _norm(s):
+    return re.sub(r'[\W_]+', '', s)[:24]
+
+
+def tr_check(lines, span, prev_keys=None):
+    """品質檢查：去掉複誦提示詞的行、時間亂跳的行；遇到「開始一直重複」就從那裡切掉。
+    回傳 (乾淨的行, 品質) 品質＝{ok, end 轉到第幾秒, rep 重複比例, cut 是否有切掉重複}"""
+    prev_keys = prev_keys or set()
+    out, keys, rep, cut, last = [], set(), 0, False, -1
+    run = 0
+    for s, t in lines:
+        if ('逐字稿' in t and re.search(r'格式|規則|時間|mm:ss', t)) or 'mm:ss' in t:
+            continue                                  # 模型把提示詞唸回來
+        if s < last or s > span + 30:
+            continue                                  # 時間倒退或超出這段長度 → 不可信
+        k = _norm(t)
+        dup = len(k) >= 8 and (k in keys or k in prev_keys)
+        if dup:
+            rep += 1
+            run += 1
+            if run >= 2:                              # 連續兩行都是重複 → 進入重複迴圈，後面全部不要
+                cut = True
                 break
-        return tr, model
-    finally:
-        drop_file(name)
+            continue
+        run = 0
+        keys.add(k)
+        out.append([s, t])
+        last = s
+    end = out[-1][0] if out else 0
+    ratio = rep / max(1, len(lines))
+    need = max(0, span - 120)                         # 最後 2 分鐘可能是片尾，不強求
+    ok = bool(out) and not cut and ratio < 0.1 and end >= need
+    return out, {'ok': ok, 'end': end, 'rep': round(ratio, 2), 'cut': cut}
 
 
-SEG = 25 * 60
+def tr_clip(part, span, prev_keys, extra=None):
+    """轉一段（最多試 3 次，每次換模型、換溫度），回傳最好的一次 (行, 模型, 品質, 試了幾次)"""
+    best, err = None, None
+    for k in range(MAX_TRY):
+        ask = TR_RULE + f'\n\n這段長度約 {fmt_ts(span)}。'
+        try:
+            t, model, _ = gen('lite', [part, {'text': ask}], temp=[0.2, 0.5, 0.3][k], shift=k, extra=extra)
+        except GemErr as e:
+            err = e
+            if e.kind in ('bad', 'quota', 'time', 'ytblock'):
+                break
+            continue
+        lines, q = tr_check(parse_tr(t), span, prev_keys)
+        score = (q['ok'], q['end'] * (1 - q['rep']))
+        if not best or score > best[0]:
+            best = (score, lines, model, q, k + 1)
+        if q['ok']:
+            break
+        log(f'    第 {k + 1} 次品質不合格（轉到 {fmt_ts(q["end"])}／{fmt_ts(span)}，重複 {q["rep"]:.0%}{"，有重複迴圈" if q["cut"] else ""}），換模型重轉')
+    if not best:
+        raise err or GemErr('empty', ERR_TXT['empty'])
+    return best[1], best[2], best[3], best[4]
 
 
+def merge(tr, lines, base, prev_keys):
+    last = tr[-1][0] if tr else -1
+    for s, t in lines:
+        if base + s > last:
+            tr.append([base + s, t])
+            prev_keys.add(_norm(t))
+            last = base + s
+
+
+def finish(it, tr, segs, dur, src):
+    """算完整度：每段實際轉到哪裡 → 沒轉到的時段列為缺口"""
+    gaps, covered = [], 0
+    for g in segs:
+        got = min(g['e'], g['s'] + g['end'])
+        covered += max(0, got - g['s'])
+        if g['e'] - got > 120:
+            gaps.append([got, g['e']])
+    dur = max(dur or 0, (tr[-1][0] + 20) if tr else 0)
+    cov = min(100, round(100 * covered / dur)) if dur else 0
+    merged = []
+    for a, b in gaps:
+        if merged and a - merged[-1][1] < 60:
+            merged[-1][1] = b
+        else:
+            merged.append([a, b])
+    it['dur'] = int(dur)
+    it['q'] = {'cov': cov, 'gaps': merged, 'src': src, 'segs': len(segs), 'retry': sum(g['try'] - 1 for g in segs)}
+    log(f'  逐字稿完整度 {cov}%（{len(segs)} 段，重轉 {it["q"]["retry"]} 次）' + (f'，缺 {", ".join(fmt_ts(a) + "～" + fmt_ts(b) for a, b in merged)}' if merged else ''))
+    return tr
+
+
+# ---- 音檔：自己下載、用 ffmpeg 切段，每段直接附在請求裡（不用上傳、不用等處理） ----
+WORK = '/tmp/atlas-media'
+
+
+def download(url, path):
+    with requests.get(url, headers=UA, timeout=600, stream=True) as r:
+        r.raise_for_status()
+        with open(path, 'wb') as f:
+            for b in r.iter_content(1 << 20):
+                f.write(b)
+    return path
+
+
+def audio_len(path):
+    try:
+        out = subprocess.run(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', path],
+                             capture_output=True, text=True, timeout=120).stdout.strip()
+        return float(out or 0)
+    except Exception:
+        return 0
+
+
+def cut_audio(path, start, n, out):
+    subprocess.run(['ffmpeg', '-v', 'error', '-y', '-ss', str(start), '-t', str(n), '-i', path, '-vn', '-ac', '1', '-ar', '16000',
+                    '-b:a', '32k', out], check=True, timeout=300)
+    return out
+
+
+def transcribe_file(it, path, src='audio'):
+    L = audio_len(path) or it.get('dur') or 0
+    if not L:
+        raise RuntimeError('讀不到音檔長度（音檔可能壞掉）')
+    tr, segs, keys, model = [], [], set(), ''
+    s = 0
+    while s < L - 5:
+        n = min(CHUNK + OVL, L - s)
+        clip = cut_audio(path, s, n, os.path.join(WORK, f'c{int(s)}.mp3'))
+        data = base64.b64encode(open(clip, 'rb').read()).decode()
+        lines, model, q, k = tr_clip({'inline_data': {'mime_type': 'audio/mp3', 'data': data}}, n, keys)
+        merge(tr, lines, s, keys)
+        segs.append({'s': s, 'e': s + n, 'end': q['end'], 'ok': q['ok'], 'try': k})
+        log(f'    {fmt_ts(s)}～{fmt_ts(s + n)} {"✓" if q["ok"] else "△"} 轉到 {fmt_ts(s + q["end"])}（試 {k} 次）')
+        s += CHUNK
+    return finish(it, tr, segs, L, src), model
+
+
+def transcribe_audio(it):
+    os.makedirs(WORK, exist_ok=True)
+    path = download(it['audio'], os.path.join(WORK, 'ep' + os.path.splitext(it['audio'].split('?')[0])[1][:5]))
+    return transcribe_file(it, path, 'audio')
+
+
+# ---- YouTube：Gemini 直接看影片（10 分鐘一段）；讀不到 → 改抓字幕 → 再不行抓音檔 ----
 def transcribe_yt(it):
-    tr, model, start = [], '', 0
-    for _ in range(5):                      # 最多 5 段 × 25 分鐘
-        part = {'file_data': {'file_uri': it['url']}, 'video_metadata': {'start_offset': f'{start}s', 'end_offset': f'{start + SEG}s'}}
-        ask = TR_RULE + f'\n\n這次只轉影片 {fmt_ts(start)} 到 {fmt_ts(start + SEG)} 這一段（影片比較短就轉到結尾為止）。'
-        t, model, cut = gen('lite', [part, {'text': ask}], extra={'mediaResolution': 'MEDIA_RESOLUTION_LOW'})
-        more = [x for x in parse_tr(t, start) if not tr or x[0] > tr[-1][0]]
-        tr += more
-        if not more or more[-1][0] < start + SEG - 120:
-            break                            # 影片結束了
-        start += SEG
-        time.sleep(20)                       # 免費方案每分鐘 token 有上限，分段之間喘口氣
-    if tr:
-        it['dur'] = max(it.get('dur') or 0, tr[-1][0] + 30)
-    return tr, model
+    try:
+        return transcribe_yt_gemini(it)
+    except GemErr as e:
+        if e.kind != 'bad':
+            raise
+        log('  Gemini 讀不到這支影片 → 改抓字幕／音檔')
+        return transcribe_yt_fallback(it)
+
+
+def transcribe_yt_gemini(it):
+    tr, segs, keys, model, s = [], [], set(), '', 0
+    dur = it.get('dur') or 0
+    for _ in range(14):                                  # 最多約 2 小時 20 分
+        n = min(CHUNK + OVL, dur - s) if dur else CHUNK + OVL
+        if n < 5:
+            break
+        part = {'file_data': {'file_uri': it['url']}, 'video_metadata': {'start_offset': f'{s}s', 'end_offset': f'{s + n}s'}}
+        try:
+            lines, model, q, k = tr_clip(part, n, keys, extra={'mediaResolution': 'MEDIA_RESOLUTION_LOW'})
+        except GemErr as e:
+            if e.kind == 'bad' and segs:
+                break                                    # 已經轉了幾段，後面被拒＝影片結束了
+            raise
+        merge(tr, lines, s, keys)
+        if not lines and segs:
+            break
+        segs.append({'s': s, 'e': s + n, 'end': q['end'], 'ok': q['ok'], 'try': k})
+        log(f'    {fmt_ts(s)}～{fmt_ts(s + n)} {"✓" if q["ok"] else "△"} 轉到 {fmt_ts(s + q["end"])}（試 {k} 次）')
+        if not dur and q['end'] < n - 120 and not q['cut'] and q['rep'] < 0.1:
+            segs[-1]['e'] = s + q['end'] + 20            # 不知道片長：這段沒轉滿又沒壞＝影片結束了
+            break
+        s += CHUNK
+        time.sleep(5)
+    if not tr:
+        raise GemErr('empty', ERR_TXT['empty'])
+    return finish(it, tr, segs, dur, 'video'), model
+
+
+def ytdlp(args, timeout=600):
+    return subprocess.run([sys.executable, '-m', 'yt_dlp', '--no-warnings', '--no-playlist'] + args, capture_output=True, text=True, timeout=timeout)
+
+
+def transcribe_yt_fallback(it):
+    os.makedirs(WORK, exist_ok=True)
+    base = os.path.join(WORK, 'yt')
+    # ① 字幕（人工字幕優先，再來自動字幕）
+    r = ytdlp(['--skip-download', '--write-subs', '--write-auto-subs', '--sub-langs', 'zh-TW,zh-Hant,zh,zh-Hans,zh-CN,zh.*',
+               '--sub-format', 'json3', '--no-simulate', '--print', 'duration', '-o', base + '.%(ext)s', it['url']])
+    subs = sorted([f for f in os.listdir(WORK) if f.startswith('yt.') and f.endswith('.json3')], key=lambda f: ('TW' not in f and 'Hant' not in f, f))
+    if subs:
+        tr = subs_to_tr(json.load(open(os.path.join(WORK, subs[0]), encoding='utf-8')))
+        if len(tr) > 10:
+            dur = int(float((r.stdout.strip().splitlines() or ['0'])[-1] or 0)) if r.stdout.strip() else 0
+            log(f'  用字幕：{subs[0]}，{len(tr)} 行')
+            return finish(it, tr, [{'s': 0, 'e': max(dur, tr[-1][0] + 20), 'end': tr[-1][0] + 20, 'ok': True, 'try': 1}], dur, 'subs'), '字幕'
+    # ② 音檔
+    r2 = ytdlp(['-f', 'bestaudio[ext=m4a]/bestaudio', '-o', base + '.%(ext)s', it['url']], timeout=900)
+    aud = [f for f in os.listdir(WORK) if f.startswith('yt.') and not f.endswith('.json3') and not f.endswith('.part')]
+    if aud:
+        log('  用音檔：' + aud[0])
+        return transcribe_file(it, os.path.join(WORK, aud[0]), 'audio')
+    why = (r2.stderr or r.stderr or '').strip().splitlines()[-1:] or ['']
+    ERRS.append('yt-dlp：' + why[0][:200])
+    raise GemErr('ytblock', ERR_TXT['ytblock'])
+
+
+def subs_to_tr(j):
+    """json3 字幕 → 每 25 秒左右一行"""
+    out, buf, t0 = [], '', None
+    for e in j.get('events', []):
+        txt_ = ''.join(s.get('utf8', '') for s in e.get('segs') or []).replace('\n', ' ').strip()
+        if not txt_:
+            continue
+        s = int(e.get('tStartMs', 0) / 1000)
+        if t0 is None:
+            t0 = s
+        buf += txt_ + ' '
+        if s - t0 >= 25:
+            out.append([t0, buf.strip()])
+            buf, t0 = '', None
+    if buf.strip():
+        out.append([t0 or 0, buf.strip()])
+    return out
 
 
 ANA = """你是嚴守紀律、重視基本面與產業供需的台股研究員。下面是一集財經節目的逐字稿（每行開頭是時間）。
@@ -390,7 +631,10 @@ def analyze(it, tr):
     body = '\n'.join(f'[{fmt_ts(s)}] {t}' for s, t in tr)
     if len(body) > 150000:
         body = body[:150000] + '\n…（後面太長截掉）'
-    head = f"節目：{it['ch']}\n標題：{it['title']}\n日期：{it['pub'][:10]}\n全長：{fmt_ts(tr[-1][0])}（章節 ch 要一路涵蓋到結尾）\n節目說明：{it.get('desc', '')[:800]}\n\n逐字稿：\n"
+    gaps = (it.get('q') or {}).get('gaps') or []
+    gap = ('\n注意：以下時段沒有逐字稿（轉不出來），不要猜那幾段的內容：' + '、'.join(fmt_ts(a) + '～' + fmt_ts(b) for a, b in gaps)) if gaps else ''
+    src = '（逐字稿來自 YouTube 字幕，可能是簡體或有錯字，請以繁體中文輸出）' if (it.get('q') or {}).get('src') == 'subs' else ''
+    head = f"節目：{it['ch']}\n標題：{it['title']}\n日期：{it['pub'][:10]}\n全長：{fmt_ts(it.get('dur') or tr[-1][0])}（章節 ch 要一路涵蓋到結尾）{gap}{src}\n節目說明：{it.get('desc', '')[:800]}\n\n逐字稿：\n"
     t, model, _ = gen('smart', [{'text': ANA % '、'.join(INDS)}, {'text': head + body}], js=True, max_out=16384, timeout=600)
     t = t.strip()
     t = re.sub(r'^```(?:json)?|```$', '', t).strip()
@@ -444,6 +688,7 @@ def main():
     idx = jload('index.json', {}).get('items', [])
     state = jload('state.json', {})
     cyc = jload('cycle.json', [])
+    DEAD.update(state.get('dead') or [])
     first = not state.get('seen')
     seen = state.get('seen', {})
     items = {x['id']: x for x in idx}
@@ -477,7 +722,7 @@ def main():
     for r in REQ:
         if r in items:
             if items[r].get('st') != 'done':
-                items[r]['st'], items[r]['pri'] = 'todo', 1
+                items[r]['st'], items[r]['pri'], items[r]['tries'] = 'todo', 1, 0
             continue
         if re.match(r'^https?://', r):
             x = resolve_req(r)
@@ -488,23 +733,36 @@ def main():
             if x['id'] in items:
                 items[x['id']]['req'] = r
                 if items[x['id']].get('st') != 'done':
-                    items[x['id']]['st'], items[x['id']]['pri'] = 'todo', 1
+                    items[x['id']]['st'], items[x['id']]['pri'], items[x['id']]['tries'] = 'todo', 1, 0
             else:
                 x['st'], x['pri'] = 'todo', 1
                 items[x['id']] = x
 
-    # 逐字稿只轉到一半的 Podcast（舊版的問題）→ 重做一次
+    # 舊版做的逐字稿（沒有品質紀錄）重新檢查：只轉到一半、或陷入重複迴圈的 → 用新版重做一次
     for x in items.values():
-        if x.get('st') == 'done' and x['src'] == 'pod' and 'trEnd' not in x and not x.get('redo'):
+        if x.get('st') == 'done' and 'q' not in x and not x.get('redo'):
             try:
                 nn = jload(f"n/{x['id']}.json", {})
-                end = nn['tr'][-1][0] if nn.get('tr') else 0
-                x['trEnd'] = end
-                if x.get('dur') and end < x['dur'] - 300:
-                    x['st'], x['redo'], x['pri'] = 'todo', 1, 1
-                    log('逐字稿不完整，重做', x['title'][:30])
+                tr0 = nn.get('tr') or []
+                end = tr0[-1][0] if tr0 else 0
+                keys, dup = set(), 0
+                for _, t in tr0:
+                    k = _norm(t)
+                    if len(k) >= 8 and k in keys:
+                        dup += 1
+                    keys.add(k)
+                ratio = dup / max(1, len(tr0))
+                short = x.get('dur') and end < x['dur'] - 300
+                over = x.get('dur') and end > x['dur'] + 120
+                if ratio >= 0.05 or short or over:
+                    x['st'], x['redo'], x['pri'], x['tries'] = 'todo', 1, 1, 0
+                    log(f"舊逐字稿有問題（重複 {ratio:.0%}{'，沒轉完' if short else ''}{'，時間超出片長' if over else ''}），重做", x['title'][:30])
+                else:
+                    x['q'] = {'cov': 100 if not x.get('dur') else min(100, round(100 * end / x['dur'])), 'gaps': [], 'src': 'old', 'segs': 0, 'retry': 0}
             except Exception:
                 pass
+    if FEED_VIA['gas'] or FEED_VIA['fail']:
+        log(f"YouTube 頻道清單：直接讀被擋，改用 Apps Script 代抓 {FEED_VIA['gas']} 個、沒有資料 {FEED_VIA['fail']} 個")
     pick_models()
     todo = sorted([x for x in items.values() if x.get('st') == 'todo'], key=lambda x: (-(x.get('pri') or 0), x['pub']), reverse=False)
     todo.sort(key=lambda x: (-(x.get('pri') or 0), -(datetime.fromisoformat(x['pub']).timestamp())))
@@ -527,22 +785,33 @@ def main():
             chg, conflict = cycle_update(cyc, it, a)
             stk = [{'c': str(s.get('c') or '').strip().upper(), 'n': str(s.get('n') or '').strip(), 'v': s.get('v') or '中性'} for s in a.get('stk') or [] if s.get('n') or s.get('c')]
             note = {'id': it['id'], 'src': it['src'], 'ch': it['ch'], 'title': it['title'], 'url': it['url'], 'pub': it['pub'], 'dur': it.get('dur') or (tr[-1][0] if tr else 0),
-                    'audio': it.get('audio', ''), 'm': [m1, m2], 'at': iso(now()), 'tr': tr, 'a': a, 'chg': chg, 'conflict': conflict}
+                    'audio': it.get('audio', ''), 'm': [m1, m2], 'at': iso(now()), 'tr': tr, 'a': a, 'chg': chg, 'conflict': conflict, 'q': it.get('q')}
             jsave(f"n/{it['id']}.json", note)
             it.update({'st': 'done', 'one': a.get('one', ''), 'bias': a.get('bias', ''), 'tags': (a.get('tags') or [])[:5], 'stk': stk[:12],
                        'inds': [{'ind': x.get('ind'), 's': stage_of(x)} for x in a.get('cyc') or [] if x.get('ind')][:8],
                        'chg': chg, 'conflict': conflict, 'alert': bool([c for c in chg if c['later']] or conflict),
                        'hl': (a.get('hl') or [])[:5], 'done': iso(now()), 'dur': note['dur'], 'm': m2, 'trEnd': tr[-1][0]})
-            it.pop('pri', None)
-            it.pop('err', None)
+            for k in ('pri', 'err', 'errk', 'errat', 'next', 'tries', 'redo'):
+                it.pop(k, None)
             log('  ✓', round(time.time() - t0), '秒', a.get('one', '')[:40])
         except Exception as e:
-            it['tries'] = (it.get('tries') or 0) + 1
+            kind = e.kind if isinstance(e, GemErr) else 'other'
+            if kind != 'quota' and kind != 'time':
+                it['tries'] = (it.get('tries') or 0) + 1
             it['err'] = str(e)[:200]
-            it['st'] = 'err' if it['tries'] >= 3 else 'todo'
-            ERRS.append(f"{it['ch']} {it['title'][:30]}：{e}")
-            log('  ✗', e)
-            if '額度' in str(e) or '時間用完' in str(e):
+            it['errk'] = kind
+            it['errat'] = iso(now())
+            final = kind in ('bad', 'ytblock') or (it.get('tries') or 0) >= 4
+            it['st'] = 'err' if final else 'todo'
+            if not final:                         # 下次什麼時候再試（給 Telegram 通知用）
+                nx = now() + timedelta(hours=1)
+                if kind == 'quota':
+                    nx = (now() + timedelta(days=1 if now().hour >= 16 else 0)).replace(hour=16, minute=20)
+                it['next'] = iso(nx)
+                it['pri'] = it.get('pri') or (1 if it.get('req') else 0)
+            ERRS.append(f"{it['ch']} {it['title'][:30]}：[{kind}] {e}")
+            log('  ✗', kind, e)
+            if kind in ('quota', 'time'):
                 break
         # 做完一集就先存，萬一後面逾時也不會白做
         save(items, state, seen, cyc)
@@ -561,7 +830,8 @@ def save(items, state, seen, cyc):
     jsave('cycle.json', [r for r in cyc if r['d'] >= k2])
     k3 = iso(now() - timedelta(days=60))
     state['seen'] = {k: v for k, v in seen.items() if v >= k3}
-    state['last'] = {'at': iso(now()), 'log': LOG[-40:], 'errs': ERRS[-20:], 'used': USED}
+    state['last'] = {'at': iso(now()), 'log': LOG[-60:], 'errs': ERRS[-20:], 'used': USED}
+    state['dead'] = sorted(DEAD)
     jsave('state.json', state)
     # 筆記保留 120 天
     nd = os.path.join(OUT, 'n')

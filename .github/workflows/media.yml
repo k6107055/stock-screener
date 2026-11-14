@@ -13,6 +13,10 @@ on:
         description: '要解析的 id 或網址（逗號分隔，可空白）'
         required: false
         default: ''
+      feeds:
+        description: 'Apps Script 代抓的 YouTube 頻道清單（JSON，GitHub 被 YouTube 擋時用）'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -30,7 +34,9 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
-      - run: pip install requests
+      - run: pip install requests yt-dlp
+      - name: 確認有 ffmpeg（切音檔用）
+        run: which ffmpeg || (sudo apt-get update -q && sudo apt-get install -y -q ffmpeg)
       - name: 取回上次的資料（media-data 分支）
         run: |
           mkdir -p media-out
@@ -39,6 +45,7 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           MEDIA_REQ: ${{ github.event.inputs.req }}
+          MEDIA_FEEDS: ${{ github.event.inputs.feeds }}
         run: python media/media.py media-out
       - name: 發佈到 media-data 分支
         if: always()
