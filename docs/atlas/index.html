@@ -310,6 +310,47 @@ a.ts{font-variant-numeric:tabular-nums;font-size:12px;background:var(--pri2);col
 .ec .ey th{font-size:11.5px;color:var(--sub);font-weight:400;text-align:right;padding:2px 4px}.ec .ey th:first-child,.ec .ey td:first-child{text-align:left}
 .ec .ey td{text-align:right;padding:4px;border-top:1px solid var(--line)}
 @media (min-width:1000px){ #main.v-note{max-width:900px;margin:0 auto} }
+/* ====== v2.19 論點卡（手機＋電腦共用）====== */
+.thc .lt{font-size:16px;font-weight:700}
+.thc .act{margin:6px 0;background:var(--warnbg);color:var(--warn);border-radius:10px;padding:7px 10px;font-size:14px}
+.thc .it{padding:7px 0;border-top:1px solid var(--line);font-size:14px;line-height:1.5}
+.thc .it .sub{display:block}
+.thl summary .sub{margin-top:2px;line-height:1.45}
+/* ====== v2.19 電腦版「資訊」：左清單＋右預覽（手機不受影響）====== */
+@media (min-width:1000px){
+  #main.v-hubm{max-width:none;padding:0 20px}
+  .hbar{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center;background:var(--card);border-radius:14px;padding:10px 12px;margin-bottom:10px}
+  .hbar .tabsm{margin:0}
+  .hbar input[type=search]{width:220px;flex:none}
+  .hbar label{font-size:13.5px;display:flex;align-items:center;gap:4px;cursor:pointer;white-space:nowrap}
+  .hbar label input{width:auto}
+  .hub{display:grid;grid-template-columns:minmax(500px,1fr) minmax(0,1.2fr);gap:16px;align-items:start}
+  .hub.nosel{grid-template-columns:1fr}
+  .hub.nosel #hd{display:none}
+  #hl{padding:0;margin:0;max-height:calc(100vh - 170px);overflow:auto;background:var(--card);border-radius:14px}
+  .hrow{display:grid;grid-template-columns:10px 46px 170px 76px minmax(0,1fr);gap:10px;padding:10px 12px;border-bottom:1px solid var(--line);cursor:pointer;align-items:start;font-size:14px;line-height:1.45}
+  .hrow.hdr{position:sticky;top:0;background:var(--card);z-index:1;font-size:12px;color:var(--sub);cursor:default;padding:7px 12px}
+  .hrow:not(.hdr):hover{background:var(--bg)}
+  .hrow.mine{box-shadow:inset 3px 0 0 var(--warn)}
+  .hrow.sel,.hrow.sel:hover{background:var(--pri2)}
+  .hrow .dot{width:8px;height:8px;border-radius:50%;background:var(--pri);margin-top:6px;visibility:hidden}
+  .hrow.un .dot{visibility:visible}
+  .hrow.un .ti{font-weight:700}
+  .hrow .co[data-co]:hover b{text-decoration:underline}
+  .hrow .ti{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .hrow .one{color:var(--sub);font-size:13px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .hub:not(.nosel) .hrow{grid-template-columns:10px 46px 140px 70px minmax(0,1fr)}
+  #hd{position:sticky;top:8px;max-height:calc(100vh - 110px);overflow:auto;background:var(--bg);border-radius:14px;border:1px solid var(--line)}
+  #hd .hh{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:8px;background:var(--card);padding:10px 14px;border-bottom:1px solid var(--line);font-size:16px}
+  #hd .hh b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #hd .hh .sub{white-space:nowrap;font-size:12px}
+  #hd .hbt{display:flex;flex-wrap:wrap;gap:8px;padding:10px 14px 0}
+  #hd .hbt a{text-decoration:none}
+  #hb{padding:12px 14px}
+  #hb iframe{width:100%;height:calc(100vh - 230px);border:0;border-radius:10px;background:#fff}
+  #hb .hrow{grid-template-columns:10px 46px 70px minmax(0,1fr);padding:8px 4px}
+  #hb .card{column-span:none}
+}
 </style>
 </head>
 <body>
@@ -1699,13 +1740,15 @@ async function vPick(){
 
 // ====================== 資訊（法人預估／產業研究包／報告）======================
 async function vInfo(){
+  if (WIDE()) return hubView();
   if (SUB.info === 'yt') SUB.info = 'media';
   const s = SUB.info || 'mops';
   const M = $('#main');
-  M.innerHTML = `<div class="seg" id="seg"><button data-s="mops">觀測站</button><button data-s="media">影音</button><button data-s="rep">報告</button><button data-s="est">法人預估</button><button data-s="ind">產業研究</button></div><div id="ib">${loading()}</div>`;
+  M.innerHTML = `<div class="seg" id="seg"><button data-s="th">論點</button><button data-s="mops">觀測站</button><button data-s="media">影音</button><button data-s="rep">報告</button><button data-s="est">法人預估</button><button data-s="ind">產業研究</button></div><div id="ib">${loading()}</div>`;
   $$('#seg button').forEach(b => { b.classList.toggle('on', b.dataset.s === s); b.onclick = () => { SUB.info = b.dataset.s; vInfo(); }; });
   const B = $('#ib');
   try {
+    if (s === 'th') return await thesisView(B);
     if (s === 'mops') return await mopsView(B);
     if (s === 'media') return await mediaView(B);
     if (s === 'est') return await estView(B);
@@ -1891,17 +1934,17 @@ async function mediaView(B){
 // ---- 一集的完整筆記 ----
 const NOTEM = {};
 let NOTE_T = 0;   // 從 Telegram 重點時間點進來（#n=id&t=秒）→ 音檔跳到那裡
-async function vNote(id){
-  const M = $('#main');
+async function vNote(id, T){
+  const M = T || $('#main');
   if (!id) return go('info', undefined, {tab: true});
   M.innerHTML = loading('讀取筆記…');
   if (!LISTS) { try { await refreshLists(); } catch(e){} }
   let n = NOTEM[id];
   try { if (!n) n = NOTEM[id] = await ghx('media-data', 'n/' + id + '.json', 3600000); }
   catch(e){ M.innerHTML = `<div class="err">這集的筆記讀不到（可能還在解析，或超過 120 天已刪除）</div>`; return; }
-  if (VIEW !== 'note' || CUR.arg !== id) return;
+  if (T ? !T.isConnected : (VIEW !== 'note' || CUR.arg !== id)) return;
   const a = n.a || {}, {hold, watch} = myCodeSets();
-  $('#ttl').textContent = n.ch;
+  if (!T) $('#ttl').textContent = n.ch;
   const isYt = n.src === 'yt';
   const tlink = t => { const s = typeof t === 'number' ? t : tsSec(t); if (s == null) return esc(t || ''); return `<a class="ts" data-t="${s}" href="${isYt ? esc(n.url) + '&t=' + s + 's' : '#'}" ${isYt ? 'target="_blank" rel="noopener"' : ''}>${ts2(s)}</a>`; };
   const fact = f => f ? `<span class="tag ${f === '事實' ? 'h' : ''}">${esc(f)}</span>` : '';
@@ -2153,11 +2196,206 @@ async function mediaSettings(box){
 }
 
 // ====================== 深層連結：Telegram 卡片的「📖 完整筆記」→ Atlas 直接打開那一集 ======================
+// ====================== v2.19 論點（決策卡）＋電腦版「資訊」hub：左清單＋右預覽 ======================
+const WIDE = () => window.matchMedia('(min-width:1000px)').matches;
+const HUBT = [['all', '全部'], ['th', '論點'], ['rp', '整合報告'], ['md', '影音筆記'], ['in', '產業研究'], ['es', '法人預估'], ['mo', '觀測站']];
+const HUBN = {th: '決策卡', rp: '整合報告', md: '影音筆記', in: '產業研究', es: '法人預估', mo: '觀測站'};
+const TH_IC = {good: '✅', weak: '⚠️', bad: '❌', info: '📌', wait: '⏳'};
+let HUB = null, HSEL = null, HSTK = null, HOPEN = null, HN = 300;
+const HREAD = new Set(ls.get('hubRead', []));
+let HRQ = [], HRT = null, HRSYNC = 0;
+const hid = s => { let h = 5381; s = String(s); for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0; return h.toString(36); };
+const hd = d => { d = String(d == null ? '' : d); return /^\d{8}/.test(d) ? d.slice(0, 4) + '-' + d.slice(4, 6) + '-' + d.slice(6, 8) : d.slice(0, 10); };
+const dloc = t => { const d = new Date(t); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+const mdS = d => String(d || '').slice(5, 10).replace('-', '/');
+function hubMark(id){
+  if (HREAD.has(id)) return;
+  HREAD.add(id); ls.set('hubRead', [...HREAD].slice(-600));
+  HRQ.push(id); clearTimeout(HRT);
+  HRT = setTimeout(() => { const add = HRQ; HRQ = []; rawCall('hubRead', {add}).catch(() => {}); }, 2500);   // 已讀同步到雲端（手機、電腦共用）
+}
+function hubReadSync(){
+  if (Date.now() - HRSYNC < 120000) return Promise.resolve();
+  HRSYNC = Date.now();
+  return rawCall('hubRead', {}).then(a => { (a || []).forEach(x => HREAD.add(x)); ls.set('hubRead', [...HREAD].slice(-600)); }).catch(() => {});
+}
+function thCardHtml(T, bare){
+  const sc = T.scan && T.scan.s && T.scan.s.length ? `<div class="it">🔭 <b>AI 訊號檢查</b>（${esc(mdS(hd(T.scan.d)))}）：${T.scan.s.map(g => (g.e === '+' ? '✅' : g.e === '-' ? '❌' : '➖') + esc(g.w) + '：' + esc(g.n)).join('；')}</div>` : '';
+  const h = `<div class="lt">${esc(T.light.e)} ${esc(T.light.t)} <span class="sub" style="font-weight:400">${esc(T.light.basis)}</span></div>
+    <div class="act">👉 ${esc(T.light.act)}</div>
+    <div class="sub">報告 ${esc(mdS(hd(T.date)))}｜${esc(T.stage || '?')}｜${esc(T.script || '?')}｜結論：<b>${esc(T.verdict || '?')}</b></div>
+    ${T.thesis ? `<div style="margin-top:6px;line-height:1.55">💡 ${esc(T.thesis)}</div>` : ''}${T.breaks ? `<div style="margin-top:4px;line-height:1.55">🚧 破功條件：${esc(T.breaks)}</div>` : ''}
+    ${(T.items || []).map(it => `<div class="it">${TH_IC[it.r] || '⏳'} <b>${esc(it.what)}</b>：${it.v ? esc(it.v) + (it.thr ? '（' + esc(it.thr) + '）' : '') : '還沒資料' + (it.when ? '，下次 ' + esc(it.when) : '')}${it.src ? `<span class="sub">${esc(it.src)}，${esc(it.at)} 更新</span>` : ''}</div>`).join('')}
+    ${sc}${T.next ? `<div class="it">📅 下一個驗證點：${esc(T.next)}</div>` : ''}
+    <div class="btns" style="margin-top:8px">${T.reportId ? `<a class="btn sm g" style="text-decoration:none" target="_blank" rel="noopener" href="https://docs.google.com/document/d/${esc(T.reportId)}/edit">📄 整合報告</a>` : ''}${T.mkt !== 'ind' && T.mkt !== 'us' ? `<button class="btn sm g" data-code="${esc(T.code)}">📱 個股頁</button>` : ''}</div>`;
+  return bare ? `<div class="thc">${h}</div>` : `<div class="card thc">${h}</div>`;
+}
+// 手機：資訊 → 論點（要動作的排最前面；點一檔展開決策卡）
+async function thesisView(B){
+  B.innerHTML = loading('讀取論點…');
+  const th = await call('thesis');
+  const f = SUB.thf || 'mine', open = HOPEN; HOPEN = null;
+  const rows = th.filter(T => f === 'all' || T.hold || T.sub || T.code === open);
+  B.innerHTML = `<div class="tabsm" id="thf">${[['mine', '持股＋訂閱'], ['all', '全部']].map(([k, t]) => `<button data-f="${k}" class="${f === k ? 'on' : ''}">${t}</button>`).join('')}</div>
+    <div class="thl">${rows.map(T => `<details class="card nt" ${open === T.code ? 'open' : ''} data-th="${esc(T.code)}"><summary><h3>${esc(T.light.e)} ${cn(T.code, T.name)}${T.hold ? '<span class="tag h">持股</span>' : T.sub ? '<span class="tag w">訂閱</span>' : ''}</h3><div class="sub">${esc(T.light.t)}｜${esc(T.light.act)}</div></summary>${thCardHtml(T, true)}</details>`).join('') || '<div class="empty">還沒有追蹤清單。做一次整合報告就會自動建立。</div>'}</div>
+    <div class="sub" style="padding:4px 4px 12px">🔴 該動作 🟠 警戒 🟢 論點完好 ⚪ 資料還不夠。訂閱名單請在 Telegram 論點機器人用 /sub、/unsub 管理。</div>`;
+  $$('#thf button', B).forEach(b => b.onclick = () => { SUB.thf = b.dataset.f; saveSub(); thesisView(B); });
+  bindCodes(B);
+  const o = open && $(`details[data-th="${open}"]`, B); if (o) o.scrollIntoView({block: 'start'});
+}
+async function hubMops(){
+  const idx = await ghx('info-data', 'index.json', 300000);
+  const days = idx.days.map(x => x.d).slice(0, 5);
+  const lists = await Promise.all(days.map((d, i) => ghx('info-data', 'd/' + d + '.json', i < 2 ? 120000 : 86400000).catch(() => [])));
+  return [].concat(...lists);
+}
+async function hubLoad(force){
+  if (HUB && !force && Date.now() - HUB.at < 180000) return HUB;
+  if (!LISTS) { try { await refreshLists(); } catch(e){} }
+  const errs = [];
+  const safe = (p, name, d) => Promise.resolve(p).catch(e => { errs.push(name + '：' + e.message); return d; });
+  const [th, rep, mi, ind, est, mo] = await Promise.all([
+    safe(call('thesis'), '論點', []), safe(call('repList', {limit: 60}), '整合報告', []), safe(mediaIdx(), '影音', {items: []}),
+    safe(call('indList', {offset: 0, limit: 60, q: ''}), '產業研究', {items: []}), safe(call('estList', {days: 5}), '法人預估', {rows: []}),
+    safe(hubMops(), '觀測站', []), hubReadSync()]);
+  const {hold, watch} = myCodeSets();
+  const TH = {}; (th || []).forEach(T => { TH[T.code] = T; });
+  const items = [];
+  const push = o => { o.id = o.t + hid(o.k); items.push(o); };
+  (th || []).forEach(T => push({k: T.code + ':' + T.date + ':' + T.light.k, t: 'th', d: hd(T.date), code: T.code, name: T.name, sub: T.sub, title: `${T.light.e} ${T.light.t}｜結論：${T.verdict || '?'}`, one: T.light.act, T}));
+  (rep || []).forEach(r => { const T = TH[r.code]; push({k: r.name, t: 'rp', d: dloc(r.t), code: r.code, name: r.sname, title: r.name, one: T && T.thesis ? (T.verdict ? '結論：' + T.verdict + '｜' : '') + T.thesis : '', url: r.url}); });
+  ((mi && mi.items) || []).filter(x => x.st === 'done').forEach(x => push({k: x.id, t: 'md', d: hd(x.pub), code: '', name: x.ch, codes: (x.stk || []).map(s => String(s.c || '').toUpperCase()), mine: itemMine(x, hold, watch).length > 0, alert: !!x.alert, title: x.title, one: x.one || x.brief || '', url: x.url, x}));
+  ((ind && ind.items) || []).forEach(a => push({k: a.url || a.title, t: 'in', d: hd(a.d), code: '', name: a.cat, title: a.title, one: a.sum || '', url: a.url || ''}));
+  estGroups((est && est.rows) || []).forEach(o => push({k: o.code + ':' + o.d, t: 'es', d: hd(o.d), code: o.code, name: o.name, title: '法人預估' + ({up: '上修', down: '下修', init: '初評', small: '小幅調整'}[o.kind] || ''),
+    one: o.ys.map(y => `${y.y} EPS ${y.init || y.prev == null ? '' : fp(y.prev) + '→'}${fp(y.eps)}${y.pct != null && !y.init ? '（' + sgn(y.pct) + fp(y.pct) + '%）' : ''}`).join('、'), o}));
+  (mo || []).forEach(x => push({k: x.id || (x.c + x.d + x.t + x.s), t: 'mo', d: x.d, tm: x.t || '', code: x.c, name: x.n, title: x.s || '', one: [x.ty, x.r].filter(Boolean).join('｜'), url: x.u || '', x}));
+  items.sort((a, b) => a.d < b.d ? 1 : a.d > b.d ? -1 : (b.tm || '').localeCompare(a.tm || ''));
+  HUB = {items, TH, errs, at: Date.now(), by: {}};
+  items.forEach(it => { HUB.by[it.id] = it; });
+  return HUB;
+}
+function hubFilter(){
+  const F = SUB.hub, {hold, watch} = myCodeSets();
+  const sub = c => !!(HUB.TH[c] && HUB.TH[c].sub);
+  const mineOf = it => it.code ? (hold.has(it.code) || watch.has(it.code) || sub(it.code)) : !!it.mine;
+  const holdOf = it => it.code ? hold.has(it.code) : (it.codes || []).some(c => hold.has(c));
+  const q = (F.q || '').trim().toLowerCase();
+  const cut = dloc(Date.now() - 14 * 864e5);
+  const isUn = it => it.d >= cut && !HREAD.has(it.id);
+  const base = HUB.items.filter(it => (F.sc === 'all' || (F.sc === 'hold' ? holdOf(it) : mineOf(it)))
+    && (!q || (it.code + ' ' + (it.name || '') + ' ' + it.title + ' ' + (it.one || '') + ' ' + (it.codes || []).join(' ')).toLowerCase().indexOf(q) >= 0)
+    && (!F.un || isUn(it)));
+  // 「全部」分頁裡：觀測站、法人預估只列跟我有關的（不然幾千筆會把其他的洗掉）；用股號搜尋時不受限
+  const inAll = it => (it.t !== 'mo' && it.t !== 'es') || mineOf(it) || !!q;
+  const cnt = {all: 0}; HUBT.forEach(([k]) => { if (k !== 'all') cnt[k] = 0; });
+  base.forEach(it => { cnt[it.t]++; if (inAll(it)) cnt.all++; });
+  const rows = base.filter(it => F.ty === 'all' ? inAll(it) : it.t === F.ty);
+  return {rows, cnt, hold, watch, mineOf, isUn};
+}
+function hubRowHtml(it, R, compact){
+  const co = it.code ? `<b>${esc(it.code)}</b> ${esc(it.name || sname(it.code))}${R.hold.has(it.code) ? ' <span class="tag h">持股</span>' : R.watch.has(it.code) ? ' <span class="tag w">自選</span>' : ''}` : esc(it.name || '');
+  return `<div class="hrow${R.isUn(it) ? ' un' : ''}${it.id === HSEL ? ' sel' : ''}${!compact && R.mineOf(it) ? ' mine' : ''}" data-id="${esc(it.id)}"><i class="dot"></i><span class="sub">${esc(mdS(it.d))}</span>${compact ? '' : `<span class="co" ${it.code ? `data-co="${esc(it.code)}" title="看這檔的總覽"` : ''}>${co}</span>`}<span><span class="tag">${HUBN[it.t]}</span></span><span style="min-width:0"><div class="ti">${esc(it.title)}</div>${it.one ? `<div class="one">${esc(it.one)}</div>` : ''}</span></div>`;
+}
+function hubList(){
+  const R = hubFilter(), F = SUB.hub, L = $('#hl'); if (!L) return;
+  $$('#hty button').forEach(b => { const k = b.dataset.t; b.classList.toggle('on', k === F.ty); b.textContent = HUBT.find(x => x[0] === k)[1] + ' ' + (R.cnt[k] || 0); });
+  $$('#hsc button').forEach(b => b.classList.toggle('on', b.dataset.s === F.sc));
+  L.innerHTML = `<div class="hrow hdr"><i></i><span>日期</span><span>公司／來源</span><span>類型</span><span>標題・一句話重點</span></div>`
+    + (R.rows.slice(0, HN).map(it => hubRowHtml(it, R)).join('') || `<div class="empty">這個條件下沒有資料${F.sc !== 'all' ? '（可以切到「全部」看看）' : ''}</div>`)
+    + (R.rows.length > HN ? `<div style="text-align:center;padding:10px"><button class="btn g sm" id="hmore">再顯示 300 筆（共 ${R.rows.length}）</button></div>` : '');
+  const un = R.rows.filter(R.isUn).length;
+  $('#hcnt').textContent = `共 ${R.rows.length} 筆・未讀 ${un}・更新 ${new Date(HUB.at).toTimeString().slice(0, 5)}`;
+  const mm = $('#hmore'); if (mm) mm.onclick = () => { HN += 300; hubList(); };
+  L.onclick = e => { const r = e.target.closest('.hrow[data-id]'); if (!r) return; const c = e.target.closest('.co[data-co]'); if (c) return hubStock(c.dataset.co); hubSel(r.dataset.id); };
+}
+function hubHead(title, btns){
+  $('#hd').innerHTML = `<div class="hh"><b>${esc(title)}</b><span class="sub">↑↓ 切換・Esc 關閉</span><button class="ib" id="hx" aria-label="關閉">✕</button></div>${btns ? `<div class="hbt">${btns}</div>` : ''}<div id="hb">${loading()}</div>`;
+  $('#hx').onclick = hubClose; $('.hub').classList.remove('nosel'); $('#hd').scrollTop = 0;
+  $$('#hd .hbt [data-stk]').forEach(b => b.onclick = () => hubStock(b.dataset.stk));
+  $$('#hd .hbt [data-go]').forEach(b => b.onclick = () => go(b.dataset.go, b.dataset.arg));
+  return $('#hb');
+}
+function hubClose(){ HSEL = null; HSTK = null; const h = $('.hub'); if (h) h.classList.add('nosel'); $$('#hl .hrow.sel').forEach(r => r.classList.remove('sel')); }
+const docFrame = url => { const m = String(url || '').match(/docs\.google\.com\/document\/d\/([\w-]+)/); return m ? `<iframe loading="lazy" src="https://docs.google.com/document/d/${m[1]}/preview"></iframe>` : ''; };
+const openBtn = (url, t) => url ? `<a class="btn sm g" target="_blank" rel="noopener" href="${esc(url)}">${t}</a>` : '';
+async function hubSel(id){
+  const it = HUB && HUB.by[id]; if (!it) return;
+  HSEL = id; HSTK = null; hubMark(id);
+  $$('#hl .hrow').forEach(r => { const on = r.dataset.id === id; r.classList.toggle('sel', on); if (on){ r.classList.remove('un'); r.scrollIntoView({block: 'nearest'}); } });
+  const stk = it.code ? `<button class="btn sm g" data-stk="${esc(it.code)}">🧭 ${esc(it.code)} 個股總覽</button>` : '';
+  const ttl = (it.code ? it.code + ' ' + (it.name || sname(it.code)) + '｜' : '') + (it.t === 'th' ? '決策卡' : it.title);
+  if (it.t === 'th'){ const B = hubHead(ttl, stk); B.innerHTML = thCardHtml(it.T); bindCodes(B); }
+  else if (it.t === 'rp'){ const B = hubHead(ttl, openBtn(it.url, '在 Google 文件開啟') + stk); B.innerHTML = (it.one ? `<div class="card">💡 ${esc(it.one)}</div>` : '') + (docFrame(it.url) || '<div class="empty">這份報告沒有可預覽的連結</div>'); }
+  else if (it.t === 'md'){ const B = hubHead(it.name + '｜' + it.title, openBtn(it.url, it.x.src === 'pod' ? '🎧 原集頁面' : '▶ 看原片')); await vNote(it.x.id, B); }
+  else if (it.t === 'in'){ const B = hubHead(it.title, openBtn(it.url, '開啟原文')); B.innerHTML = `<div class="card"><div class="sub">${esc(it.d)}・${esc(it.name || '')}</div><div style="margin-top:6px;line-height:1.7">${esc(it.one)}</div></div>` + docFrame(it.url); }
+  else if (it.t === 'es'){ const B = hubHead(ttl, `<button class="btn sm g" data-go="est" data-arg="${esc(it.code)}">完整上下修紀錄</button>` + stk); B.innerHTML = estCard(it.o, 5); bindEst(B); }
+  else if (it.t === 'mo'){ const B = hubHead(ttl, openBtn(it.url, '觀測站原文') + stk);
+    B.innerHTML = `<div class="card"><div class="sub">${esc(it.d)} ${esc(it.tm || '')}・${esc(it.x.ty || '')}</div><h3 style="margin:6px 0;line-height:1.45">${esc(it.title)}</h3><div id="hmb" style="white-space:pre-wrap;line-height:1.65">讀取中…</div></div>`;
+    const x = it.x; let txt = '';
+    if (x.k !== 'msg' && x.k !== 'ann') txt = (x.s || '') + '\n' + (x.r || '');
+    else { if (!/^L/.test(x.id || '')){ try { const b = await ghx('info-data', 'b/' + x.d + '/' + x.c.slice(0, 2) + '.json', 86400000); if (b[x.id]) txt = b[x.id]; } catch(e){} }
+      if (!txt && x.u){ try { txt = await call('mopsBody', {u: x.u}); } catch(e){} } }
+    const el = $('#hmb'); if (el && HSEL === id) el.textContent = txt || '（全文還沒整理好，請點上方「觀測站原文」）'; }
+}
+// 個股總覽：決策卡在上，下面是這一檔所有文章的時間軸（報告、影音、法人、公告）
+function hubStock(code){
+  code = String(code || '').toUpperCase(); if (!HUB) return;
+  HSTK = code; HSEL = null; $$('#hl .hrow.sel').forEach(r => r.classList.remove('sel'));
+  const T = HUB.TH[code], R = hubFilter();
+  const B = hubHead(code + ' ' + ((T && T.name) || sname(code)) + '｜個股總覽', `<button class="btn sm g" data-go="stock" data-arg="${esc(code)}">📱 個股頁（K 線／籌碼）</button><button class="btn sm g" data-go="est" data-arg="${esc(code)}">法人上下修紀錄</button>`);
+  const tl = HUB.items.filter(it => it.t !== 'th' && (it.code === code || (it.codes || []).indexOf(code) >= 0));
+  const one = it => { if (it.t !== 'md') return it; const s = (it.x.stk || []).find(k => String(k.c || '').toUpperCase() === code) || {}; return Object.assign({}, it, {title: it.name + '｜' + it.title, one: (s.v ? s.v + '：' : '') + (s.why || it.one || '')}); };
+  B.innerHTML = (T ? thCardHtml(T) : '<div class="card"><div class="sub">這檔還沒有追蹤清單（決策卡）。在 LINE 小幫手做一次整合報告就會自動建立。</div></div>')
+    + `<div class="card"><h3>🗂 這一檔的所有文章<span class="sub" style="font-weight:400">${tl.length} 筆，新的在上面</span></h3>${tl.slice(0, 80).map(it => hubRowHtml(one(it), R, true)).join('') || '<div class="empty">最近沒有相關文章</div>'}</div>`;
+  bindCodes(B);
+  $$('.hrow[data-id]', B).forEach(r => r.onclick = () => hubSel(r.dataset.id));
+}
+async function hubView(force){
+  const M = $('#main'), seq = SEQ;
+  M.classList.add('v-hubm');
+  SUB.hub = Object.assign({ty: 'all', sc: 'all', q: '', un: false}, SUB.hub || {});
+  const F = SUB.hub;
+  M.innerHTML = `<div class="hbar"><div class="tabsm" id="hsc">${[['hold', '持股'], ['mine', '持股＋自選＋訂閱'], ['all', '全部']].map(([k, t]) => `<button data-s="${k}">${t}</button>`).join('')}</div>
+      <div class="tabsm" id="hty">${HUBT.map(([k, t]) => `<button data-t="${k}">${t}</button>`).join('')}</div>
+      <input type="search" id="hq" placeholder="🔍 股號、名稱、標題（全部類型一起找）" value="${esc(F.q)}" autocorrect="off" autocapitalize="off">
+      <label><input type="checkbox" id="hun" ${F.un ? 'checked' : ''}>只看未讀</label>
+      <button class="btn sm g" id="hall">全部標為已讀</button><button class="btn sm g" id="hre">↻ 更新</button>
+      <span class="sub" id="hcnt" style="margin-left:auto"></span></div>
+    <div id="herr"></div>
+    <div class="hub nosel"><div id="hl">${loading('讀取論點、報告、影音、法人預估、觀測站…')}</div><div id="hd"></div></div>`;
+  try { await hubLoad(force); } catch(e){ if (seq === SEQ) $('#hl').innerHTML = `<div class="err">${esc(e.message)}</div>`; return; }
+  if (seq !== SEQ || VIEW !== 'info') return;
+  if (HUB.errs.length) $('#herr').innerHTML = `<div class="sub" style="padding:0 4px 8px">⚠️ 部分資料這次沒讀到：${esc(HUB.errs.join('；'))}</div>`;
+  const re = () => { HN = 300; saveSub(); hubList(); };
+  $$('#hsc button').forEach(b => b.onclick = () => { F.sc = b.dataset.s; re(); });
+  $$('#hty button').forEach(b => b.onclick = () => { F.ty = b.dataset.t; re(); });
+  let tm; $('#hq').oninput = e => { clearTimeout(tm); tm = setTimeout(() => { F.q = e.target.value; re(); }, 300); };
+  $('#hun').onchange = e => { F.un = e.target.checked; re(); };
+  $('#hall').onclick = () => { hubFilter().rows.forEach(it => hubMark(it.id)); hubList(); toast('已全部標為已讀'); };
+  $('#hre').onclick = () => hubView(true);
+  hubList();
+  if (HOPEN){ const c = HOPEN; HOPEN = null; hubStock(c); }
+  else if (HSTK) hubStock(HSTK);
+  else if (HSEL && HUB.by[HSEL]) hubSel(HSEL);
+}
+document.addEventListener('keydown', e => {
+  if (VIEW !== 'info' || !WIDE() || !HUB || $('.mask') || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName || '')){ if (e.key === 'Escape') e.target.blur(); return; }
+  if (e.key === 'Escape'){ hubClose(); return; }
+  if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+  const ids = $$('#hl .hrow[data-id]').map(r => r.dataset.id); if (!ids.length) return;
+  e.preventDefault();
+  let i = ids.indexOf(HSEL); i = i < 0 ? 0 : Math.max(0, Math.min(ids.length - 1, i + (e.key === 'ArrowDown' ? 1 : -1)));
+  hubSel(ids[i]);
+});
+window.matchMedia('(min-width:1000px)').addEventListener('change', () => { if (VIEW === 'info') go('info', undefined, {same: true}); });
+
 function hashRoute(){
   const h = location.hash || '';
   let m;
   if ((m = h.match(/^#n=([\w-]+)(?:&t=(\d+))?/))){ NOTE_T = m[2] ? +m[2] : 0; try { history.replaceState(null, '', location.pathname); } catch(e){} go('note', m[1]); return true; }
   if ((m = h.match(/^#s=([\w]+)/))){ try { history.replaceState(null, '', location.pathname); } catch(e){} go('stock', m[1].toUpperCase()); return true; }
+  if ((m = h.match(/^#th=([\w]+)/))){ try { history.replaceState(null, '', location.pathname); } catch(e){} HOPEN = m[1].toUpperCase(); SUB.info = 'th'; go('info', undefined, {tab: true}); return true; }
   if (h === '#media'){ try { history.replaceState(null, '', location.pathname); } catch(e){} SUB.info = 'media'; go('info', undefined, {tab: true}); return true; }
   return false;
 }
