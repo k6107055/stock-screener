@@ -2225,6 +2225,7 @@ function thCardHtml(T, bare){
     <div class="act">👉 ${esc(T.light.act)}</div>
     <div class="sub">報告 ${esc(mdS(hd(T.date)))}｜${esc(T.stage || '?')}｜${esc(T.script || '?')}｜結論：<b>${esc(T.verdict || '?')}</b></div>
     ${T.thesis ? `<div style="margin-top:6px;line-height:1.55">💡 ${esc(T.thesis)}</div>` : ''}${T.breaks ? `<div style="margin-top:4px;line-height:1.55">🚧 破功條件：${esc(T.breaks)}</div>` : ''}
+    ${T.lever && T.lever.on ? `<div class="it">⚙️ <b>固定成本槓桿</b>：營收 -10%，量掉毛利額 -${T.lever.volGp.toFixed(1)}%（毛利率 -${T.lever.volPt.toFixed(1)} 點）；價掉 -${T.lever.priceGp.toFixed(1)}%<span class="sub">折舊佔營收 ${T.lever.d.toFixed(1)}%${T.lever.d0 != null ? '（去年 ' + T.lever.d0.toFixed(1) + '%）' : ''}${T.lever.cx >= 20 ? '，資本支出佔營收 ' + T.lever.cx.toFixed(1) + '%' : ''}｜${esc(T.lever.q)} 近四季</span></div>` : ''}
     ${(T.items || []).map(it => `<div class="it">${TH_IC[it.r] || '⏳'} <b>${esc(it.what)}</b>：${it.v ? esc(it.v) + (it.thr ? '（' + esc(it.thr) + '）' : '') : '還沒資料' + (it.when ? '，下次 ' + esc(it.when) : '')}${it.src ? `<span class="sub">${esc(it.src)}，${esc(it.at)} 更新</span>` : ''}</div>`).join('')}
     ${sc}${T.next ? `<div class="it">📅 下一個驗證點：${esc(T.next)}</div>` : ''}
     <div class="btns" style="margin-top:8px">${T.reportId ? `<a class="btn sm g" style="text-decoration:none" target="_blank" rel="noopener" href="https://docs.google.com/document/d/${esc(T.reportId)}/edit">📄 整合報告</a>` : ''}${T.mkt !== 'ind' && T.mkt !== 'us' ? `<button class="btn sm g" data-code="${esc(T.code)}">📱 個股頁</button>` : ''}</div>`;
