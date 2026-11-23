@@ -2585,8 +2585,37 @@ async function txForm(t, after){
     <div class="grid2" style="margin-top:0" id="fw"><div><label>手續費（自動算，可改）</label><input id="tf" inputmode="decimal" value="${esc(st.fee)}"></div><div id="txw"><label>交易稅</label><input id="tx" inputmode="decimal" value="${esc(st.tax)}"></div></div>
     <div class="grid2" style="margin-top:0"><div><label>日期</label><input type="date" id="td" value="${esc(st.d)}"></div><div><label>備註</label><input id="tn" value="${esc(st.note)}" placeholder="選填"></div></div>
     <div class="kv" style="margin-top:12px"><span class="sub">淨收付</span><b id="tnet">—</b></div>
+    <div id="tsum"></div>
     <div class="btns" style="margin-top:14px"><button class="btn" id="tsv" style="flex:1">儲存</button>${edit ? '<button class="btn red" id="tdl">刪除</button>' : ''}</div>`, (m, close) => {
     let feeTouched = !!edit, taxTouched = !!edit;
+    let ALLTX = null;
+    const posCalc = trs => { let sh = 0, cost = 0; trs.slice().sort((x, y) => x.d === y.d ? (x.at < y.at ? -1 : 1) : (x.d < y.d ? -1 : 1)).forEach(r => {
+      if (r.type === '買進'){ sh += r.sh; cost += r.sh * r.price + (r.fee || 0); }
+      else if (r.type === '股票股利'){ sh += r.sh; }
+      else if (r.type === '賣出' && sh > 0){ const s2 = Math.min(r.sh, sh), c2 = cost / sh * s2; sh -= s2; cost -= c2; } });
+      return {sh, cost, avg: sh ? cost / sh : 0}; };
+    function sum(){
+      const box = $('#tsum', m); if (!box) return;
+      const c = (($('#tc', m).value.trim().match(/^\d{4,6}[A-Z]?/i) || [''])[0]).toUpperCase();
+      if (!c || !ALLTX){ box.innerHTML = ''; return; }
+      const rows = ALLTX.rows.filter(r => r.code === c), others = rows.filter(r => !edit || r.id !== t.id);
+      const cur = {id: '__cur', d: $('#td', m).value || today(), at: edit ? (t.at || '') : '9', type: st.type, sh: qty(), price: +$('#tp', m).value || 0, fee: +$('#tf', m).value || 0};
+      const hasCur = (st.type === '買進' || st.type === '賣出' || st.type === '股票股利') && cur.sh > 0 && (st.type === '股票股利' || cur.price > 0);
+      const ps = posCalc(hasCur ? others.concat([cur]) : others);
+      const h = (ALLTX.pf.hold || []).find(x => x.code === c);
+      const px = (RTQ && RTQ.q && RTQ.q[c] && RTQ.q[c].p) || (h && h.price) || 0;
+      const mv = Math.round(px * ps.sh), pl = px && ps.sh ? mv - Math.round(ps.cost) : null;
+      const pend = others.some(r => /成本待填/.test(r.note || '')) || (edit && /成本待填/.test($('#tn', m).value || ''));
+      box.innerHTML = `<div class="card" style="margin:14px 0 0;padding:12px"><div class="sub" style="margin-bottom:6px">📊 ${esc(c)} 這檔合計${hasCur ? '（含你正在輸入的這筆）' : ''}</div>
+        <div class="grid3" style="margin-top:0"><div class="kv"><span class="sub">持有</span><b class="m">${shTxt(ps.sh)}</b></div><div class="kv"><span class="sub">平均成本</span><b class="m">${ps.sh ? fp(Math.round(ps.avg * 100) / 100) : '—'}</b></div><div class="kv"><span class="sub">總成本</span><b class="m">${fmt(Math.round(ps.cost))}</b></div></div>
+        <div class="grid2" style="margin-top:8px"><div class="kv"><span class="sub">市值${px ? '（現價 ' + fp(px) + '）' : ''}</span><b class="m">${px ? fmt(mv) : '—'}</b></div><div class="kv"><span class="sub">未實現損益</span><b class="m">${pl == null ? '—' : money(pl)}</b></div></div>
+        ${pend ? '<div class="sub" style="margin-top:8px;color:#f5a623">⚠️ 這檔有一筆「成本待填」的暫代紀錄：請直接把它的價格改成真實買進價，不要另外再新增，否則平均成本會被拉歪。</div>' : ''}
+        ${others.length ? '<div class="sub" style="margin:10px 0 2px">這檔其他交易（點一下可編輯）</div>' + others.slice().sort((x, y) => x.d < y.d ? 1 : -1).map(txRow).join('') : ''}
+        <div class="btns" style="margin-top:10px"><button class="btn sm g" id="tmore">＋ 再記一筆 ${esc(c)}（不同股數／價格）</button></div></div>`;
+      $$('[data-tx]', box).forEach(el => el.onclick = () => { const r = others.find(x => x.id === el.dataset.tx); close(); txForm(r, after); });
+      $('#tmore', box).onclick = () => { close(); txForm({code: c, name: map[c] || ''}, after); };
+    }
+    call('txList').then(d => { ALLTX = d; sum(); }).catch(() => {});
     const code = () => (($('#tc', m).value.trim().match(/^\d{4,6}[A-Z]?/i) || [''])[0]).toUpperCase();
     const qty = () => Math.round((+$('#tq', m).value || 0) * unit);
     const recalc = () => {
@@ -2596,6 +2625,7 @@ async function txForm(t, after){
       const fee = +$('#tf', m).value || 0, tax = +$('#tx', m).value || 0;
       const net = st.type === '買進' ? -(amt + fee) : st.type === '賣出' ? amt - fee - tax : st.type === '現金股利' ? (+$('#ta', m).value || 0) - fee : 0;
       $('#tnet', m).innerHTML = money(net);
+      sum();
     };
     const paint = () => {
       $$('#tt button', m).forEach(b => b.classList.toggle('on', b.dataset.t === st.type));
@@ -2616,6 +2646,7 @@ async function txForm(t, after){
       $$('[data-c]', ts).forEach(el => el.onclick = () => { tc.value = el.dataset.c + ' ' + map[el.dataset.c]; ts.hidden = true; recalc(); });
     };
     paint();
+    ['#td', '#tn'].forEach(q => { $(q, m).oninput = sum; $(q, m).onchange = sum; });
     $('#tsv', m).onclick = async () => {
       const c = code(); if (!c) return toast('請選股票');
       const a = {id: edit ? t.id : '', type: st.type, code: c, name: map[c] || st.name || '', sh: qty(), price: +$('#tp', m).value || 0, fee: +$('#tf', m).value || 0,
