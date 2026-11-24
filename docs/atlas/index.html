@@ -2586,7 +2586,7 @@ async function txForm(t, after){
     <div class="grid2" style="margin-top:0"><div><label>日期</label><input type="date" id="td" value="${esc(st.d)}"></div><div><label>備註</label><input id="tn" value="${esc(st.note)}" placeholder="選填"></div></div>
     <div class="kv" style="margin-top:12px"><span class="sub">淨收付</span><b id="tnet">—</b></div>
     <div id="tsum"></div>
-    <div class="btns" style="margin-top:14px"><button class="btn" id="tsv" style="flex:1">儲存</button>${edit ? '<button class="btn red" id="tdl">刪除</button>' : ''}</div>`, (m, close) => {
+    <div class="btns" style="margin-top:14px"><button class="btn" id="tsv" style="flex:1">儲存，接著記下一筆</button><button class="btn g" id="tdone">完成</button>${edit ? '<button class="btn red" id="tdl">刪除</button>' : ''}</div>`, (m, close) => {
     let feeTouched = !!edit, taxTouched = !!edit;
     let ALLTX = null;
     const posCalc = trs => { let sh = 0, cost = 0; trs.slice().sort((x, y) => x.d === y.d ? (x.at < y.at ? -1 : 1) : (x.d < y.d ? -1 : 1)).forEach(r => {
@@ -2647,13 +2647,14 @@ async function txForm(t, after){
     };
     paint();
     ['#td', '#tn'].forEach(q => { $(q, m).oninput = sum; $(q, m).onchange = sum; });
+    $('#tdone', m).onclick = close;
     $('#tsv', m).onclick = async () => {
       const c = code(); if (!c) return toast('請選股票');
       const a = {id: edit ? t.id : '', type: st.type, code: c, name: map[c] || st.name || '', sh: qty(), price: +$('#tp', m).value || 0, fee: +$('#tf', m).value || 0,
         tax: +$('#tx', m).value || 0, amount: +$('#ta', m).value || 0, d: $('#td', m).value, note: $('#tn', m).value};
       if (st.type === '現金股利') a.sh = 0;
       $('#tsv', m).disabled = true;
-      try { await call('txSave', a); close(); toast('✅ 已儲存'); ls.set('home', null); if (after) after(); }
+      try { await call('txSave', a); close(); toast('✅ 已儲存，可以接著記下一筆'); ls.set('home', null); if (after) after(); txForm({code: c, name: map[c] || st.name || '', type: st.type === '現金股利' ? '買進' : st.type, d: a.d}, after); }
       catch(x){ toast(x.message, 3500); $('#tsv', m).disabled = false; }
     };
     if (edit) $('#tdl', m).onclick = async () => { if (!(await confirmBox('刪除這筆交易？'))) return; try{ await call('txDel', {id: t.id}); close(); toast('已刪除'); if (after) after(); }catch(x){ toast(x.message); } };
