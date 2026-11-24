@@ -2179,14 +2179,15 @@ async function mediaSettings(box){
   box.innerHTML = `<div class="sub" style="line-height:1.7">${ok(s.tg, 'Telegram 金鑰' + (s.bot ? '（@' + esc(s.bot) + '）' : ''))}<br>${ok(s.chat, s.chat ? '已綁定你的 Telegram' : '還沒綁定：到 Telegram 找 @' + esc(s.bot || '你的機器人') + ' 按「開始」')}<br>${ok(s.gh, 'GitHub 金鑰（叫 GitHub 解析用）')}</div>
     <label>Telegram 金鑰（@BotFather 給的那串）${s.tg ? ' ✅已填' : ''}</label><input id="mtg" type="password" placeholder="${s.tg ? '已填，要換才輸入' : '123456789:ABC…'}" autocomplete="off">
     <label>論點追蹤機器人金鑰（第二個 Telegram 機器人，選填）${s.tg2 ? ' ✅已填' + (s.bot2 ? '（@' + esc(s.bot2) + (s.chat2 ? '，已綁定' : '，到 Telegram 找它按「開始」') + '）' : '') : ''}</label><input id="mtg2" type="password" placeholder="${s.tg2 ? '已填，要換才輸入' : '123456789:ABC…'}" autocomplete="off">
+    <label>法人預估／產業研究包機器人金鑰（第三個 Telegram 機器人，選填）${s.tg3 ? ' ✅已填' + (s.bot3 ? '（@' + esc(s.bot3) + (s.chat3 ? '，已綁定 ' + s.chat3 + ' 人' : '，到 Telegram 找它按「開始」') + '）' : '') : ''}</label><input id="mtg3" type="password" placeholder="${s.tg3 ? '已填，要換才輸入' : '123456789:ABC…'}" autocomplete="off">
     <label>GitHub 金鑰（細粒度，只開 stock-screener 的 Actions 讀寫）${s.gh ? ' ✅已填' : ''}</label><input id="mgh" type="password" placeholder="${s.gh ? '已填，要換才輸入' : 'github_pat_…'}" autocomplete="off">
     ${(s.mute || []).length ? `<div class="sub" style="margin-top:8px">🔕 少推的節目：${s.mute.map(m => `<button class="btn sm g" data-um="${esc(m)}">${esc(m)} ✕</button>`).join(' ')}</div>` : ''}
     <label>報價加速網址（選填，Cloudflare 中繼站）</label><input id="mqx" value="${esc(QX())}" placeholder="空白＝用預設加速；填 off＝關掉" autocorrect="off" autocapitalize="off">
     <div class="btns" style="margin-top:8px"><button class="btn sm" id="msv">儲存 Telegram／GitHub／加速</button>${QX() ? '<button class="btn sm g" id="mqt">測試加速</button>' : ''}</div>`;
   $$('[data-um]', box).forEach(b => b.onclick = async () => { try { await call('mediaSet', {unmute: b.dataset.um}); toast('🔔 已恢復推播'); mediaSettings(box); } catch(e){ toast(e.message); } });
   $('#msv', box).onclick = async () => {
-    const a = {}; const tg = $('#mtg', box).value.trim(), gh = $('#mgh', box).value.trim(), tg2 = $('#mtg2', box).value.trim();
-    if (tg) a.tg = tg; if (gh) a.gh = gh; if (tg2) a.tg2 = tg2;
+    const a = {}; const tg = $('#mtg', box).value.trim(), gh = $('#mgh', box).value.trim(), tg2 = $('#mtg2', box).value.trim(), tg3 = $('#mtg3', box).value.trim();
+    if (tg) a.tg = tg; if (gh) a.gh = gh; if (tg2) a.tg2 = tg2; if (tg3) a.tg3 = tg3;
     const qx = $('#mqx', box).value.trim();
     if (qx && qx !== 'off' && !/^https:\/\/[\w.-]+(\/[\w./-]*)?$/.test(qx)) return toast('加速網址要是 https:// 開頭');
     ls.set('qx', qx); QXBAD = 0;
