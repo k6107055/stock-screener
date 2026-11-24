@@ -1744,7 +1744,7 @@ async function vInfo(){
   if (SUB.info === 'yt') SUB.info = 'media';
   const s = SUB.info || 'mops';
   const M = $('#main');
-  M.innerHTML = `<div class="seg" id="seg"><button data-s="th">論點</button><button data-s="mops">觀測站</button><button data-s="media">影音</button><button data-s="rep">報告</button><button data-s="est">法人預估</button><button data-s="ind">產業研究</button></div><div id="ib">${loading()}</div>`;
+  M.innerHTML = `<div class="seg" id="seg"><button data-s="th">論點</button><button data-s="mops">觀測站</button><button data-s="media">影音</button><button data-s="rep">報告</button><button data-s="est">法人預估</button><button data-s="ig">隱含成長</button><button data-s="ind">產業研究</button></div><div id="ib">${loading()}</div>`;
   $$('#seg button').forEach(b => { b.classList.toggle('on', b.dataset.s === s); b.onclick = () => { SUB.info = b.dataset.s; vInfo(); }; });
   const B = $('#ib');
   try {
@@ -1752,6 +1752,7 @@ async function vInfo(){
     if (s === 'mops') return await mopsView(B);
     if (s === 'media') return await mediaView(B);
     if (s === 'est') return await estView(B);
+    if (s === 'ig') return await igView(B);
     if (s === 'est0'){
       const days = SUB.estDays || 3, mine = !!SUB.estMine;
       const d = await call('estList', {days, mineOnly: mine});
@@ -2219,6 +2220,29 @@ function hubReadSync(){
   HRSYNC = Date.now();
   return rawCall('hubRead', {}).then(a => { (a || []).forEach(x => HREAD.add(x)); ls.set('hubRead', [...HREAD].slice(-600)); }).catch(() => {});
 }
+// ====================== 隱含成長率排行（股價反推：未來5年EPS每年要成長多少才合理）======================
+async function igView(B){
+  const bs = SUB.igB || 'g0', onlyH = !!SUB.igH;
+  B.innerHTML = loading('計算隱含成長率…');
+  let d; try { d = await call('implied'); } catch(e){ B.innerHTML = `<div class="err">${esc(e.message)}</div>`; return; }
+  const held = new Set(((HOMEF && HOMEF.pf && HOMEF.pf.hold) || []).map(x => x.code));
+  const epsK = {g0: 'e0', g1: 'e1', gc: 'core'}[bs];
+  let rows = d.rows.filter(r => r[bs] != null && (!onlyH || held.has(r.code))).sort((a, b) => a[bs] - b[bs]);
+  const none = d.rows.filter(r => r[bs] == null && (!onlyH || held.has(r.code)));
+  const col = g => g <= 10 ? '#3fb27f' : g <= 25 ? '#d9a441' : '#e5534b';
+  const lab = {g0: d.yr + ' 預估 EPS', g1: (d.yr + 1) + ' 預估 EPS', gc: '本業 EPS（近四季）'}[bs];
+  B.innerHTML = `<div class="tabsm" id="igb">${[['g0', '今年預估'], ['g1', '明年預估'], ['gc', '本業EPS']].map(([k, t]) => `<button data-b="${k}" class="${k === bs ? 'on' : ''}">${t}</button>`).join('')}<button id="igh" class="${onlyH ? 'on' : ''}">只看持股</button></div>
+    <div class="card"><h3>隱含成長率排行 <span class="sub" style="font-weight:400">${esc(lab)}・由低到高</span></h3>
+    <div class="sub" style="margin-bottom:6px">用目前股價反推：未來 5 年 EPS 每年要成長多少，股價才合理（折現率 ${Math.round(d.p.r * 100)}%、第 5 年 ${d.p.tm} 倍本益比）。越低越可能被低估。</div>
+    ${rows.map((r, i) => `<div class="row" data-code="${esc(r.code)}"><div class="l"><div class="nm">${i + 1}　${cn(r.code, r.name)}${held.has(r.code) ? ' <span class="tag h">持股</span>' : ''}</div>
+      <div class="sub">股價 ${fp(r.price)}・EPS ${fp(r[epsK])}${bs !== 'gc' && r.gc != null ? '・本業 ' + r.gc.toFixed(1) + '%' : ''}${bs === 'gc' && r.g0 != null ? '・預估 ' + r.g0.toFixed(1) + '%' : ''}</div></div>
+      <div class="r m" style="color:${col(r[bs])};font-size:17px"><b>${r[bs] <= -90 ? '≤ -90' : r[bs].toFixed(1)}%</b></div></div>`).join('') || '<div class="empty">沒有資料</div>'}</div>
+    ${none.length ? `<div class="card"><h3>沒有這項資料 <span class="sub" style="font-weight:400">${none.length} 檔</span></h3><div class="sub">${none.map(r => esc(r.code + ' ' + r.name)).join('、')}</div></div>` : ''}
+    <div class="sub" style="padding:0 4px 12px">更新 ${esc(d.at)}。「本業EPS」＝近四季 EPS 扣掉業外損益；和預估差很多時，代表獲利靠業外撐著，要小心。</div>`;
+  $$('#igb [data-b]', B).forEach(b => b.onclick = () => { SUB.igB = b.dataset.b; igView(B); });
+  $('#igh', B).onclick = () => { SUB.igH = !onlyH; igView(B); };
+  bindCodes(B);
+}
 function thCardHtml(T, bare){
   const sc = T.scan && T.scan.s && T.scan.s.length ? `<div class="it">🔭 <b>AI 訊號檢查</b>（${esc(mdS(hd(T.scan.d)))}）：${T.scan.s.map(g => (g.e === '+' ? '✅' : g.e === '-' ? '❌' : '➖') + esc(g.w) + '：' + esc(g.n)).join('；')}</div>` : '';
   const h = `<div class="lt">${esc(T.light.e)} ${esc(T.light.t)} <span class="sub" style="font-weight:400">${esc(T.light.basis)}</span></div>
@@ -2226,6 +2250,7 @@ function thCardHtml(T, bare){
     <div class="sub">報告 ${esc(mdS(hd(T.date)))}｜${esc(T.stage || '?')}｜${esc(T.script || '?')}｜結論：<b>${esc(T.verdict || '?')}</b></div>
     ${T.thesis ? `<div style="margin-top:6px;line-height:1.55">💡 ${esc(T.thesis)}</div>` : ''}${T.breaks ? `<div style="margin-top:4px;line-height:1.55">🚧 破功條件：${esc(T.breaks)}</div>` : ''}
     ${T.lever && T.lever.on ? `<div class="it">⚙️ <b>固定成本槓桿</b>：營收 -10%，量掉毛利額 -${T.lever.volGp.toFixed(1)}%（毛利率 -${T.lever.volPt.toFixed(1)} 點）；價掉 -${T.lever.priceGp.toFixed(1)}%<span class="sub">折舊佔營收 ${T.lever.d.toFixed(1)}%${T.lever.d0 != null ? '（去年 ' + T.lever.d0.toFixed(1) + '%）' : ''}${T.lever.cx >= 20 ? '，資本支出佔營收 ' + T.lever.cx.toFixed(1) + '%' : ''}｜${esc(T.lever.q)} 近四季</span></div>` : ''}
+    ${T.ig && (T.ig.g0 != null || T.ig.gc != null) ? `<div class="it">📐 <b>隱含成長率</b>：${T.ig.g0 != null ? '今年預估 ' + T.ig.g0.toFixed(1) + '%' : ''}${T.ig.g1 != null ? '｜明年預估 ' + T.ig.g1.toFixed(1) + '%' : ''}${T.ig.gc != null ? '｜本業EPS ' + T.ig.gc.toFixed(1) + '%' : ''}<span class="sub">用目前股價反推，未來 5 年 EPS 每年要成長這麼多才合理；越低越便宜</span></div>` : ''}
     ${(T.items || []).map(it => `<div class="it">${TH_IC[it.r] || '⏳'} <b>${esc(it.what)}</b>：${it.v ? esc(it.v) + (it.thr ? '（' + esc(it.thr) + '）' : '') : '還沒資料' + (it.when ? '，下次 ' + esc(it.when) : '')}${it.src ? `<span class="sub">${esc(it.src)}，${esc(it.at)} 更新</span>` : ''}</div>`).join('')}
     ${sc}${T.next ? `<div class="it">📅 下一個驗證點：${esc(T.next)}</div>` : ''}
     <div class="btns" style="margin-top:8px">${T.reportId ? `<a class="btn sm g" style="text-decoration:none" target="_blank" rel="noopener" href="https://docs.google.com/document/d/${esc(T.reportId)}/edit">📄 整合報告</a>` : ''}${T.mkt !== 'ind' && T.mkt !== 'us' ? `<button class="btn sm g" data-code="${esc(T.code)}">📱 個股頁</button>` : ''}</div>`;
@@ -2360,7 +2385,7 @@ async function hubView(force){
       <div class="tabsm" id="hty">${HUBT.map(([k, t]) => `<button data-t="${k}">${t}</button>`).join('')}</div>
       <input type="search" id="hq" placeholder="🔍 股號、名稱、標題（全部類型一起找）" value="${esc(F.q)}" autocorrect="off" autocapitalize="off">
       <label><input type="checkbox" id="hun" ${F.un ? 'checked' : ''}>只看未讀</label>
-      <button class="btn sm g" id="hall">全部標為已讀</button><button class="btn sm g" id="hre">↻ 更新</button>
+      <button class="btn sm g" id="hall">全部標為已讀</button><button class="btn sm g" id="hig">📐 隱含成長</button><button class="btn sm g" id="hre">↻ 更新</button>
       <span class="sub" id="hcnt" style="margin-left:auto"></span></div>
     <div id="herr"></div>
     <div class="hub nosel"><div id="hl">${loading('讀取論點、報告、影音、法人預估、觀測站…')}</div><div id="hd"></div></div>`;
@@ -2374,6 +2399,7 @@ async function hubView(force){
   $('#hun').onchange = e => { F.un = e.target.checked; re(); };
   $('#hall').onclick = () => { hubFilter().rows.forEach(it => hubMark(it.id)); hubList(); toast('已全部標為已讀'); };
   $('#hre').onclick = () => hubView(true);
+  $('#hig').onclick = () => modal('📐 隱含成長率排行', '<div id="igm"></div>', () => igView($('#igm')));
   hubList();
   if (HOPEN){ const c = HOPEN; HOPEN = null; hubStock(c); }
   else if (HSTK) hubStock(HSTK);
