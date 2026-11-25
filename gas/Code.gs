@@ -1,5 +1,5 @@
 /**
- * LINE 股票檔案小幫手 v2.20（v2.20 報告不再卡在待抓取：常開電腦沒開或優分析被登出時，自動改由雲端寫（沿用最近一份小助理＋網路最新資料）；v2.19 報告提速：小助理抓好（或美股／產業工作建立）就用 API 立刻叫雲端寫報告，不再等整點排程；v2.18 省額度：選股自動報告與每日名單推播預設關閉、小助理抓好不再單獨推播（併入報告完成通知）；v2.17 選股網站超額利潤階段；v2.16 選股網站：個股法人預估／小助理／我的關注；v2.15 報告加入供應鏈順序、上下修性質、EPS 時間軸；同步上修雷達；v2.14 主程式放 GitHub，由啟動程式載入；v2.13 一鍵更新：GitHub＋Apps Script＋竄改猴；v2.12 X 長文抓全文＋圖片文字、存檔後自我檢查完整度；v2.11 連結不再卡住沒回應、額度查詢；v2.10 自動報告標示來源＋可關閉；v2.9 股號一律附股名、筆記判斷修正與一鍵改；v2.8 清單裡沒有的股號即時查證交所；v2.7 指令可打股名；補齊上櫃股票清單；v2.6 提高連結判斷準確率＋分錯了一鍵改；v2.5 一則多檔股票的整理自動拆到各公司；v2.4 圖片／PDF 用文字辨識判斷股票；v2.3 文字筆記 memo 自動歸檔；v2.2 報告改為決策卡＋證據的精簡版；v2.1 報告加入超額利潤期判斷；v2.0 美股：歸檔＋整合報告；小助理更新重點：追蹤推播 08:30／21:00、雷達、歷史紀錄）
+ * LINE 股票檔案小幫手 v2.24（v2.24 整合報告加入「產能與折舊」：產能開出時間表、折舊佔毛利、新產能折舊推估、擴產損益兩平；v2.20 報告不再卡在待抓取：常開電腦沒開或優分析被登出時，自動改由雲端寫（沿用最近一份小助理＋網路最新資料）；v2.19 報告提速：小助理抓好（或美股／產業工作建立）就用 API 立刻叫雲端寫報告，不再等整點排程；v2.18 省額度：選股自動報告與每日名單推播預設關閉、小助理抓好不再單獨推播（併入報告完成通知）；v2.17 選股網站超額利潤階段；v2.16 選股網站：個股法人預估／小助理／我的關注；v2.15 報告加入供應鏈順序、上下修性質、EPS 時間軸；同步上修雷達；v2.14 主程式放 GitHub，由啟動程式載入；v2.13 一鍵更新：GitHub＋Apps Script＋竄改猴；v2.12 X 長文抓全文＋圖片文字、存檔後自我檢查完整度；v2.11 連結不再卡住沒回應、額度查詢；v2.10 自動報告標示來源＋可關閉；v2.9 股號一律附股名、筆記判斷修正與一鍵改；v2.8 清單裡沒有的股號即時查證交所；v2.7 指令可打股名；補齊上櫃股票清單；v2.6 提高連結判斷準確率＋分錯了一鍵改；v2.5 一則多檔股票的整理自動拆到各公司；v2.4 圖片／PDF 用文字辨識判斷股票；v2.3 文字筆記 memo 自動歸檔；v2.2 報告改為決策卡＋證據的精簡版；v2.1 報告加入超額利潤期判斷；v2.0 美股：歸檔＋整合報告；小助理更新重點：追蹤推播 08:30／21:00、雷達、歷史紀錄）
  * ------------------------------------------------------------
  * v1.0 功能：把 PDF 轉傳給 LINE bot → 自動判斷股票／產業 → 重新命名
  *            → 存進 Google 雲端對應資料夾（沒有就自動建立）→ LINE 回報
@@ -1788,6 +1788,7 @@ const REPORT_RULES = [
   '- 新聞、網頁資料標明出處網站與日期；與券商原文衝突時以券商原文為準並說明。',
   '- 若你有網路搜尋工具，可以補「最新且可查證」的公開資料（公司公告、月營收、法說會簡報、產業報價、同業擴產新聞），每一筆都要附網址與日期，來源標「網路」；與 files 原文衝突時以券商原文為準並說明。沒有搜尋工具就只用 files。',
   '- files/選股系統技術面.md 是使用者自己的 SEPA 選股系統（超級績效趨勢模板＋VCP）當天的計算結果，技術面數字以它為準。',
+  '- files/產能與折舊.md 是程式從 FinMind 公開財報算好的近 12 季單季數字（營收、毛利、折舊、資本支出，單位億元）：折舊佔毛利／折舊佔營收一律以它為準，不要自己估；檔內「重資產：是」才寫三段(4)的②③④，「重資產：否」只寫①產能開出時間表。',
   '- files/我的筆記.md 是使用者自己用 LINE 記下的筆記（最新在最上面，每則有日期）：代表使用者的觀察與疑問，不是查證過的資料。報告要①在決策卡或相關段落回應筆記裡的疑問與論點（同意／不同意＋證據）②筆記裡的數字若找不到原文佐證，列入查證提醒，不可當成事實引用。',
   '- files/小助理更新紀錄.md 是優分析「小助理更新重點」逐日累積的一句話重點（最多約 4 個月）：在本期重點與論點追蹤中，指出最近的更新與較早的說法相比「改變了什麼」（例如由樂觀轉保守、數字上修或下修），並標出日期。',
   '',
@@ -1799,7 +1800,7 @@ const REPORT_RULES = [
   '- 資料不夠的問題，決策卡寫「資料不足：缺〇〇」，不要硬給結論；這比錯的結論更有價值。',
   '',
   '## 首次全面版，依序：',
-  '⚡ 決策卡（緊接在圖例後面，表格四欄：問題｜結論｜信心 高／中／低｜關鍵佐證：1 個數字＋來源日期）。八列固定：',
+  '⚡ 決策卡（緊接在圖例後面，表格四欄：問題｜結論｜信心 高／中／低｜關鍵佐證：1 個數字＋來源日期）。九列固定：',
   '  ① 產業階段＋供應鏈位置：價漲期／量增期／趨緩期／下行期（對應六階段：③漲價＝價漲期、④⑤＝量增期、⑥＝趨緩期、之後＝下行期）；並寫「本公司是第幾棒、前一棒走到哪」（依「產業輪動判斷框架」A）。',
   '  ② 獲利主要來自：漲價／稼動率／產品升級／出貨量，依貢獻排序（例：產品升級＞稼動率＞漲價）。',
   '  ③ 新產能開出後劇本：價量齊揚／ASP 持平或小漲、由出貨量接棒／量增價跌；並寫「增幅最大的時間點」（例：2027H1）。',
@@ -1808,6 +1809,7 @@ const REPORT_RULES = [
   '  ⑥ 公司營運轉折點：預估落在哪一季（向上或向下的轉折都要寫明方向）。',
   '  ⑦ 股價已反映多少＋EPS 時間軸：例「已反映正常化 EPS 的 1.3 倍＝反映到 2027 年」；並寫 EPS 是「今年就有」還是「明年才有、股價先反映」（後者標⚠️估值修正風險）。',
   '  ⑧ 最近的上下修：有沒有被法人上修／下修、原因是需求端（週期未到尾）還是供給端（出貨／產量優於預期、搶市占＝可能尾段）、同業是否同步上修。沒有上下修資料就寫「近期無」。',
+  '  ⑨ 產能與折舊：新產能開出時間（Brownfield／Greenfield，第幾年第幾季、量增放量年）＋折舊佔毛利 目前→新產能開出後推估＋擴產兩平 賺得回來／勉強／有風險（非重資產股只寫產能開出時間）。',
   '  決策卡下方一行「🎯 結論：續抱／趁高檔跑／快跑／觀察（尚未到轉折點）」＋一行「📅 下一個驗證點：事件＋日期」（例：11/10 十月營收、法說會）。',
   '',
   '一、本期重點（最多 3 點，只放會改變決策卡的事）',
@@ -1821,6 +1823,11 @@ const REPORT_RULES = [
   '  (2) 第一階段的獲利動能，到新產能開出後還在嗎？→ 劇本判斷（③價量齊揚續抱／④價轉量趁高檔跑／⑤價跌量增快跑）與增幅最大的時間點。',
   '  (3) 轉折點時間：需求是否開始下修、供給是否開始上修、資本支出上修是正面還是反動力；推估公司營運轉折落在哪一季。',
   '  選股系統技術面.md 若有「超額利潤型態」標籤，對照說明是否一致。',
+  '  (4) 產能與折舊（支撐決策卡⑨）：',
+  '      ① 產能開出時間表（每份都要）：表格 廠區｜Brownfield／Greenfield｜規模（佔現有產能 %）｜開出時間（年＋季）｜來源日期；最後一行寫「量增放量年＝〇〇年；Brownfield 剩約〇%」。查不到就寫「資料不足：缺〇〇」。',
+  '      ② 折舊佔毛利趨勢（重資產才寫）：用 files/產能與折舊.md 列近 8 季 折舊｜毛利｜折舊佔毛利｜折舊佔營收，一句話說趨勢（下降＝毛利成長快過折舊、固定成本槓桿正在發揮；上升＝新產能折舊開始壓毛利）。',
+  '      ③ 新產能折舊壓力推估（重資產才寫）：用公司公告的資本支出（沒有就用近四季資本支出）推估新廠開出後每年新增折舊（寫明假設，例如設備 5～8 年、廠房 20 年），推算開出那年的折舊佔毛利（目前→推估）；再寫營收下滑 10% 時毛利額約掉多少（固定成本槓桿）。',
+  '      ④ 擴產損益兩平（重資產才寫）：新產能每年要多賺多少毛利才能打平新增折舊＋固定成本 → 換算需要的營收或稼動率，判斷「賺得回來／勉強／有風險」，並寫依據（在手訂單、客戶、ASP）。',
   '四、估值：已反映多少成長（支撐決策卡⑦）—— 禁止直接用景氣高峰 EPS 算便宜貴：',
   '  (1) 正常化 EPS：用一個完整循環（含一次谷底，約 5～8 年）的平均毛利率或營益率 × 目前合理營收規模估算；若產品升級有實證，可上調並寫明理由與幅度。歷史資料不足就寫「資料不足」並改用法人中期（明後年）EPS 的保守值，並標明。',
   '  (2) 比較：歷史本益比／股價淨值比區間（低、中位、高）與 2～4 家同業目前估值（表格：公司｜股價｜PE（正常化）｜PB｜備註）。',
@@ -1832,7 +1839,7 @@ const REPORT_RULES = [
   '附錄：查證提醒（數字矛盾、AI整理線索）、法人縱向明細、資料清單。',
   '',
   '## 追蹤版（第二次以後），依序：',
-  '⚡ 決策卡：同首次版七列，多一欄「與上版比」（↑轉好／↓轉壞／＝不變，變了要寫舊→新）；任何一列結論改變，標題標「⚠️ 結論改變」並寫進摘要。',
+  '⚡ 決策卡：同首次版九列，多一欄「與上版比」（↑轉好／↓轉壞／＝不變，變了要寫舊→新）；任何一列結論改變，標題標「⚠️ 結論改變」並寫進摘要。',
   '  決策卡下方同樣有「🎯 結論」與「📅 下一個驗證點」。',
   '一、本期重點（最多 3 點，只講這段期間的變化）',
   '二、改變了什麼：小助理差異（🆕新增、🔄數字改變 舊→新、❌消失）＋法人上修／下修＋新資料；沒變的不要重複。',
@@ -1869,12 +1876,14 @@ function buildPack(code, name) {
   const docs = [], reports = [], pdfs = [], images = [], others = [], sheets = [], slides = [];
   let techDoc = null, memoDoc = null;
   if (!isUS(code)) { try { techDoc = refreshScreenerDoc(code, name || getStockMap()[code] || '', folder); } catch (e) { console.warn('選股系統技術面失敗：' + e); } }
+  let depDoc = null;
+  if (!isUS(code)) { try { depDoc = refreshDepDoc(code, name || getStockMap()[code] || '', folder); } catch (e) { console.warn('產能與折舊失敗：' + e); } }
   const it = folder.getFiles();
   while (it.hasNext()) {
     const f = it.next();
     const n = f.getName();
     const mt = f.getMimeType();
-    if (/_舊版|_Gemini測試報告_|_選股系統技術面|_小助理更新紀錄/.test(n)) continue;
+    if (/_舊版|_Gemini測試報告_|_選股系統技術面|_小助理更新紀錄|_產能與折舊/.test(n)) continue;
     if (n.indexOf(MEMO_SUFFIX) >= 0 && mt === MimeType.GOOGLE_DOCS) { memoDoc = f; continue; }
     if (mt === MimeType.PDF) pdfs.push(f);
     else if (/^image\//.test(mt) && !/heic|heif/.test(mt)) images.push(f);
@@ -1889,6 +1898,7 @@ function buildPack(code, name) {
   [docs, reports, pdfs, images, others, sheets, slides].forEach(function (a) { a.sort(byNew); });
   const clean = function (n) { return n.replace(/[\\\/:*?"<>|]/g, '_'); };
   if (techDoc) files.push({ id: techDoc.getId(), name: '選股系統技術面.md', kind: 'doc' });
+  if (depDoc) files.push({ id: depDoc.getId(), name: '產能與折舊.md', kind: 'doc' });
   if (memoDoc) files.push({ id: memoDoc.getId(), name: '我的筆記.md', kind: 'doc' });
   if (!isUS(code)) try { const ud = refreshUpdatesDoc(code, name || getStockMap()[code] || '', folder); if (ud) files.push({ id: ud.getId(), name: '小助理更新紀錄.md', kind: 'doc' }); } catch (e) { console.warn('小助理更新紀錄失敗：' + e); }
   docs.slice(0, 2).forEach(function (f, i) { files.push({ id: f.getId(), name: (i === 0 ? '小助理原文_最新_' : '小助理原文_上一份_') + clean(f.getName()) + '.md', kind: 'doc' }); });
@@ -2446,6 +2456,68 @@ function refreshScreenerDoc(code, name, folder) {
   doc.saveAndClose();
   return DriveApp.getFileById(doc.getId());
 }
+
+// ===== v2.24 產能與折舊（FinMind 公開財報；重資產＝近 8 季任一季折舊佔毛利 ≥ 10%）=====
+const HEAVY_DEP_GP = 10;
+function depLeverMarkdown(code, name) {
+  const st = Utilities.formatDate(new Date(Date.now() - (365 * 4 + 60) * 86400000), TZ, 'yyyy-MM-dd');
+  const cf = finmind('TaiwanStockCashFlowsStatement', code, st);
+  const qs = pubQuarterly(finmind('TaiwanStockFinancialStatements', code, st));
+  if (!cf.length || !qs.length) return null;
+  const cum = {};
+  cf.forEach(function (r) {
+    if (r.type === 'Depreciation' || r.type === 'PropertyAndPlantAndEquipment') (cum[r.type] = cum[r.type] || {})[String(r.date).slice(0, 10)] = +r.value;
+  });
+  // 現金流量表是「年初累計」→ 轉成單季
+  const single = function (m) {
+    const out = {};
+    Object.keys(m || {}).forEach(function (d) {
+      const mo = +d.slice(5, 7), y = d.slice(0, 4);
+      if (mo === 3) { out[d] = m[d]; return; }
+      const pk = Object.keys(m).filter(function (k) { return k.slice(0, 7) === y + '-' + ('0' + (mo - 3)).slice(-2); })[0];
+      if (pk) out[d] = m[d] - m[pk];
+    });
+    return out;
+  };
+  const dep = single(cum.Depreciation), capex = single(cum.PropertyAndPlantAndEquipment);
+  const yi = function (v) { return v === undefined || v === null ? null : Math.round(v / 1e6) / 100; };
+  const f = function (v) { return v === null || v === undefined || isNaN(v) ? '—' : String(v); };
+  const rows = qs.slice(-12).map(function (q) {
+    const d = q.q, dp = yi(dep[d]), cx = capex[d] === undefined ? null : Math.abs(yi(capex[d]));
+    const lab = d.slice(0, 4) + 'Q' + Math.ceil(+d.slice(5, 7) / 3);
+    const dgp = dp !== null && q.gp > 0 ? Math.round(dp / q.gp * 1000) / 10 : null;
+    const drev = dp !== null && q.rev > 0 ? Math.round(dp / q.rev * 1000) / 10 : null;
+    return { lab: lab, rev: q.rev, gp: q.gp, gm: q.gm, dep: dp, dgp: dgp, drev: drev, cx: cx };
+  });
+  const last8 = rows.slice(-8).map(function (r) { return r.dgp; }).filter(function (v) { return v !== null; });
+  const maxDgp = last8.length ? Math.max.apply(null, last8) : null;
+  const heavy = maxDgp !== null && maxDgp >= HEAVY_DEP_GP;
+  const L = ['# 產能與折舊（FinMind 公開財報，程式計算）',
+    '股票：' + code + ' ' + (name || '') + '｜產生日期：' + Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd') + '｜單位：億元（單季）',
+    '重資產：' + (heavy ? '是' : '否') + '（判斷：近 8 季任一季折舊佔毛利 ≥ ' + HEAVY_DEP_GP + '%；近 8 季最高 ' + f(maxDgp) + '%）', '',
+    '| 季度 | 營收 | 毛利 | 毛利率% | 折舊 | 折舊佔毛利% | 折舊佔營收% | 資本支出 |',
+    '|---|---|---|---|---|---|---|---|'];
+  rows.forEach(function (r) { L.push('| ' + [r.lab, f(r.rev), f(r.gp), f(r.gm), f(r.dep), f(r.dgp), f(r.drev), f(r.cx)].join(' | ') + ' |'); });
+  const l4 = rows.slice(-4);
+  const sum = function (k) { let s = 0, n = 0; l4.forEach(function (r) { if (r[k] !== null) { s += r[k]; n++; } }); return n === 4 ? Math.round(s * 100) / 100 : null; };
+  const d4 = sum('dep'), c4 = sum('cx');
+  L.push('', '近四季合計：折舊 ' + f(d4) + '、資本支出 ' + f(c4) + (d4 && c4 ? '、資本支出 ÷ 折舊 ＝ ' + (Math.round(c4 / d4 * 10) / 10) + ' 倍（> 1.5 倍代表正在擴產，新產能完工後折舊會往上）' : ''));
+  return L.join('\n');
+}
+function refreshDepDoc(code, name, folder) {
+  const md = depLeverMarkdown(code, name);
+  if (!md) return null;
+  const title = code + '_產能與折舊（自動更新）';
+  const it = folder.getFilesByName(title);
+  let doc;
+  if (it.hasNext()) doc = DocumentApp.openById(it.next().getId());
+  else { doc = DocumentApp.create(title); DriveApp.getFileById(doc.getId()).moveTo(folder); }
+  doc.getBody().setText(md);
+  doc.saveAndClose();
+  return DriveApp.getFileById(doc.getId());
+}
+// 測試用：在執行記錄印出某檔的產能與折舊資料（不寫檔）
+function testDepLever() { console.log(depLeverMarkdown('3044', '健鼎')); }
 
 // 選股系統每天跑完呼叫：推播給所有成員＋訊號股自動排入報告
 function screenerPush(p, body) {
@@ -4148,7 +4220,7 @@ function fetchXPostFull(url) {
 
 
 // v2.14 一鍵更新改由「啟動程式」（Apps Script 裡的 Code.gs）負責；這份主程式放在 GitHub 的 gas/Code.gs
-const APP_VERSION = 'v2.23';
+const APP_VERSION = 'v2.24';
 
 // ===== v2.13 清理暫存屬性（指令碼屬性超過 50 個時，畫面會變唯讀）=====
 function cleanupProps() {
