@@ -2842,7 +2842,13 @@ applyPriv();
   if (hashRoute()) return;
   const l = ls.get('last', null); try { if (l && TITLES[l.v]) return go(l.v, l.arg || undefined, {tab: true}); } catch(e){} go('stock', undefined, {tab: true}); })();
 // 離線也能秒開：把畫面檔存在手機（新版本會在下次打開時自動換上）
-if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+if ('serviceWorker' in navigator && location.protocol === 'https:'){
+  const hadSW = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register('sw.js', {updateViaCache: 'none'}).then(r => { r.update().catch(() => {}); }).catch(() => {});
+  // v2.33 有新版就自動重新整理一次（不用自己關掉重開兩次）
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadSW && !window.__swReload){ window.__swReload = 1; location.reload(); } });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) navigator.serviceWorker.getRegistration().then(r => r && r.update()).catch(() => {}); });   // 從背景切回來也檢查新版
+}
 </script>
 </body>
 </html>
