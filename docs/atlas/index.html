@@ -2190,7 +2190,7 @@ async function qxCall(op, args){
     if (!j.idx || !j.idx.twse) return null;
     return {q, idx: qxIdx(j.idx), open: j.open, at: j.at}; }
   if (op === 'tick'){ const j = await qxFetch([args.code], false, true); if (!j || !j.q[args.code]) return null; return {q: j.q[args.code], open: j.open, at: j.at}; }
-  if (op === 'live'){ const j = await qxGet('/live?c=' + encodeURIComponent(args.code), 'live'); if (!j || !j.q) return null; return {q: j.q, intr: j.intr, open: j.open, at: j.at}; }
+  if (op === 'live'){ const j = await qxGet('/live?c=' + encodeURIComponent(args.code), 'live', 2500); if (!j || !j.q) return null; return {q: j.q, intr: j.intr, open: j.open, at: j.at}; }
   if (op === 'kline'){ const j = await qxGet('/k?c=' + encodeURIComponent(args.code), 'kline', 4000); if (!j || !j.k || !j.k.t.length) return null; return {k: j.k}; }
   return null;
 }
