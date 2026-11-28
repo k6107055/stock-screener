@@ -1,6 +1,6 @@
 // Atlas：畫面檔存在手機，沒網路也打得開
 // v32：主畫面改「先上網拿最新版（最多等 2.5 秒）→ 拿不到才用手機裡的」，而且繞過瀏覽器的 10 分鐘快取 → 一推新版，下次打開就是新的
-const V = 'atlas-shell-v32';
+const V = 'atlas-shell-v33';
 const SHELL = ['./', './index.html', './icon-180.png', './icon-192.png', './lwc-4.1.3.js'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(V).then(c => c.addAll(SHELL.map(u => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));

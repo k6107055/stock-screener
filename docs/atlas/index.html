@@ -175,6 +175,9 @@ button:active,.ht.rw:active,.row[data-code]:active,.card[id^=go]:active{opacity:
 .ht .nm2{font-weight:600;font-size:15px;line-height:1.2}.ht .cd{font-size:12px;color:var(--sub)}
 .lu{background:var(--up);color:#fff!important;border-radius:4px;padding:0 3px}.ld{background:var(--down);color:#fff!important;border-radius:4px;padding:0 3px}
 .pk .ht{grid-template-columns:1.2fr .95fr .95fr .95fr}
+.wt{grid-template-columns:1.25fr .95fr .8fr .85fr .8fr}.wt.r4{grid-template-columns:1.25fr .95fr .9fr .9fr .9fr}
+.wt .cd{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.wt .c b{font-size:15px}.wt .c .m{font-size:14px}
+.wt.rw.fu .c b,.wt.rw.fd .c b{transition:none}
 label.ck{display:flex;gap:10px;align-items:center;color:var(--tx);font-size:16px;margin:12px 0}label.ck input{width:22px;height:22px}
 .sugg div.sr{padding:9px 10px 9px 14px}
 body:not(.priv) .privhint{display:none}
@@ -1064,11 +1067,82 @@ async function refreshLists(){
 }
 async function pollLists(){
   const codes = Object.keys(LISTS.info);
-  { const d = await call('quotes', {codes, idx: 1}); if (d.idx && d.idx.twse){ IDXQ = d.idx; ls.set('idx', d.idx); paintIdx(); } Object.keys(d.q).forEach(c => { const i = LISTS.info[c]; if (!i) return; const o = i.p; i.p = d.q[c].p; i.c = d.q[c].c; i.y = d.q[c].y || null;
-      const el = $(`#wl [data-code="${c}"] .px`); if (el){ el.innerHTML = `<b>${fp(i.p)}</b><div>${chgBoth(i.p, i.c, i.y)}</div>`; if (o != null && o !== i.p){ el.classList.remove('fu', 'fd'); void el.offsetWidth; el.classList.add(i.p > o ? 'fu' : 'fd'); } } });
-    LISTS.open = d.open; const t = $('#wlAt'); if (t) t.textContent = (d.open ? '即時 ' : '收盤 ') + d.at;
-    if (Date.now() - (pollLists.saved || 0) > 30000){ pollLists.saved = Date.now(); ls.set('lists', LISTS); }   // 存手機 30 秒一次就好，不要每 2.5 秒寫一次
-  }
+  const d = await call('quotes', {codes, idx: 1}); if (d.idx && d.idx.twse){ IDXQ = d.idx; ls.set('idx', d.idx); paintIdx(); }
+  const moved = {};
+  Object.keys(d.q).forEach(c => { const i = LISTS.info[c]; if (!i) return; const o = i.p, q = d.q[c];
+    i.p = q.p; i.c = q.c; i.y = q.y || i.y || null; if (q.v != null) i.v = q.v; if (q.u) i.u = q.u; if (q.dn) i.dn = q.dn;
+    if (o != null && o !== i.p) moved[c] = i.p > o ? 'fu' : 'fd'; });
+  LISTS.open = d.open; LISTS.at = d.at;
+  if (!EDIT && VIEW === 'stock' && !SUB.code && $('#wl')) paintWlRows(moved);   // v2.34 排序時名次跟著即時跳
+  const t = $('#wlAt'); if (t) t.textContent = (d.open ? '即時 ' : '收盤 ') + d.at;
+  if (Date.now() - (pollLists.saved || 0) > 30000){ pollLists.saved = Date.now(); ls.set('lists', LISTS); }   // 存手機 30 秒一次就好
+}
+// ====================== v2.34 自選清單看盤表：點表頭排序（▼大到小 → ▲小到大 → 原本順序）、即時／區間漲幅兩組欄位 ======================
+const WCOLS = {rt: [['p', '股價'], ['chg', '漲跌'], ['c', '漲跌%'], ['v', '量(張)']], rng: [['p', '股價'], ['r5', '近5日'], ['r20', '近20日'], ['rY', '今年']]};
+const RNG = {};   // 代號 → {d: 日期, c5, c20, cY}（用預抓好的 K 線算，一天算一次）
+async function rngBase(c){
+  const td = today(); if (RNG[c] && RNG[c].d === td) return RNG[c];
+  let kc = await kcGet(c);
+  if (!kc || !kc.k){ try { const d = await call('kline', {code: c}); if (d && d.k){ kcPut(c, d.k); kc = {k: d.k}; } } catch(e){} }
+  if (!kc || !kc.k) return null;
+  const k = kc.k, iso = td.length === 8 ? td.slice(0, 4) + '-' + td.slice(4, 6) + '-' + td.slice(6) : td, hist = [];
+  for (let i = 0; i < k.t.length; i++) if (k.t[i] < iso) hist.push(i);   // 只用今天以前的收盤
+  const at = n => hist.length >= n ? k.c[hist[hist.length - n]] : null;
+  let cY = null; const y0 = iso.slice(0, 4) + '-01-01'; for (let j = hist.length - 1; j >= 0; j--) if (k.t[hist[j]] < y0){ cY = k.c[hist[j]]; break; }
+  return (RNG[c] = {d: td, c5: at(5), c20: at(20), cY});
+}
+function wlVal(c, k){
+  const x = LISTS.info[c] || {}, p = x.p;
+  if (k === 'p') return p == null ? null : p;
+  if (k === 'c') return x.c == null ? null : x.c;
+  if (k === 'chg') return chgAmt(p, x.c, x.y);
+  if (k === 'v') return x.v == null ? null : x.v;
+  const b = RNG[c]; if (!b || !p) return null;
+  const base = k === 'r5' ? b.c5 : k === 'r20' ? b.c20 : b.cY;
+  return base ? (p / base - 1) * 100 : null;
+}
+function wlCell(c, k){
+  const x = LISTS.info[c] || {}, v = wlVal(c, k);
+  const lu = x.u ? x.p >= x.u : x.c != null && x.c >= 9.4, ld = x.dn ? x.p <= x.dn : x.c != null && x.c <= -9.4;
+  const lim = lu ? ' lu' : ld ? ' ld' : '';
+  if (k === 'p') return `<b class="${cls(x.c)}${lim}">${fp(x.p)}</b>`;
+  if (v == null) return '<span class="sub">—</span>';
+  if (k === 'chg') return `<span class="${cls(v)} m">${sgn(v)}${fp(v)}</span>`;
+  if (k === 'c') return `<span class="${cls(v)}${lim} m">${sgn(v)}${fp(Math.round(v * 100) / 100)}%</span>`;
+  if (k === 'v') return `<span class="m">${fmt(v)}</span>`;
+  return pctC(v);
+}
+function wlSorted(cur, codes){
+  const st = (SUB.ws || {})[cur]; if (!st || !st.k) return codes;
+  const key = c => { const v = st.k === 'code' ? c : wlVal(c, st.k); return v; };
+  return codes.slice().sort((a, b) => { const va = key(a), vb = key(b);
+    if (va == null && vb == null) return 0; if (va == null) return 1; if (vb == null) return -1;   // 沒資料的永遠排最後
+    return (va < vb ? -1 : va > vb ? 1 : 0) * st.d; });
+}
+function wlRowsHtml(cur, codes){
+  const set = SUB.wc === 'rng' ? 'rng' : 'rt', cols = WCOLS[set], st = (SUB.ws || {})[cur] || {};
+  const hd = `<div class="ht wt hd${set === 'rng' ? ' r4' : ''}"><button data-ws="code" style="text-align:left" class="${st.k === 'code' ? 'on' : ''}">股票${st.k === 'code' ? (st.d < 0 ? ' ▼' : ' ▲') : ''}</button>${cols.map(([k, t]) => `<button data-ws="${k}" class="${st.k === k ? 'on' : ''}">${t}${st.k === k ? (st.d < 0 ? ' ▼' : ' ▲') : ' ⇅'}</button>`).join('')}</div>`;
+  const rows = wlSorted(cur, codes).map(c => { const x = LISTS.info[c] || {};
+    const est = x.e ? `・EPS ${fp(x.e.eps)} ${pct(x.e.pct)}` : '';
+    return `<div class="ht wt rw${set === 'rng' ? ' r4' : ''}" data-code="${esc(c)}"><div><div class="nm2">${esc(x.n || sname(c))}</div><div class="cd">${esc(c)}${est}</div></div>${cols.map(([k]) => `<div class="c">${wlCell(c, k)}</div>`).join('')}</div>`; }).join('');
+  return hd + rows;
+}
+function paintWlRows(moved){
+  const box = $('#wlt'); if (!box) return;
+  const cur = curList(), L = LISTS.lists.find(l => l.name === cur), codes = cur === '__hold' ? LISTS.hold : (L ? L.codes : []);
+  morph(box, wlRowsHtml(cur, codes)); bindWlTable(cur, codes);
+  Object.keys(moved || {}).forEach(c => { const el = $(`#wlt [data-code="${c}"]`); if (el){ el.classList.remove('fu', 'fd'); void el.offsetWidth; el.classList.add(moved[c]); } });
+}
+function bindWlTable(cur, codes){
+  const box = $('#wlt'); if (!box) return;
+  bindCodes(box);
+  $$('[data-ws]', box).forEach(b => b.onclick = ev => { ev.stopPropagation(); const k = b.dataset.ws; const ws = SUB.ws = SUB.ws || {}; const s0 = ws[cur] || {};
+    ws[cur] = s0.k !== k ? {k, d: k === 'code' ? 1 : -1} : s0.d === (k === 'code' ? 1 : -1) ? {k, d: -s0.d} : {};   // 第一次大到小、第二次小到大、第三次恢復原本順序
+    saveSub(); paintWlRows(); });
+}
+async function loadRng(codes){
+  let n = 0; for (const c of codes){ if (SUB.wc !== 'rng') return; await rngBase(c); if (++n % 4 === 0) paintWlRows(); }
+  paintWlRows();
 }
 function paintLists(){
   const cur = curList();
@@ -1085,10 +1159,12 @@ function paintLists(){
         : `<div class="r px"><b>${fp(x.p)}</b><div>${chgBoth(x.p, x.c, x.y)}</div></div>`}</div>`; };
   $('#wl').innerHTML = `<div class="card"><h3>${cur === '__hold' ? '💼 持股（從記帳自動帶入）' : esc(cur)}<span class="sub" id="wlAt" style="font-weight:400">${LISTS.open ? '即時 ' + esc(LISTS.at) : '已收盤'}</span>
       ${editable ? `<button class="more" id="edit">${EDIT ? '完成' : '✏️ 編輯'}</button>` : ''}</h3>
-    ${codes.map(row).join('') || `<div class="empty">${cur === '__hold' ? '記帳 → 股票交易 記一筆買進後就會出現' : '用上面的搜尋框找股票，按 ＋ 加進來'}</div>`}
+    ${codes.length && !(EDIT && editable) ? `<div class="tabsm" id="wcs" style="margin:2px 0 4px">${[['rt', '即時'], ['rng', '區間漲幅']].map(([k, t]) => `<button data-k="${k}" class="${(SUB.wc === 'rng' ? 'rng' : 'rt') === k ? 'on' : ''}">${t}</button>`).join('')}</div><div id="wlt">${wlRowsHtml(cur, codes)}</div>` : ''}
+    ${(EDIT && editable ? codes.map(row).join('') : codes.length ? ' ' : '') || `<div class="empty">${cur === '__hold' ? '記帳 → 股票交易 記一筆買進後就會出現' : '用上面的搜尋框找股票，按 ＋ 加進來'}</div>`}
     ${EDIT && editable && !(L && L.line) ? `<div class="btns" style="margin-top:12px"><button class="btn sm g" id="lrn">改清單名稱</button><button class="btn sm red" id="ldel">刪除這個清單</button></div>` : ''}
     ${L && L.line ? '<div class="sub" style="margin-top:8px">這個清單和 LINE 股票檔案小幫手、選股網站共用</div>' : ''}</div>`;
-  if (!EDIT) bindCodes($('#wl'));
+  if (!EDIT){ bindWlTable(cur, codes); $$('#wcs button').forEach(b => b.onclick = () => { SUB.wc = b.dataset.k; saveSub(); paintLists(); });
+    if (SUB.wc === 'rng') loadRng(codes); }
   const e = $('#edit'); if (e) e.onclick = () => { EDIT = !EDIT; paintLists(); };
   $$('#wl [data-mv]').forEach(b => b.onclick = async ev => { ev.stopPropagation(); const c = b.closest('[data-code]').dataset.code; const arr = L.codes, i = arr.indexOf(c), j = b.dataset.mv === 'up' ? i - 1 : i + 1; arr.splice(j, 0, arr.splice(i, 1)[0]); paintLists(); try { await call('listMove', {list: cur, code: c, dir: b.dataset.mv}); ls.set('lists', LISTS); } catch(x){ toast(x.message); refreshLists(); } });
   $$('#wl [data-rm]').forEach(b => b.onclick = async ev => { ev.stopPropagation(); const c = b.closest('[data-code]').dataset.code; L.codes = L.codes.filter(x => x !== c); paintLists(); try { await call('listDel', {list: cur, code: c}); ls.set('lists', LISTS); } catch(x){ toast(x.message); refreshLists(); } });
@@ -2195,7 +2271,7 @@ function qxIdx(jidx){
 }
 async function qxCall(op, args){
   if (op === 'quotes'){ const j = await qxFetch(args.codes || [], !!args.idx, false); if (!j) return null;
-    const q = {}; Object.keys(j.q).forEach(c => { const x = j.q[c]; q[c] = {p: x.price, c: x.prev ? r2f((x.price / x.prev - 1) * 100) : null, y: x.prev, t: x.t, v: x.v}; });
+    const q = {}; Object.keys(j.q).forEach(c => { const x = j.q[c]; q[c] = {p: x.price, c: x.prev ? r2f((x.price / x.prev - 1) * 100) : null, y: x.prev, t: x.t, v: x.v, u: x.up, dn: x.down}; });
     return {q, open: j.open, at: j.at, idx: j.idx ? qxIdx(j.idx) : j.idx}; }
   if (op === 'rt'){ const j = await qxFetch(args.codes || [], true, false); if (!j) return null;
     const q = {}; Object.keys(j.q).forEach(c => { const x = j.q[c]; q[c] = {p: x.price, y: x.prev, t: x.t, v: x.v}; });
