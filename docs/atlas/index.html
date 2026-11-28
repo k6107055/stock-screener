@@ -1070,7 +1070,7 @@ async function pollLists(){
   const d = await call('quotes', {codes, idx: 1}); if (d.idx && d.idx.twse){ IDXQ = d.idx; ls.set('idx', d.idx); paintIdx(); }
   const moved = {};
   Object.keys(d.q).forEach(c => { const i = LISTS.info[c]; if (!i) return; const o = i.p, q = d.q[c];
-    i.p = q.p; i.c = q.c; i.y = q.y || i.y || null; if (q.v != null) i.v = q.v; if (q.u) i.u = q.u; if (q.dn) i.dn = q.dn;
+    i.p = q.p; i.c = q.c; i.y = q.y || i.y || null; if (q.v != null) i.v = q.v; if (q.u) i.u = q.u; if (q.dn) i.dn = q.dn; if (q.d) i.d = q.d;
     if (o != null && o !== i.p) moved[c] = i.p > o ? 'fu' : 'fd'; });
   LISTS.open = d.open; LISTS.at = d.at;
   if (!EDIT && VIEW === 'stock' && !SUB.code && $('#wl')) paintWlRows(moved);   // v2.34 排序時名次跟著即時跳
@@ -1081,15 +1081,23 @@ async function pollLists(){
 const WCOLS = {rt: [['p', '股價'], ['chg', '漲跌'], ['c', '漲跌%'], ['v', '量(張)']], rng: [['p', '股價'], ['r5', '近5日'], ['r20', '近20日'], ['rY', '今年']]};
 const RNG = {};   // 代號 → {d: 日期, c5, c20, cY}（用預抓好的 K 線算，一天算一次）
 async function rngBase(c){
-  const td = today(); if (RNG[c] && RNG[c].d === td) return RNG[c];
+  const td = today(); if (RNG[c] && RNG[c].day === td) return RNG[c];
   let kc = await kcGet(c);
   if (!kc || !kc.k){ try { const d = await call('kline', {code: c}); if (d && d.k){ kcPut(c, d.k); kc = {k: d.k}; } } catch(e){} }
   if (!kc || !kc.k) return null;
-  const k = kc.k, iso = td.length === 8 ? td.slice(0, 4) + '-' + td.slice(4, 6) + '-' + td.slice(6) : td, hist = [];
-  for (let i = 0; i < k.t.length; i++) if (k.t[i] < iso) hist.push(i);   // 只用今天以前的收盤
-  const at = n => hist.length >= n ? k.c[hist[hist.length - n]] : null;
-  let cY = null; const y0 = iso.slice(0, 4) + '-01-01'; for (let j = hist.length - 1; j >= 0; j--) if (k.t[hist[j]] < y0){ cY = k.c[hist[j]]; break; }
-  return (RNG[c] = {d: td, c5: at(5), c20: at(20), cY});
+  const n = kc.k.t.length, from = Math.max(0, n - 300);
+  return (RNG[c] = {day: td, t: kc.k.t.slice(from), c: kc.k.c.slice(from)});
+}
+// 區間漲幅的基準：只用「報價那天以前」的收盤（平日盤中、收盤後、週末、盤前都對）
+function rngPct(c, k, p){
+  const b = RNG[c]; if (!b || !p) return null;
+  const x = LISTS.info[c] || {}, qd = x.d && /^\d{8}$/.test(x.d) ? x.d.slice(0, 4) + '-' + x.d.slice(4, 6) + '-' + x.d.slice(6) : today();
+  let e = b.t.length; while (e > 0 && b.t[e - 1] >= qd) e--;
+  let base = null;
+  if (k === 'r5') base = e >= 5 ? b.c[e - 5] : null;
+  else if (k === 'r20') base = e >= 20 ? b.c[e - 20] : null;
+  else { const y0 = qd.slice(0, 4) + '-01-01'; for (let j = e - 1; j >= 0; j--) if (b.t[j] < y0){ base = b.c[j]; break; } }
+  return base ? (p / base - 1) * 100 : null;
 }
 function wlVal(c, k){
   const x = LISTS.info[c] || {}, p = x.p;
@@ -1097,9 +1105,7 @@ function wlVal(c, k){
   if (k === 'c') return x.c == null ? null : x.c;
   if (k === 'chg') return chgAmt(p, x.c, x.y);
   if (k === 'v') return x.v == null ? null : x.v;
-  const b = RNG[c]; if (!b || !p) return null;
-  const base = k === 'r5' ? b.c5 : k === 'r20' ? b.c20 : b.cY;
-  return base ? (p / base - 1) * 100 : null;
+  return rngPct(c, k, p);
 }
 function wlCell(c, k){
   const x = LISTS.info[c] || {}, v = wlVal(c, k);
@@ -2271,7 +2277,7 @@ function qxIdx(jidx){
 }
 async function qxCall(op, args){
   if (op === 'quotes'){ const j = await qxFetch(args.codes || [], !!args.idx, false); if (!j) return null;
-    const q = {}; Object.keys(j.q).forEach(c => { const x = j.q[c]; q[c] = {p: x.price, c: x.prev ? r2f((x.price / x.prev - 1) * 100) : null, y: x.prev, t: x.t, v: x.v, u: x.up, dn: x.down}; });
+    const q = {}; Object.keys(j.q).forEach(c => { const x = j.q[c]; q[c] = {p: x.price, c: x.prev ? r2f((x.price / x.prev - 1) * 100) : null, y: x.prev, t: x.t, v: x.v, u: x.up, dn: x.down, d: x.d}; });
     return {q, open: j.open, at: j.at, idx: j.idx ? qxIdx(j.idx) : j.idx}; }
   if (op === 'rt'){ const j = await qxFetch(args.codes || [], true, false); if (!j) return null;
     const q = {}; Object.keys(j.q).forEach(c => { const x = j.q[c]; q[c] = {p: x.price, y: x.prev, t: x.t, v: x.v}; });
