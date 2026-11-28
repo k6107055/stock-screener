@@ -403,7 +403,7 @@ async function rawCall(op, args){ ACTIVE++; try { return await rawCall0(op, args
 async function rawCall0(op, args){
   if (window.__testApi) return window.__testApi(op, args || {});
   if (!CFG) throw new Error('尚未配對');
-  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 30000);
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 30000), t0 = Date.now();
   let r;
   try { r = await fetch(CFG.u, {method: 'POST', body: JSON.stringify({k: CFG.k, op, args: args || {}}), headers: {'Content-Type': 'text/plain;charset=utf-8'}, signal: ctl.signal, credentials: 'omit', cache: 'no-store'}); }
   catch(e){ throw new Error(e.name === 'AbortError' ? '連線逾時，請再試一次' : '網路連不上，請檢查網路'); }
@@ -411,8 +411,12 @@ async function rawCall0(op, args){
   let j; try { j = await r.json(); } catch(e){ throw new Error('伺服器忙線（' + r.status + '），請再試一次'); }
   if (!j.ok && j.error === 'AUTH'){ pairScreen('金鑰不對或已更換，請用新的配對連結'); throw new Error('需要重新配對'); }
   if (!j.ok) throw new Error(j.error);
+  diag(op, 'Apps Script', Date.now() - t0, true);
   return j.data;
 }
+// v2.30 速度診斷：記下每種資料最近從哪裡來、花幾毫秒（⚙️ 看得到）
+const DIAG = {};
+function diag(op, src, ms, ok){ const d = DIAG[op] = DIAG[op] || {n: 0, sum: 0}; d.src = src; d.ms = ms; d.ok = ok; d.at = Date.now(); if (ok){ d.n++; d.sum += ms; } }
 // ====================== 快取層：切換分頁先秀上次的資料，背景再更新（不用每次等 2～3 秒）======================
 const SWR = {estList: 1, indList: 1, repList: 1, enList: 1, txList: 1, assets: 1};
 const WRITE = /^(tx|en|ac)(Save|Del|Batch|Calibrate)$|^snapNow$|^init$|^saveSettings$|^media(Set|Req)$|^list(Add|Del|Move|Create|Rename|Drop|Reorder)$/;
@@ -426,15 +430,16 @@ function call(op, args){
   args = args || {};
   if (WRITE.test(op)){ MUT = Date.now(); MC.clear(); return rawCall(op, args); }
   if (SWR[op] && !args.offset) return swr(op, args, true);
-  if ((op === 'quotes' || op === 'rt' || op === 'tick') && QX()) return qxCall(op, args).then(r => r || rawCall(op, args));
-  if (!TTL[op]) return rawCall(op, args);
+  const fetchOp = () => QXOPS[op] && QX() ? qxCall(op, args).then(r => r || rawCall(op, args)) : rawCall(op, args);   // 公開行情先走 Cloudflare，失敗才這一筆退回 Apps Script
+  if (!TTL[op]) return fetchOp();
   const k = ckey(op, args), h = MC.get(k);
   if (h && h.t > MUT && Date.now() - h.t < TTL[op]) return h.p;
-  const p = rawCall(op, args); MC.set(k, {t: Date.now(), p});
+  const p = fetchOp(); MC.set(k, {t: Date.now(), p});
   p.catch(() => { if (MC.get(k) && MC.get(k).p === p) MC.delete(k); });
   if (MC.size > 200) MC.delete(MC.keys().next().value);
   return p;
 }
+const QXOPS = {quotes: 1, rt: 1, tick: 1, live: 1, kline: 1};
 function ckey(op, args){ return op + JSON.stringify(args); }
 function fetchFresh(op, args){
   const k = ckey(op, args);
@@ -2146,29 +2151,55 @@ function morph(el, html){ if (!el) return; if (!el.firstChild){ el.innerHTML = h
 let QXBAD = 0;
 const QX_DEF = 'https://atlas-quote.k6107055.workers.dev';   // v2.18 報價加速（Cloudflare 台灣機房）預設開啟；⚙️ 可以改或清空
 const QX = () => { const v = ls.get('qx', null); return (v === null || v === '' ? QX_DEF : v === 'off' ? '' : v).replace(/\/+$/, ''); };   // 要關掉就在 ⚙️ 填 off
-async function qxFetch(codes, idx, book){
+// v2.30：逾時 1.5 秒（K 線 4 秒）；連續失敗 3 次才暫停 15 秒，其餘只有失敗的那一筆退回 Apps Script
+let QXFAIL = 0;
+async function qxGet(path, tag, ms){
   const u = QX(); if (!u || QXBAD > Date.now()) return null;
-  const ctl = new AbortController(); const tm = setTimeout(() => ctl.abort(), 3500);
+  const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), ms || 1500), t0 = Date.now();
   try {
-    const r = await fetch(u + '/q?c=' + encodeURIComponent(codes.join(',')) + (idx ? '&i=1' : '') + (book ? '&b=1' : ''), {signal: ctl.signal, cache: 'no-store'});
+    const r = await fetch(u + path, {signal: ctl.signal, cache: 'no-store'});
     if (!r.ok) throw new Error(r.status);
-    const j = await r.json(); if (!j || !j.q) throw new Error('bad');
-    if (codes.length && !Object.keys(j.q).length) throw new Error('empty');
-    return j;
-  } catch(e){ QXBAD = Date.now() + 60000; return null; } finally { clearTimeout(tm); }
+    const j = await r.json(); if (!j || j.error) throw new Error((j && j.error) || 'bad');
+    QXFAIL = 0; diag(tag, 'Cloudflare', Date.now() - t0, true); return j;
+  } catch(e){ diag(tag, 'Cloudflare', Date.now() - t0, false); if (++QXFAIL >= 3){ QXBAD = Date.now() + 15000; QXFAIL = 0; } return null; }
+  finally { clearTimeout(tm); }
+}
+async function qxFetch(codes, idx, book){
+  const j = await qxGet('/q?c=' + encodeURIComponent(codes.join(',')) + (idx ? '&i=1&f=1' : '') + (book ? '&b=1' : ''), book ? 'tick' : idx ? 'rt' : 'quotes');
+  if (!j || !j.q || (codes.length && !Object.keys(j.q).length)) return null;
+  return j;
 }
 const r2f = v => Math.round(v * 100) / 100;
+// 指數：Cloudflare 給的加權／櫃買／台指期；台指期沒給到就沿用舊的，並在背景跟 Apps Script 補（最多 15 秒一次）
+let FUTBG = 0;
+function qxIdx(jidx){
+  const old = IDXQ || ls.get('idx', null) || {}, idx = Object.assign({}, jidx);
+  if (!idx.fut){
+    if (old.fut) idx.fut = old.fut;
+    if ((futOpen() || !old.fut) && Date.now() - FUTBG > 15000){ FUTBG = Date.now();
+      rawCall('rt', {codes: []}).then(r => { if (r && r.idx && r.idx.fut){ IDXQ = Object.assign({}, IDXQ || {}, {fut: r.idx.fut}); ls.set('idx', IDXQ); paintIdx(); if (typeof paintIxQ === 'function') paintIxQ(); } }).catch(() => {}); }
+  }
+  return idx;
+}
 async function qxCall(op, args){
   if (op === 'quotes'){ const j = await qxFetch(args.codes || [], !!args.idx, false); if (!j) return null;
     const q = {}; Object.keys(j.q).forEach(c => { const x = j.q[c]; q[c] = {p: x.price, c: x.prev ? r2f((x.price / x.prev - 1) * 100) : null, t: x.t, v: x.v}; });
-    return {q, open: j.open, at: j.at, idx: j.idx}; }
+    return {q, open: j.open, at: j.at, idx: j.idx ? qxIdx(j.idx) : j.idx}; }
   if (op === 'rt'){ const j = await qxFetch(args.codes || [], true, false); if (!j) return null;
     const q = {}; Object.keys(j.q).forEach(c => { const x = j.q[c]; q[c] = {p: x.price, y: x.prev, t: x.t, v: x.v}; });
     if (!j.idx || !j.idx.twse) return null;
-    const old = IDXQ || ls.get('idx', null) || {}; const idx = Object.assign({}, j.idx); if (old.fut && !idx.fut) idx.fut = old.fut;
-    return {q, idx, open: j.open, at: j.at}; }
+    return {q, idx: qxIdx(j.idx), open: j.open, at: j.at}; }
   if (op === 'tick'){ const j = await qxFetch([args.code], false, true); if (!j || !j.q[args.code]) return null; return {q: j.q[args.code], open: j.open, at: j.at}; }
+  if (op === 'live'){ const j = await qxGet('/live?c=' + encodeURIComponent(args.code), 'live'); if (!j || !j.q) return null; return {q: j.q, intr: j.intr, open: j.open, at: j.at}; }
+  if (op === 'kline'){ const j = await qxGet('/k?c=' + encodeURIComponent(args.code), 'kline', 4000); if (!j || !j.k || !j.k.t.length) return null; return {k: j.k}; }
   return null;
+}
+function diagHtml(){
+  const N = {quotes: '自選報價', rt: '持股＋指數', tick: '個股跳價', live: '個股第一筆', kline: 'K 線', stockMore: '小幫手資料', stockMe: '我的持股', stockFiles: '雲端檔案', homeFast: '首頁持股', homeInfo: '首頁資訊'};
+  const rows = Object.keys(DIAG).sort((a, b) => DIAG[b].at - DIAG[a].at).slice(0, 14).map(k => { const d = DIAG[k];
+    const avg = d.n ? Math.round(d.sum / d.n) : null, slow = d.ms > 1500;
+    return `<tr><td>${esc(N[k] || k)}</td><td>${esc(d.src)}</td><td class="${!d.ok ? 'down' : slow ? 'down' : ''}">${d.ok ? d.ms + ' ms' : '失敗'}</td><td class="sub">${avg != null ? '平均 ' + avg : ''}</td></tr>`; }).join('');
+  return rows ? `<table class="bk" style="width:100%;font-size:13px"><tr><th>資料</th><th>來源</th><th>最近</th><th></th></tr>${rows}</table><div class="sub" style="margin-top:4px">紅字＝超過 1.5 秒或失敗；Cloudflare 失敗會自動改用 Apps Script</div>` : '<div class="sub">還沒有紀錄，先逛幾個分頁再回來看</div>';
 }
 
 // ====================== v2.13 ⚙️ Telegram／GitHub／報價加速 設定 ======================
@@ -2183,7 +2214,8 @@ async function mediaSettings(box){
     <label>GitHub 金鑰（細粒度，只開 stock-screener 的 Actions 讀寫）${s.gh ? ' ✅已填' : ''}</label><input id="mgh" type="password" placeholder="${s.gh ? '已填，要換才輸入' : 'github_pat_…'}" autocomplete="off">
     ${(s.mute || []).length ? `<div class="sub" style="margin-top:8px">🔕 少推的節目：${s.mute.map(m => `<button class="btn sm g" data-um="${esc(m)}">${esc(m)} ✕</button>`).join(' ')}</div>` : ''}
     <label>報價加速網址（選填，Cloudflare 中繼站）</label><input id="mqx" value="${esc(QX())}" placeholder="空白＝用預設加速；填 off＝關掉" autocorrect="off" autocapitalize="off">
-    <div class="btns" style="margin-top:8px"><button class="btn sm" id="msv">儲存 Telegram／GitHub／加速</button>${QX() ? '<button class="btn sm g" id="mqt">測試加速</button>' : ''}</div>`;
+    <div class="btns" style="margin-top:8px"><button class="btn sm" id="msv">儲存 Telegram／GitHub／加速</button>${QX() ? '<button class="btn sm g" id="mqt">測試加速</button>' : ''}</div>
+    <label style="margin-top:12px">⚡ 速度診斷</label><div id="mdg">${diagHtml()}</div>`;
   $$('[data-um]', box).forEach(b => b.onclick = async () => { try { await call('mediaSet', {unmute: b.dataset.um}); toast('🔔 已恢復推播'); mediaSettings(box); } catch(e){ toast(e.message); } });
   $('#msv', box).onclick = async () => {
     const a = {}; const tg = $('#mtg', box).value.trim(), gh = $('#mgh', box).value.trim(), tg2 = $('#mtg2', box).value.trim(), tg3 = $('#mtg3', box).value.trim();
@@ -2194,7 +2226,7 @@ async function mediaSettings(box){
     try { if (Object.keys(a).length){ const r = await call('mediaSet', a); toast(r.chat ? '✅ 已儲存' : '✅ 已儲存，接著到 Telegram 找 @' + (r.bot || '你的機器人') + ' 按「開始」', 5000); } else toast('✅ 已儲存'); mediaSettings(box); }
     catch(e){ toast('❌ ' + e.message, 5000); }
   };
-  const qt = $('#mqt', box); if (qt) qt.onclick = async () => { const t0 = Date.now(); QXBAD = 0; const j = await qxFetch(['2330'], true, false); toast(j && j.q['2330'] ? `✅ 加速正常：台積電 ${j.q['2330'].price}（${Date.now() - t0} 毫秒）` : '❌ 加速網址連不上，會自動用原本的方式', 5000); };
+  const qt = $('#mqt', box); if (qt) qt.onclick = async () => { const t0 = Date.now(); QXBAD = 0; const j = await qxFetch(['2330'], true, false); toast(j && j.q['2330'] ? `✅ 加速正常：台積電 ${j.q['2330'].price}（${Date.now() - t0} 毫秒）${j.idx && j.idx.fut ? '・台指期 ' + j.idx.fut.p : '・台指期走備援'}` : '❌ 加速網址連不上，會自動用原本的方式', 5000); const g = $('#mdg', box); if (g) g.innerHTML = diagHtml(); };
 }
 
 // ====================== 深層連結：Telegram 卡片的「📖 完整筆記」→ Atlas 直接打開那一集 ======================
