@@ -1,0 +1,23 @@
+name: 論點訊號週檢查（Gemini）
+
+on:
+  schedule:
+    # 每週日台灣時間 18:10（GitHub 排程常延遲，提早跑，20:00 推播前一定完成）
+    - cron: '10 10 * * 0'
+  workflow_dispatch:
+
+jobs:
+  sig:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - run: pip install requests
+      - run: python sig/weekly.py
+        env:
+          GAS_URL: ${{ secrets.GAS_URL }}
+          GAS_KEY: ${{ secrets.GAS_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}

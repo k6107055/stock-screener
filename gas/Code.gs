@@ -76,6 +76,7 @@ function doPost(e) {
   if (p.action === 'screener') return json(screenerPush(p, body));     // v1.6 選股系統每日結果
   if (p.action === 'feed') return json(feedIngest(p, body));            // v1.9 竄改猴交「小助理更新重點」
   if (body.action === 'site') return json(siteApi(body));               // v2.16 選股網站個股視窗／我的關注
+  if (p.action === 'sigOut') return json(sigOut(p, body));              // v2.25 論點訊號週檢查（Gemini 版）交結果
   (body.events || []).forEach(function (ev) {
     try {
       handleEvent(ev);
@@ -97,6 +98,7 @@ function doGet(e) {
   if (p.action === 'uaAlert') return json(uaAlert(p));              // v1.9.1 常開電腦的優分析被登出
   if (p.action === 'hasJob') return json(hasJobForScraper(p));      // v1.9.2 有沒有報告工作在等（不領工作）
   if (p.action === 'file') return runnerFile(p);                   // 下載單一檔案（base64 純文字）
+  if (p.action === 'sigIn') return json(sigIn(p));                 // v2.25 論點訊號週檢查（Gemini 版）取名單＋追蹤清單
   return ContentService.createTextOutput('股票檔案小幫手 ' + APP_VERSION + ' 運作中');
 }
 
@@ -4220,7 +4222,7 @@ function fetchXPostFull(url) {
 
 
 // v2.14 一鍵更新改由「啟動程式」（Apps Script 裡的 Code.gs）負責；這份主程式放在 GitHub 的 gas/Code.gs
-const APP_VERSION = 'v2.24';
+const APP_VERSION = 'v2.25';
 
 // ===== v2.13 清理暫存屬性（指令碼屬性超過 50 個時，畫面會變唯讀）=====
 function cleanupProps() {
@@ -4606,4 +4608,45 @@ function sitePhases(codes) {
     });
   }
   return { ok: true, q: out };
+}
+
+
+// ===== v2.25 論點訊號週檢查改由 GitHub Actions（Python＋Gemini＋Google 搜尋）執行，不再用 Claude =====
+// sigIn：給 Python 訂閱名單＋每檔最新的追蹤清單；sigOut：把結果存成「_系統/訊號檢查_yyyyMMdd」（格式跟原本 Claude 版完全一樣，20:00 推播照舊）
+const SIG_SHEET = '1u6tfDyFfw3gDFGiSiZtYDNnn39qMKkXExyAGhbq1d5I';
+const SIG_FOLDER = '1PxKatgtq0lCdQuiKoYA0hX3Hv5xOKxuH';
+function sigIn(p) {
+  if (!checkScrapeKey(p)) return { ok: false, error: 'bad key' };
+  const sh = SpreadsheetApp.openById(SIG_SHEET).getSheetByName('訂閱');
+  if (!sh) return { ok: false, error: '找不到「訂閱」分頁' };
+  const v = sh.getDataRange().getDisplayValues();
+  const hd = v[0].map(function (x) { return String(x).trim(); });
+  const ci = function (n) { return hd.indexOf(n); };
+  const stocks = v.slice(1).map(function (r) {
+    return { code: String(r[ci('股號')] || '').trim(), name: String(r[ci('名稱')] || '').trim(), type: String(r[ci('類型')] || '').trim(), added: String(r[ci('加入日期')] || '').trim() };
+  }).filter(function (x) { return /^\d{4,6}[A-Z]?$/.test(x.code); });
+  // 每檔找「追蹤清單_{股號}_」開頭、名稱最新（日期最大）的一份
+  const best = {};
+  const it = DriveApp.getFolderById(SIG_FOLDER).searchFiles("title contains '追蹤清單_' and trashed = false");
+  while (it.hasNext()) {
+    const f = it.next(), m = f.getName().match(/^追蹤清單_(\d{4,6}[A-Z]?)_/);
+    if (!m) continue;
+    if (!best[m[1]] || f.getName() > best[m[1]].getName()) best[m[1]] = f;
+  }
+  const lists = {};
+  stocks.forEach(function (x) {
+    const f = best[x.code]; if (!f) return;
+    try { lists[x.code] = JSON.parse(f.getBlob().getDataAsString('UTF-8')); } catch (e) { /* 壞檔就當沒有 */ }
+  });
+  return { ok: true, today: Utilities.formatDate(new Date(), 'Asia/Taipei', 'yyyy-MM-dd'), stocks: stocks, lists: lists };
+}
+function sigOut(p, body) {
+  if (!checkScrapeKey(p)) return { ok: false, error: 'bad key' };
+  if (!body || !body.date || !Array.isArray(body.stocks)) return { ok: false, error: '格式不對' };
+  const name = '訊號檢查_' + String(body.date).replace(/-/g, '');
+  const folder = DriveApp.getFolderById(SIG_FOLDER);
+  const old = folder.getFilesByName(name);
+  while (old.hasNext()) old.next().setTrashed(true);   // 同一天重跑就蓋掉
+  const f = folder.createFile(name, JSON.stringify({ date: body.date, stocks: body.stocks }), MimeType.PLAIN_TEXT);
+  return { ok: true, id: f.getId(), n: body.stocks.length };
 }
