@@ -176,7 +176,7 @@ button:active,.ht.rw:active,.row[data-code]:active,.card[id^=go]:active{opacity:
 .lu{background:var(--up);color:#fff!important;border-radius:4px;padding:0 3px}.ld{background:var(--down);color:#fff!important;border-radius:4px;padding:0 3px}
 .pk .ht{grid-template-columns:1.2fr .95fr .95fr .95fr}
 .wt{grid-template-columns:1.25fr .95fr .8fr .85fr .8fr}.wt.r4{grid-template-columns:1.25fr .95fr .9fr .9fr .9fr}
-.wt .cd{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.wt .c b{font-size:15px}.wt .c .m{font-size:14px}
+.wt .cd{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.wt .c b{font-size:15px}.wt .c .tn{font-size:14px}
 .wt.rw.fu .c b,.wt.rw.fd .c b{transition:none}
 label.ck{display:flex;gap:10px;align-items:center;color:var(--tx);font-size:16px;margin:12px 0}label.ck input{width:22px;height:22px}
 .sugg div.sr{padding:9px 10px 9px 14px}
@@ -1113,9 +1113,9 @@ function wlCell(c, k){
   const lim = lu ? ' lu' : ld ? ' ld' : '';
   if (k === 'p') return `<b class="${cls(x.c)}${lim}">${fp(x.p)}</b>`;
   if (v == null) return '<span class="sub">—</span>';
-  if (k === 'chg') return `<span class="${cls(v)} m">${sgn(v)}${fp(v)}</span>`;
-  if (k === 'c') return `<span class="${cls(v)}${lim} m">${sgn(v)}${fp(Math.round(v * 100) / 100)}%</span>`;
-  if (k === 'v') return `<span class="m">${fmt(v)}</span>`;
+  if (k === 'chg') return `<span class="${cls(v)} tn">${sgn(v)}${fp(v)}</span>`;   // 公開行情：不用 .m（.m 是金額，隱私模式會遮）
+  if (k === 'c') return `<span class="${cls(v)}${lim} tn">${sgn(v)}${fp(Math.round(v * 100) / 100)}%</span>`;
+  if (k === 'v') return `<span class="tn">${fmt(v)}</span>`;
   return pctC(v);
 }
 function wlSorted(cur, codes){
