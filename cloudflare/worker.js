@@ -5,6 +5,7 @@
 //   GET /q?c=2330,2454&i=1(要加權/櫃買)&f=1(要台指期)&b=1(要五檔)
 //   GET /live?c=2330      個股：報價＋五檔＋今天分時
 //   GET /k?c=2330         個股：日 K（約 7 年）
+//   GET /diag             健康檢查：Cloudflare 連每個資料源的結果與毫秒
 const ALLOW = ['https://k6107055.github.io'];
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
 const CODE_RE = /^\d{4,6}[A-Z]?$/;
@@ -31,6 +32,7 @@ export default {
       if (url.pathname === '/q') return json(Object.assign(await quotes(url), { ms: Date.now() - t0 }));
       if (url.pathname === '/live') return json(Object.assign(await live(url), { ms: Date.now() - t0 }));
       if (url.pathname === '/k') return json(Object.assign(await kline(url), { ms: Date.now() - t0 }));
+      if (url.pathname === '/diag') return json(await diagAll());
     } catch (e) { return json({ error: String(e && e.message || e) }, 502); }
     return new Response('Atlas 報價加速 OK v2', { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
   },
@@ -73,16 +75,40 @@ async function live(url) {
 }
 
 // Yahoo Finance 圖表資料（公開）：先試上市 .TW，再試上櫃 .TWO
+// query1 被擋（429/403）就換 query2；上市 .TW 抓不到（404）再試上櫃 .TWO
+let YHOST = 'query1';
 async function yChart(code, range, interval) {
   for (const sfx of ['.TW', '.TWO']) {
-    const r = await fetch('https://query1.finance.yahoo.com/v8/finance/chart/' + code + sfx + '?range=' + range + '&interval=' + interval + '&includePrePost=false',
-      { headers: { 'User-Agent': UA, Accept: 'application/json' } });
-    if (!r.ok) continue;
-    const j = await r.json();
-    const res = j && j.chart && j.chart.result && j.chart.result[0];
-    if (res && res.timestamp && res.timestamp.length) return res;
+    for (const host of YHOST === 'query1' ? ['query1', 'query2'] : ['query2', 'query1']) {
+      let r;
+      try { r = await fetch('https://' + host + '.finance.yahoo.com/v8/finance/chart/' + code + sfx + '?range=' + range + '&interval=' + interval + '&includePrePost=false',
+        { headers: { 'User-Agent': UA, Accept: 'application/json' } }); } catch (e) { continue; }
+      if (r.status === 404) break;            // 這個市場沒有這檔 → 換市場
+      if (!r.ok) continue;                    // 被擋 → 換另一台
+      YHOST = host;
+      const j = await r.json();
+      const res = j && j.chart && j.chart.result && j.chart.result[0];
+      if (res && res.timestamp && res.timestamp.length) return res;
+      break;
+    }
   }
   return null;
+}
+
+// 健康檢查：每個資料源各打一次，回報有沒有拿到資料、花幾毫秒
+async function diagAll() {
+  const probe = async (name, fn) => { const t0 = Date.now(); try { const v = await fn(); return [name, { ok: !!v && !/^[45]\d\d /.test(String(v)), ms: Date.now() - t0, sample: v }]; } catch (e) { return [name, { ok: false, ms: Date.now() - t0, err: String(e && e.message || e) }]; } };
+  const raw = async (u, opt) => { const r = await fetch(u, opt); return r.status + ' ' + (await r.text()).slice(0, 80); };
+  const rows = await Promise.all([
+    probe('Yahoo奇摩 報價', async () => { const x = await ytwFetch(['2330'], true); return x.q['2330'] ? x.q['2330'].price + ' / 加權 ' + (x.idx && x.idx.twse && x.idx.twse.p) : null; }),
+    probe('證交所 五檔', async () => { const x = await misFetch(['2330'], true); return x.q['2330'] ? x.q['2330'].price + ' / 買一 ' + (x.q['2330'].book.bid[0] || []).join('x') : null; }),
+    probe('Yahoo Finance query1', () => raw('https://query1.finance.yahoo.com/v8/finance/chart/2330.TW?range=5d&interval=1d', { headers: { 'User-Agent': UA } })),
+    probe('Yahoo Finance query2', () => raw('https://query2.finance.yahoo.com/v8/finance/chart/2330.TW?range=5d&interval=1d', { headers: { 'User-Agent': UA } })),
+    probe('K 線（實際用的）', async () => { const r = await yChart('2330', '1mo', '1d'); return r ? r.timestamp.length + ' 根' : null; }),
+    probe('分時（實際用的）', async () => { const r = await intrFetch('2330'); return r ? r.t.length + ' 筆' : null; }),
+    probe('期交所 台指期', async () => { const f = await futFetch(); return f ? f.name + ' ' + f.p + (f.night ? '（夜盤）' : '') : null; }),
+  ]);
+  return { at: twNow().toISOString().slice(0, 19).replace('T', ' '), results: Object.fromEntries(rows) };
 }
 async function intrFetch(code) {
   const res = await yChart(code, '1d', '1m');
@@ -124,7 +150,8 @@ async function futFetch() {
   const list = (j && j.RtData && j.RtData.QuoteList) || [];
   let best = null;
   list.forEach(x => {
-    if (!/^TXF/.test(String(x.SymbolID || '')) || /-S$/.test(String(x.SymbolID))) return;   // 只要台指期，不要現貨列
+    const id = String(x.SymbolID || '');
+    if (!/^TXF/.test(id) || /-[SP]$/.test(id) || /現貨/.test(String(x.DispCName || ''))) return;   // 只要台指期，不要現貨列（日盤 TXF-S、夜盤 TXF-P）
     const p = num(x.CLastPrice), ref = num(x.CRefPrice), vol = num(x.CTotalVolume) || 0;
     if (!(p > 0) || !(ref > 0)) return;
     if (!best || vol > best.vol) best = { p, ref, vol, t: String(x.CTime || ''), name: String(x.DispCName || '') };
