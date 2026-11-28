@@ -46,7 +46,7 @@ main{padding:0 12px}
 .row{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
 .row:first-child{border-top:0}
 .row .l{flex:1;min-width:0}
-.row .r{text-align:right}
+.row .r{text-align:right}.row .px div{white-space:nowrap}
 .nm{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tag{display:inline-block;font-size:11px;padding:1px 6px;border-radius:6px;background:var(--pri2);color:var(--pri);margin-left:4px;vertical-align:1px;font-weight:500}
 .tag.h{background:var(--upbg);color:var(--up)}
@@ -376,6 +376,11 @@ const cls = n => n > 0 ? 'up' : n < 0 ? 'down' : '';
 const vc = (v, ref) => v != null && ref ? cls(v - ref) : '';   // 台股慣例：跟昨收（參考價）比，高於＝紅、低於＝綠
 const money = n => `<span class="${cls(n)}">${sgn(n)}${fmt(n)}</span>`;
 const pct = n => n == null ? '<span class="sub">—</span>' : `<span class="${cls(n)}">${sgn(n)}${fp(n)}%</span>`;
+// v2.32 漲跌：「漲多少元＋漲幾%」一起顯示；有昨收用昨收算，沒有就由漲跌幅反推
+const tick = p => p < 10 ? 0.01 : p < 50 ? 0.05 : p < 100 ? 0.1 : p < 500 ? 0.5 : p < 1000 ? 1 : 5;   // 台股升降單位
+const chgAmt = (p, c, y) => { if (!p) return null; if (y) return Math.round((p - y) * 100) / 100; if (c == null) return null;
+  const a = p - p / (1 + c / 100), t = tick(p - a); return Math.round(Math.round(a / t) * t * 100) / 100; };   // 反推的對齊到升降單位
+const chgBoth = (p, c, y) => { const a = chgAmt(p, c, y); if (a == null && c == null) return '<span class="sub">—</span>'; const k = cls(a != null ? a : c); return `<span class="${k}">${a != null ? sgn(a) + fp(a) + ' ' : ''}${c != null ? sgn(c) + fp(c) + '%' : ''}</span>`; };
 const ymd8 = d => { d = String(d); return d.length === 8 ? d.slice(4, 6) + '/' + d.slice(6) : d.slice(5).replace('-', '/'); };
 const today = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 const shTxt = sh => sh % 1000 === 0 ? fmt(sh / 1000) + ' 張' : (sh >= 1000 ? fmt(Math.floor(sh / 1000)) + ' 張 ' + fmt(sh % 1000) + ' 股' : fmt(sh) + ' 股');
@@ -780,7 +785,7 @@ const HCOLS = {
 function cellHtml(k, h){
   switch (k){
     case 'day': return `<b class="${cls(h.day)} m">${sgn(h.day)}${fmt(h.day)}</b>`;
-    case 'chgPct': return `<b class="${cls(h.chgPct)}" data-px="${h.code}">${fp(h.price)}</b><br>${pctC(h.chgPct, true)}`;
+    case 'chgPct': return `<b class="${cls(h.chgPct)}" data-px="${h.code}">${fp(h.price)}</b><br>${h.prev ? `<span class="${cls(h.chgPct)}">${sgn(h.price - h.prev)}${fp(Math.round((h.price - h.prev) * 100) / 100)}</span> ` : ''}${pctC(h.chgPct, true)}`;
     case 'unreal': return `<b class="${cls(h.unreal)} m">${sgn(h.unreal)}${fmt(h.unreal)}</b><br>${pctC(h.ret)}`;
     case 'r5': case 'r20': case 'rY': return `<b>${pctC(h[k])}</b>`;
     case 'weight': return `<b>${fp(Math.round(h.weight * 10) / 10)}%</b>`;
@@ -1059,8 +1064,8 @@ async function refreshLists(){
 }
 async function pollLists(){
   const codes = Object.keys(LISTS.info);
-  { const d = await call('quotes', {codes, idx: 1}); if (d.idx && d.idx.twse){ IDXQ = d.idx; ls.set('idx', d.idx); paintIdx(); } Object.keys(d.q).forEach(c => { const i = LISTS.info[c]; if (!i) return; const o = i.p; i.p = d.q[c].p; i.c = d.q[c].c;
-      const el = $(`#wl [data-code="${c}"] .px`); if (el){ el.innerHTML = `<b>${fp(i.p)}</b><div>${pct(i.c)}</div>`; if (o != null && o !== i.p){ el.classList.remove('fu', 'fd'); void el.offsetWidth; el.classList.add(i.p > o ? 'fu' : 'fd'); } } });
+  { const d = await call('quotes', {codes, idx: 1}); if (d.idx && d.idx.twse){ IDXQ = d.idx; ls.set('idx', d.idx); paintIdx(); } Object.keys(d.q).forEach(c => { const i = LISTS.info[c]; if (!i) return; const o = i.p; i.p = d.q[c].p; i.c = d.q[c].c; i.y = d.q[c].y || null;
+      const el = $(`#wl [data-code="${c}"] .px`); if (el){ el.innerHTML = `<b>${fp(i.p)}</b><div>${chgBoth(i.p, i.c, i.y)}</div>`; if (o != null && o !== i.p){ el.classList.remove('fu', 'fd'); void el.offsetWidth; el.classList.add(i.p > o ? 'fu' : 'fd'); } } });
     LISTS.open = d.open; const t = $('#wlAt'); if (t) t.textContent = (d.open ? '即時 ' : '收盤 ') + d.at;
     if (Date.now() - (pollLists.saved || 0) > 30000){ pollLists.saved = Date.now(); ls.set('lists', LISTS); }   // 存手機 30 秒一次就好，不要每 2.5 秒寫一次
   }
@@ -1077,7 +1082,7 @@ function paintLists(){
   const row = (c, i) => { const x = LISTS.info[c] || {};
     return `<div class="row" data-code="${esc(c)}"><div class="l"><div class="nm">${cn(c, x.n)}</div>${x.e ? `<div class="sub">法人預估 ${ymd8(x.e.d)} ${esc(x.e.y)} EPS ${fp(x.e.eps)} ${pct(x.e.pct)}</div>` : ''}</div>
       ${EDIT && editable ? `<div class="ed">${i ? `<button data-mv="up" title="上移">↑</button>` : ''}${i < codes.length - 1 ? `<button data-mv="down" title="下移">↓</button>` : ''}<button data-rm="1" class="rm" title="移除">✕</button></div>`
-        : `<div class="r px"><b>${fp(x.p)}</b><div>${pct(x.c)}</div></div>`}</div>`; };
+        : `<div class="r px"><b>${fp(x.p)}</b><div>${chgBoth(x.p, x.c, x.y)}</div></div>`}</div>`; };
   $('#wl').innerHTML = `<div class="card"><h3>${cur === '__hold' ? '💼 持股（從記帳自動帶入）' : esc(cur)}<span class="sub" id="wlAt" style="font-weight:400">${LISTS.open ? '即時 ' + esc(LISTS.at) : '已收盤'}</span>
       ${editable ? `<button class="more" id="edit">${EDIT ? '完成' : '✏️ 編輯'}</button>` : ''}</h3>
     ${codes.map(row).join('') || `<div class="empty">${cur === '__hold' ? '記帳 → 股票交易 記一筆買進後就會出現' : '用上面的搜尋框找股票，按 ＋ 加進來'}</div>`}
@@ -2190,7 +2195,7 @@ function qxIdx(jidx){
 }
 async function qxCall(op, args){
   if (op === 'quotes'){ const j = await qxFetch(args.codes || [], !!args.idx, false); if (!j) return null;
-    const q = {}; Object.keys(j.q).forEach(c => { const x = j.q[c]; q[c] = {p: x.price, c: x.prev ? r2f((x.price / x.prev - 1) * 100) : null, t: x.t, v: x.v}; });
+    const q = {}; Object.keys(j.q).forEach(c => { const x = j.q[c]; q[c] = {p: x.price, c: x.prev ? r2f((x.price / x.prev - 1) * 100) : null, y: x.prev, t: x.t, v: x.v}; });
     return {q, open: j.open, at: j.at, idx: j.idx ? qxIdx(j.idx) : j.idx}; }
   if (op === 'rt'){ const j = await qxFetch(args.codes || [], true, false); if (!j) return null;
     const q = {}; Object.keys(j.q).forEach(c => { const x = j.q[c]; q[c] = {p: x.price, y: x.prev, t: x.t, v: x.v}; });
@@ -2488,7 +2493,7 @@ const ESTF = 1;   // |調幅| 小於 1% 當作「微調」
 function estKind(r){ if (r.init) return ['初評', 'flat']; if (r.pct == null) return ['首次紀錄', 'flat']; if (Math.abs(r.pct) < ESTF) return ['微調', 'flat']; return r.pct > 0 ? ['上修', 'up'] : ['下修', 'down']; }
 function paintEstPx(code){
   const q = EHQ; if (!q) return;
-  const e = $('#ehpx'); if (e) e.innerHTML = `<b class="big ${cls(q.c)}" style="font-size:24px">${fp(q.p)}</b> ${pct(q.c)} <span class="sub">${esc(q.t || '')}</span>`;
+  const e = $('#ehpx'); if (e) e.innerHTML = `<b class="big ${cls(q.c)}" style="font-size:24px">${fp(q.p)}</b> ${chgBoth(q.p, q.c, q.y)} <span class="sub">${esc(q.t || '')}</span>`;
   $$('[data-after]').forEach(el => { const c0 = +el.dataset.after; if (c0 && q.p) el.innerHTML = `之後 ${pct(Math.round((q.p / c0 - 1) * 1000) / 10)}`; });
 }
 function paintEst(code){
