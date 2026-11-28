@@ -477,19 +477,21 @@ function prefetchAll(){
   setTimeout(() => loadCharts().catch(() => {}), 1500);
   gh('rank.json', 1800000).catch(() => {});
 }
-// 持股和目前自選清單前幾檔：背景先把 K 線抓好存手機，點進去秒開（一天抓一次）
+// v2.31 K 線預抓：持股＋所有自選清單，背景用 Cloudflare 抓好存手機（Cache Storage，容量大），點進去直接畫、不用等網路
+const KC = 'atlas-k1';
+async function kcGet(code){ try { const c = await caches.open(KC); const r = await c.match('/k/' + code); return r ? await r.json() : null; } catch(e){ return null; } }
+async function kcPut(code, k){ try { const c = await caches.open(KC); await c.put('/k/' + code, new Response(JSON.stringify({k, d: today()}), {headers: {'Content-Type': 'application/json'}})); } catch(e){} }
 async function prefetchStocks(){
   const hold = (HOMEF && HOMEF.pf ? HOMEF.pf.hold.map(x => x.code) : (LISTS ? LISTS.hold : [])) || [];
   const L = LISTS && LISTS.lists.find(l => l.name === SUB.list);
-  const codes = [...new Set(hold.concat(L ? L.codes : []))].slice(0, 12);
-  const td = today();
-  for (const c of codes){
-    const hit = ls.get('stk_' + c, null);
-    if (hit && hit.__d === td) continue;
-    await idle();   // 你在操作時先停，等空檔再抓
-    try { const d = await rawCall('kline', {code: c}); const o = ls.get('stk_' + c, null) || {}; ls.set('stk_' + c, Object.assign(o, d, {__d: td})); rememberStk(c); } catch(e){ break; }
-    await new Promise(r => setTimeout(r, 1200));
-  }
+  const all = LISTS && LISTS.lists ? LISTS.lists.reduce((a, l) => a.concat(l.codes || []), []) : [];
+  const codes = [...new Set(hold.concat(L ? L.codes : [], all))].slice(0, 120);   // 先持股、再目前清單、再其他清單
+  const td = today(), todo = [];
+  for (const c of codes){ const h = await kcGet(c); if (!h || h.d !== td) todo.push(c); }
+  let i = 0;
+  const worker = async () => { while (i < todo.length){ const c = todo[i++]; await idle();   // 你在操作時先停，等空檔再抓
+    try { const d = await call('kline', {code: c}); if (d && d.k) await kcPut(c, d.k); } catch(e){} } };
+  await Promise.all([worker(), worker(), worker()]);   // 同時 3 檔
 }
 function pairScreen(msg){
   VIEW = 'pair'; stopLive();
@@ -1139,7 +1141,10 @@ async function stockDetail(code){
   // v2.5 一點進來就先畫出整頁：有存過就用存的，沒有就先用自選清單上的價格，K 線那格顯示讀取中
   const li = LISTS && LISTS.info && LISTS.info[code];
   const quick = li && li.p ? {price: li.p, prev: li.c != null ? Math.round(li.p / (1 + li.c / 100) * 100) / 100 : null} : null;
-  renderStock(code, cached || {code, name: sname(code), q: quick, k: null}, true);
+  const kc = await kcGet(code);   // v2.31 預抓好的 K 線（幾毫秒）
+  const base0 = cached || {code, name: sname(code), q: quick, k: null};
+  if (kc && kc.k && (!base0.k || kc.d >= (base0.__d || ''))) base0.k = kc.k;
+  renderStock(code, base0, true);
   rememberStk(code);
   // ① 報價：馬上開始，盤中每 2.5 秒跳一次（不等 K 線）
   setLive(async () => {
@@ -1163,9 +1168,11 @@ async function stockDetail(code){
   // ⑦ 📊 財報：滑到那張卡片才抓
   watchFin(code);
   // ⑤ K 線（不開試算表，最快）
+  if (kc && kc.d === today() && kc.k) return;   // 今天抓過了（畫面上已經用它畫好），今天那根由即時報價補
   try {
     const d = await call('kline', {code, noq: !!LIVE});
     if (VIEW !== 'stock' || SUB.code !== code) return;
+    if (d && d.k) kcPut(code, d.k);
     STK = Object.assign(STK || {}, d, d.q ? {} : {q: STK && STK.q});
     ls.set('stk_' + code, Object.assign({}, STK, {myTx: null, __d: today()}));
     $('#ttl').textContent = code + ' ' + (STK.name || sname(code));
